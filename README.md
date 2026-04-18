@@ -40,12 +40,48 @@ Working starting points you can copy and adapt:
 
 WP Wireframe is a library, not a standalone plugin. Bundle a copy inside your own plugin's `vendor/` folder.
 
-1. Download the [latest release zip](https://github.com/tdrayson/wp-wireframe/archive/refs/heads/main.zip) and extract it so the folder sits at `your-plugin/vendor/wp-wireframe/`.
+### Option 1: Composer (recommended)
+
+Add the GitHub repo to your plugin's `composer.json` — no Packagist needed:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/tdrayson/wp-wireframe"
+        }
+    ],
+    "require": {
+        "tdrayson/wp-wireframe": "^1.0"
+    }
+}
+```
+
+Then install:
+
+```bash
+composer install
+```
+
+And require Composer's autoloader from your plugin's main file:
+
+```php
+require_once __DIR__ . '/vendor/autoload.php';
+```
+
+Composer resolves the latest tagged release. The compiled JS/CSS bundle ships with the package, so there's no build step on your side.
+
+### Option 2: Manual download
+
+1. Download the [latest release zip](https://github.com/tdrayson/wp-wireframe/releases/latest) and extract it so the folder sits at `your-plugin/vendor/wp-wireframe/`.
 2. Require the autoloader from your plugin's main file:
 
 ```php
- require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
+require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
 ```
+
+---
 
 That's it — no separate plugin to install or activate. If multiple plugins each bundle their own copy, they share one class definition at runtime and boot independently under their own prefixes.
 
@@ -67,7 +103,9 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
+// Composer autoloader — use the manual path
+// (vendor/wp-wireframe/vendor/autoload.php) if you installed without Composer.
+require_once __DIR__ . '/vendor/autoload.php';
 
 add_action('init', function () {
     Wireframe\App::boot([
