@@ -1,4 +1,4 @@
-WP Wireframe hero image
+![WP Wireframe Thumbnail](docs/hero-image.png)
 
 # WP Wireframe
 
