@@ -1,5 +1,6 @@
 /vendor/
 /node_modules/
+/src/assets/
 /build/
 wp-wireframe.zip
 .DS_Store

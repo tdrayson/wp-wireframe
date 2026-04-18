@@ -1,6 +1,6 @@
 {
     "name": "tdrayson/wp-wireframe",
-    "description": "Declarative WordPress settings pages from a single PHP config array.",
+    "description": "A fast, standardised way to build WordPress settings pages from a PHP array.",
     "type": "library",
     "license": "GPL-2.0-or-later",
     "require": {

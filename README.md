@@ -1,10 +1,10 @@
-![WP Wireframe Thumbnail](docs/hero-image.png)
+![WP Wireframe Thumbnail](docs/featured-image.png)
 
 # WP Wireframe
 
 **Skip the admin UI. Ship your plugin.**
 
-Building a plugin? Don't waste days on settings pages. Describe your fields in a PHP array and WP Wireframe renders a native WordPress admin UI for you — consistent, standardised, and uniform across every plugin you build.
+A fast, standardised way to build WordPress settings pages. List your fields in a PHP array and WP Wireframe builds the whole admin page using WordPress react components. Same clean UI, same field behaviour, same patterns across every plugin you ship.
 
 ---
 
@@ -14,7 +14,7 @@ Building a plugin? Don't waste days on settings pages. Describe your fields in a
 - **Standardised fields** — every input looks and behaves the same across plugins and projects
 - **Native WordPress look** — built on `@wordpress/components` and `@wordpress/admin-ui`
 - **Laravel-style API** — `Settings::get()`, `Settings::bool()`, dot notation
-- **Validation & conditional fields** — server-side rules and show/hide logic, declaratively
+- **Validation & conditional fields** — server-side rules and show/hide logic built right into the field config
 - **Multi-page, repeaters, import/export, i18n** — included out of the box
 - **Zero JS build** — pre-built React app ships with the package
 
@@ -42,9 +42,10 @@ WP Wireframe is a library, not a standalone plugin. Bundle a copy inside your ow
 
 1. Download the [latest release zip](https://github.com/tdrayson/wp-wireframe/archive/refs/heads/main.zip) and extract it so the folder sits at `your-plugin/vendor/wp-wireframe/`.
 2. Require the autoloader from your plugin's main file:
-  ```php
-   require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
-  ```
+
+```php
+ require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
+```
 
 That's it — no separate plugin to install or activate. If multiple plugins each bundle their own copy, they share one class definition at runtime and boot independently under their own prefixes.
 
@@ -253,7 +254,6 @@ return [
 
 These are common to all field types:
 
-
 | Key           | Description                         | Default  |
 | ------------- | ----------------------------------- | -------- |
 | `id`          | Unique field identifier             | Required |
@@ -265,7 +265,6 @@ These are common to all field types:
 | `validation`  | Rakit validation rules string       | `''`     |
 | `columns`     | Grid width (1-12)                   | `12`     |
 | `conditions`  | Conditional visibility rules        | `null`   |
-
 
 ### Type-specific settings (`args`)
 
@@ -306,7 +305,6 @@ No tabs = no tab bar. No sections = fields render in a single card.
 
 ### Text Family
 
-
 | Type       | Description                       | Stored as |
 | ---------- | --------------------------------- | --------- |
 | `text`     | Single-line text input            | `string`  |
@@ -316,9 +314,7 @@ No tabs = no tab bar. No sections = fields render in a single card.
 | `textarea` | Multi-line text                   | `string`  |
 | `hidden`   | Not rendered, round-trips a value | `string`  |
 
-
 ### Choice
-
 
 | Type         | Description                                                         | Stored as           |
 | ------------ | ------------------------------------------------------------------- | ------------------- |
@@ -328,18 +324,14 @@ No tabs = no tab bar. No sections = fields render in a single card.
 | `toggle`     | On/off switch                                                       | `bool`              |
 | `checkbox`   | Single checkbox                                                     | `bool`              |
 
-
 ### Numeric
-
 
 | Type     | Description                     | Stored as        |
 | -------- | ------------------------------- | ---------------- |
 | `number` | Numeric input with min/max/step | `int` or `float` |
 | `range`  | Slider with tooltip             | `int` or `float` |
 
-
 ### Date, Time & Color
-
 
 | Type    | Description                     | Stored as             |
 | ------- | ------------------------------- | --------------------- |
@@ -347,43 +339,34 @@ No tabs = no tab bar. No sections = fields render in a single card.
 | `time`  | Time input (24h)                | `string` (HH:MM)      |
 | `color` | Color swatch + picker dropdown  | `string` (#hex)       |
 
-
 ### Rich Content
-
 
 | Type          | Description                         | Stored as       |
 | ------------- | ----------------------------------- | --------------- |
 | `editor`      | TinyMCE WYSIWYG editor              | `string` (HTML) |
 | `code_editor` | CodeMirror with syntax highlighting | `string`        |
 
-
 Supported code modes: `css`, `js`, `html`, `php`, `json`, `xml`, `sql`
 
 ### Media
-
 
 | Type   | Description                                                             | Stored as                |
 | ------ | ----------------------------------------------------------------------- | ------------------------ |
 | `file` | Media Library picker. Add `'multiple' => true` in args for multi-select | `array` (attachment IDs) |
 
-
 ### Complex
-
 
 | Type       | Description                          | Stored as          |
 | ---------- | ------------------------------------ | ------------------ |
 | `repeater` | Add/remove/reorder rows of subfields | `array` of objects |
 
-
 ### Display & Actions (stateless)
-
 
 | Type     | Description                                                      | Stored as |
 | -------- | ---------------------------------------------------------------- | --------- |
 | `html`   | Read-only display block (info, success, warning, error variants) | —         |
 | `export` | Download settings as JSON                                        | —         |
 | `import` | Upload JSON to restore settings                                  | —         |
-
 
 ---
 
@@ -710,13 +693,11 @@ add_filter('wp-wireframe/field_types', function (array $types) {
 
 Settings are managed via REST endpoints:
 
-
 | Method   | Endpoint                         | Description              |
 | -------- | -------------------------------- | ------------------------ |
 | `GET`    | `/{prefix}/v1/settings/{pageId}` | Get config + values      |
 | `POST`   | `/{prefix}/v1/settings/{pageId}` | Validate, sanitize, save |
 | `DELETE` | `/{prefix}/v1/settings/{pageId}` | Reset to defaults        |
-
 
 All endpoints require `manage_options` capability (or your configured `capability`).
 
