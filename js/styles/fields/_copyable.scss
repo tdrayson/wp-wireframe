@@ -1,0 +1,89 @@
+/**
+ * Copyable & read-only field states.
+ *
+ * Copyable: `_args.copyable = true` adds an inline copy button.
+ * Read-only: `_args.readonly = true` locks the value and tints the background.
+ */
+
+// ─── Copy button positioning ───────────────────────────────────
+//
+// The BaseControl structure is:
+//   <label>  ~20px + 8px margin = ~$label-offset
+//   <input>  $input-h
+//   <help>   optional, below the input — we ignore it by anchoring to the top
+//
+// Centering the button on the input: top = $label-offset + ($input-h - $btn-size) / 2
+
+$input-h: 40px;
+$btn-size: 24px;
+$label-offset: 23.4px;
+$btn-top: calc(#{$label-offset} + (#{$input-h} - #{$btn-size}) / 2);
+
+.wireframe-field--copyable {
+  position: relative;
+
+  .wireframe-field__copy-btn {
+    position: absolute;
+    top: $btn-top;
+    right: 9px;
+    z-index: 1;
+    width: $btn-size;
+    height: $btn-size;
+    min-width: $btn-size;
+    padding: 0;
+    opacity: 0.65;
+    transition: opacity 0.15s ease;
+
+    &:hover,
+    &:focus {
+      opacity: 1;
+    }
+  }
+
+  // Reserve room for the button inside the input so the text doesn't
+  // slide under it when the value grows.
+  input[type='text'],
+  input[type='email'],
+  input[type='url'],
+  input[type='password'],
+  textarea {
+    padding-right: 36px;
+  }
+
+  // Number inputs have native spin arrows — shift the button further left
+  // and reserve extra padding so the value clears both the spinners and
+  // the button.
+  input[type='number'] {
+    padding-right: 60px;
+  }
+
+  &:has(input[type='number']) {
+    .wireframe-field__copy-btn {
+      right: 34px;
+    }
+  }
+
+  // Textarea — pin to the top-right of the textarea row, not vertically
+  // centered on it.
+  &.wireframe-field--copyable-textarea {
+    .wireframe-field__copy-btn {
+      top: calc(#{$label-offset} + 6px);
+    }
+  }
+}
+
+// ─── Read-only visual state ────────────────────────────────────
+//
+// Scoped to .wireframe-page so it only tints inputs inside our settings UI.
+
+.wireframe-page {
+  input[type='text'][readonly],
+  input[type='email'][readonly],
+  input[type='url'][readonly],
+  input[type='password'][readonly],
+  input[type='number'][readonly],
+  textarea[readonly] {
+    background-color: #f0f0f1;
+    cursor: not-allowed;
+  }
+}

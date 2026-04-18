@@ -29,6 +29,7 @@
 @use 'fields/wysiwyg';
 @use 'fields/date';
 @use 'fields/color';
+@use 'fields/copyable';
 
 // Responsive (must be last)
 @use 'responsive';

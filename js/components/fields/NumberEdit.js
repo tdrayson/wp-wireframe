@@ -3,12 +3,15 @@
  */
 import { __experimentalNumberControl as NumberControl } from '@wordpress/components';
 import { getFieldHelp } from './useFieldError';
+import CopyButton from './CopyButton';
 
 export default function NumberEdit( { data, field, onChange, error } ) {
 	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? 0;
+	const readOnly = !! _args.readonly;
+	const copyable = !! _args.copyable;
 
-	return (
+	const control = (
 		<NumberControl
 			__next40pxDefaultSize
 			label={ field.label }
@@ -22,7 +25,22 @@ export default function NumberEdit( { data, field, onChange, error } ) {
 			max={ _args.max }
 			step={ _args.step || 1 }
 			spinControls="native"
+			readOnly={ readOnly }
 			className={ error ? 'has-error' : undefined }
 		/>
+	);
+
+	if ( ! copyable ) {
+		return control;
+	}
+
+	return (
+		<div className="wireframe-field--copyable">
+			{ control }
+			<CopyButton
+				value={ value }
+				className="wireframe-field__copy-btn"
+			/>
+		</div>
 	);
 }
