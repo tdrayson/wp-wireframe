@@ -114,10 +114,13 @@ final class AdminPage
             true
         );
 
+        // wp-components ships a stylesheet that we depend on;
+        // wp-dataviews is bundled into our JS, so its CSS is imported
+        // directly in the JS entry and emitted into our own index.css.
         wp_enqueue_style(
             $handle,
             $assetsUrl . 'index.css',
-            [],
+            ['wp-components'],
             $asset['version']
         );
 

@@ -1,21 +1,13 @@
-// Table (DataViews)
-
-.wireframe-table {
-  margin-top: var(--wpds-dimension-gap-sm);
-
-  .dataviews-wrapper {
-    border: var(--wpds-border-width-xs) solid
-      var(--wpds-color-stroke-surface-neutral-weak);
-    border-radius: var(--wpds-border-radius-md);
-  }
+.dataviews-view-table {
+    tr td:first-child, tr th:first-child {
+        padding-left: 10px;
+    }
+    
+    tr td:last-child, tr th:last-child {
+        padding-right: 10px;
+    }
 }
 
-.wireframe-table__action-icon {
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  svg {
-    width: 100%;
-    height: 100%;
-  }
+.dataviews__view-actions, .dataviews-filters__container, .dataviews-footer {
+    padding-inline: 10px;
 }

@@ -6,6 +6,7 @@ namespace Wireframe;
 
 use Wireframe\Admin\AdminPage;
 use Wireframe\Rest\SettingsController;
+use Wireframe\Rest\TableController;
 
 /**
  * Registers WordPress hooks for the admin page and REST API.
@@ -42,6 +43,7 @@ final class Plugin
         add_action('admin_menu', [AdminPage::class, 'register']);
         add_action('admin_enqueue_scripts', [AdminPage::class, 'enqueueAssets']);
         add_action('rest_api_init', [SettingsController::class, 'register']);
+        add_action('rest_api_init', [TableController::class, 'register']);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
     }
 

@@ -30,6 +30,12 @@
 @use 'fields/date';
 @use 'fields/color';
 @use 'fields/copyable';
+@use 'fields/table-detail';
 
 // Responsive (must be last)
 @use 'responsive';
+
+// @wordpress/dataviews ships its own stylesheet but WP core doesn't
+// register a `wp-dataviews` style handle — pull it in here so it ends up
+// in our bundled index.css. Placed after @use blocks per Sass ordering rules.
+@import '@wordpress/dataviews/build-style/style.css';
