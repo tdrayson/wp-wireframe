@@ -1,0 +1,40 @@
+// WP Admin Shell — full-height flex chain
+
+.wireframe-admin {
+  #wpbody-content > .wrap {
+    margin: 0;
+    padding: 0;
+  }
+
+  #wpcontent {
+    padding-left: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - var(--wp-admin--admin-bar--height, 0px));
+  }
+
+  #wpbody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #wpbody-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+  }
+
+  #wpbody-content > .wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  [data-object-name] {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,6 @@
+/vendor/
+/node_modules/
+/build/
+wp-wireframe.zip
+.DS_Store
+*.log

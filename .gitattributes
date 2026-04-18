@@ -1,0 +1,10 @@
+/docs              export-ignore
+/examples          export-ignore
+/js                export-ignore
+/node_modules      export-ignore
+/.github           export-ignore
+/.vscode           export-ignore
+/package.json      export-ignore
+/package-lock.json export-ignore
+/.gitattributes    export-ignore
+/.gitignore        export-ignore

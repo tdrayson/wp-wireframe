@@ -1,0 +1,24 @@
+// Responsive overrides
+
+@media (max-width: 782px) {
+  .wireframe-grid {
+    grid-template-columns: 1fr;
+  }
+  .wireframe-grid__cell {
+    grid-column: span 1 !important;
+  }
+
+  .wireframe-page {
+  }
+
+  .wireframe-section {
+    padding: var(--wpds-dimension-padding-lg);
+  }
+
+  .wireframe-image-choice {
+    flex-direction: column;
+  }
+  .wireframe-image-choice__option {
+    max-width: none;
+  }
+}

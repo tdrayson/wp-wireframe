@@ -1,0 +1,16 @@
+{
+    "name": "tdrayson/wp-wireframe",
+    "description": "Declarative WordPress settings pages from a single PHP config array.",
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.1",
+        "rakit/validation": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Wireframe\\": "src/"
+        }
+    },
+    "keywords": ["wordpress", "settings", "admin", "framework", "react"]
+}

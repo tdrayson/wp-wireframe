@@ -1,0 +1,15 @@
+// WYSIWYG & Code Editor
+
+.wireframe-wysiwyg__textarea {
+  min-height: 200px;
+}
+
+.wireframe-code-editor__textarea {
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-md);
+  tab-size: 4;
+}
+
+.wp-editor-tabs button {
+  box-sizing: unset;
+}

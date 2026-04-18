@@ -1,0 +1,45 @@
+// Page Layout
+
+.wireframe-page {
+  --page-width: var(--wpds-dimension-surface-width-2xl);
+  font-family: var(--wpds-typography-font-family-body);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--wpds-color-bg-surface-neutral-weak);
+
+  > .admin-ui-page {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--wpds-color-bg-surface-neutral-weak);
+  }
+}
+
+// Sticky header (sits below WP admin bar)
+.admin-ui-page__header {
+  position: sticky;
+  top: var(--wp-admin--admin-bar--height, 0px);
+  z-index: 10;
+
+  &-subtitle {
+    padding-bottom: 0;
+  }
+
+  & > * {
+    margin-inline: auto;
+    max-width: var(--page-width);
+    width: 100%;
+  }
+}
+
+.wireframe-page__content {
+  max-width: var(--page-width);
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-lg);
+  padding-block: var(--wpds-dimension-padding-3xl);
+}

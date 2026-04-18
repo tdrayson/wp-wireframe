@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Stage release files
+        run: |
+          mkdir -p build/wp-wireframe
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='.gitattributes' \
+            --exclude='.vscode' \
+            --exclude='.DS_Store' \
+            --exclude='build' \
+            --exclude='docs' \
+            --exclude='examples' \
+            --exclude='js' \
+            --exclude='node_modules' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            ./ build/wp-wireframe/
+
+      - name: Create zip
+        run: |
+          cd build
+          zip -r ../wp-wireframe.zip wp-wireframe
+          cd ..
+          ls -la wp-wireframe.zip
+          echo "Zip contents:" && unzip -l wp-wireframe.zip | head -40
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: wp-wireframe.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

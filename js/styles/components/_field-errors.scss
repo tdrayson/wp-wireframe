@@ -1,0 +1,18 @@
+// Field Errors
+
+.wireframe-field-error {
+  display: block;
+  color: var(--wpds-color-fg-content-error-weak);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
+  margin-top: var(--wpds-dimension-gap-xs);
+}
+
+.has-error {
+  .components-text-control__input,
+  .components-textarea-control__input,
+  .components-select-control__input,
+  input[type="number"] {
+    border-color: var(--wpds-color-stroke-interactive-error) !important;
+  }
+}

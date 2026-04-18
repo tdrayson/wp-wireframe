@@ -1,0 +1,48 @@
+// HTML Display Variants
+
+.wireframe-html {
+  font-size: var(--wpds-typography-font-size-md);
+  line-height: var(--wpds-typography-line-height-md);
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+
+  p {
+    margin: 0;
+  }
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  &--plain {
+    background: transparent;
+    padding: 0;
+  }
+
+  &--info {
+    background: var(--wpds-color-bg-surface-info-weak);
+    border-left: var(--wpds-border-width-md) solid
+      var(--wpds-color-stroke-surface-info-strong);
+    color: var(--wpds-color-fg-content-info);
+  }
+
+  &--success {
+    background: var(--wpds-color-bg-surface-success-weak);
+    border-left: var(--wpds-border-width-md) solid
+      var(--wpds-color-stroke-surface-success-strong);
+    color: var(--wpds-color-fg-content-success);
+  }
+
+  &--warning {
+    background: var(--wpds-color-bg-surface-warning-weak);
+    border-left: var(--wpds-border-width-md) solid
+      var(--wpds-color-stroke-surface-warning-strong);
+    color: var(--wpds-color-fg-content-warning);
+  }
+
+  &--error {
+    background: var(--wpds-color-bg-surface-error-weak);
+    border-left: var(--wpds-border-width-md) solid
+      var(--wpds-color-stroke-surface-error-strong);
+    color: var(--wpds-color-fg-content-error);
+  }
+}

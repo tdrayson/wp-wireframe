@@ -1,0 +1,21 @@
+// Table (DataViews)
+
+.wireframe-table {
+  margin-top: var(--wpds-dimension-gap-sm);
+
+  .dataviews-wrapper {
+    border: var(--wpds-border-width-xs) solid
+      var(--wpds-color-stroke-surface-neutral-weak);
+    border-radius: var(--wpds-border-radius-md);
+  }
+}
+
+.wireframe-table__action-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}

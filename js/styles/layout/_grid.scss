@@ -1,0 +1,15 @@
+// Grid Layout
+
+.wireframe-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--wpds-dimension-gap-lg) var(--wpds-dimension-gap-xl);
+}
+
+.wireframe-grid__cell {
+  min-width: 0;
+
+  .components-base-control {
+    margin-bottom: 0;
+  }
+}

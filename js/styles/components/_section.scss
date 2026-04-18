@@ -1,0 +1,26 @@
+// Section Card
+
+.wireframe-section {
+  background: var(--wpds-color-bg-surface-neutral-strong);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-md);
+  padding: var(--wpds-dimension-padding-2xl);
+
+  &__title {
+    font-size: var(--wpds-typography-font-size-lg);
+    font-weight: var(--wpds-typography-font-weight-medium);
+    color: var(--wpds-color-fg-content-neutral);
+    margin: 0;
+  }
+
+  &__description {
+    font-size: var(--wpds-typography-font-size-md);
+    color: var(--wpds-color-fg-content-neutral-weak);
+    margin: var(--wpds-dimension-gap-xs) 0;
+  }
+}
+
+.wireframe-section__body:not(:first-child) {
+  margin-top: var(--wpds-dimension-gap-xl);
+}

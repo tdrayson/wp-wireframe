@@ -1,0 +1,117 @@
+{
+    "translation-revision-date": "2026-04-17T20:00:00+00:00",
+    "generator": "Claude",
+    "source": "src/assets/index.js",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "es_ES",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "Settings configuration not found.": [
+                "No se encontró la configuración de ajustes."
+            ],
+            "Select date": [
+                "Seleccionar fecha"
+            ],
+            "Clear": [
+                "Limpiar"
+            ],
+            "Export failed.": [
+                "Error al exportar."
+            ],
+            "Export": [
+                "Exportar"
+            ],
+            "Invalid settings file format.": [
+                "Formato de archivo de ajustes no válido."
+            ],
+            "Settings imported successfully.": [
+                "Ajustes importados correctamente."
+            ],
+            "Import failed.": [
+                "Error al importar."
+            ],
+            "Import": [
+                "Importar"
+            ],
+            "Select Media": [
+                "Seleccionar medio"
+            ],
+            "Use Selection": [
+                "Usar selección"
+            ],
+            "Remove": [
+                "Eliminar"
+            ],
+            "Replace": [
+                "Reemplazar"
+            ],
+            "Select": [
+                "Seleccionar"
+            ],
+            "Expand": [
+                "Expandir"
+            ],
+            "Collapse": [
+                "Contraer"
+            ],
+            "Move up": [
+                "Mover arriba"
+            ],
+            "Move down": [
+                "Mover abajo"
+            ],
+            "Duplicate": [
+                "Duplicar"
+            ],
+            "Add Row": [
+                "Añadir fila"
+            ],
+            "Action failed.": [
+                "La acción falló."
+            ],
+            "Invalid value.": [
+                "Valor no válido."
+            ],
+            "Cancel": [
+                "Cancelar"
+            ],
+            "Confirm Reset": [
+                "Confirmar restablecimiento"
+            ],
+            "Reset": [
+                "Restablecer"
+            ],
+            "Saving\u2026": [
+                "Guardando\u2026"
+            ],
+            "Save": [
+                "Guardar"
+            ],
+            "Settings": [
+                "Ajustes"
+            ],
+            "Settings saved.": [
+                "Ajustes guardados."
+            ],
+            "Failed to save settings.": [
+                "Error al guardar los ajustes."
+            ],
+            "Failed to save, please check: %s": [
+                "Error al guardar, revisa: %s"
+            ],
+            "Failed to save. Please fix the highlighted errors.": [
+                "Error al guardar. Corrige los errores resaltados."
+            ],
+            "Settings reset to defaults.": [
+                "Ajustes restablecidos a los valores predeterminados."
+            ],
+            "Failed to reset settings.": [
+                "Error al restablecer los ajustes."
+            ]
+        }
+    }
+}

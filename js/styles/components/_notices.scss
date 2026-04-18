@@ -1,0 +1,12 @@
+// Snackbar Notices — bottom-right, right-aligned stack
+
+.wireframe-page .components-snackbar-list {
+  position: fixed;
+  bottom: var(--wpds-dimension-padding-xl);
+  right: var(--wpds-dimension-padding-xl);
+  left: auto;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}

@@ -1,0 +1,34 @@
+/**
+ * Plugin Boilerplate Settings Styles
+ *
+ * Uses @wordpress/admin-ui Page component for the header.
+ * All values use WPDS design tokens (loaded via design-tokens.css).
+ */
+
+// Vendor (uses @import internally for CSS files)
+@use 'vendor';
+
+// Layout
+@use 'layout/admin-shell';
+@use 'layout/page';
+@use 'layout/grid';
+
+// Components
+@use 'components/tabs';
+@use 'components/notices';
+@use 'components/section';
+@use 'components/field-errors';
+
+// Fields
+@use 'fields/html';
+@use 'fields/checkbox-group';
+@use 'fields/media';
+@use 'fields/image-choice';
+@use 'fields/repeater';
+@use 'fields/table';
+@use 'fields/wysiwyg';
+@use 'fields/date';
+@use 'fields/color';
+
+// Responsive (must be last)
+@use 'responsive';
