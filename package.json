@@ -1,25 +1,25 @@
 {
-    "name": "wp-wireframe",
-    "version": "1.0.0",
-    "private": true,
-    "description": "React admin settings UI for WP Wireframe.",
-    "scripts": {
-        "build": "wp-scripts build --webpack-src-dir=js --output-path=src/assets",
-        "start": "wp-scripts start --webpack-src-dir=js --output-path=src/assets"
-    },
-    "devDependencies": {
-        "@wordpress/scripts": "^30.0.0"
-    },
-    "dependencies": {
-        "@wordpress/admin-ui": "^1.12.0",
-        "@wordpress/api-fetch": "^7.0.0",
-        "@wordpress/components": "^29.0.0",
-        "@wordpress/data": "^10.0.0",
-        "@wordpress/dataviews": "^5.0.0",
-        "@wordpress/element": "^6.0.0",
-        "@wordpress/i18n": "^5.0.0",
-        "@wordpress/icons": "^10.0.0",
-        "@wordpress/notices": "^5.0.0",
-        "@wordpress/theme": "^0.11.0"
-    }
+  "name": "wp-wireframe",
+  "version": "1.0.1",
+  "private": true,
+  "description": "React admin settings UI for WP Wireframe.",
+  "scripts": {
+    "build": "wp-scripts build --webpack-src-dir=js --output-path=src/assets",
+    "start": "wp-scripts start --webpack-src-dir=js --output-path=src/assets"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^30.0.0"
+  },
+  "dependencies": {
+    "@wordpress/admin-ui": "^1.12.0",
+    "@wordpress/api-fetch": "^7.0.0",
+    "@wordpress/components": "^29.0.0",
+    "@wordpress/data": "^10.0.0",
+    "@wordpress/dataviews": "^5.0.0",
+    "@wordpress/element": "^6.0.0",
+    "@wordpress/i18n": "^5.0.0",
+    "@wordpress/icons": "^10.0.0",
+    "@wordpress/notices": "^5.0.0",
+    "@wordpress/theme": "^0.11.0"
+  }
 }
