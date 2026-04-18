@@ -8,3 +8,7 @@
 /package-lock.json export-ignore
 /.gitattributes    export-ignore
 /.gitignore        export-ignore
+
+# Built assets are committed so Composer VCS installs work, but mark them
+# as binary-style so PR diffs don't show every minified-bundle change.
+/src/assets/**     -diff linguist-generated=true
