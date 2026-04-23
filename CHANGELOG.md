@@ -6,6 +6,9 @@
 - `App::assetsUrl()` now resolves URLs when the package is installed outside `WP_PLUGIN_DIR` — mu-plugins (`WPMU_PLUGIN_DIR`), active/parent theme, or anywhere under `WP_CONTENT_DIR`. Roots are checked in priority order; the first to contain the package wins.
 - Filesystem comparisons go through `realpath()` on both ends, so symlinked installs (e.g. the package symlinked into a theme or into `vendor/` during local dev) still match.
 
+### Fixes
+- `TableField` bulk-action icon map: `star` isn't exported from `@wordpress/icons` — swapped for the real `starFilled` export, so a `"star-filled"` / `"starFilled"` action icon now resolves instead of silently falling back to `cog`.
+
 ### Design Rationale
 - Previously `assetsUrl()` only handled the `WP_PLUGIN_DIR` case and silently returned `''` for theme/mu-plugin installs, forcing consumers to pass `assets_url` manually. The explicit `assets_url` override from 1.0.4 still takes precedence for edge cases this heuristic can't cover.
 
