@@ -1,0 +1,95 @@
+/**
+ * Restyled `.wp-list-table` for use inside the plugin UI (e.g. when a
+ * `render_callback` for a table-field detail view returns a list table).
+ *
+ * Scoped to `.wireframe-page` so WordPress core admin tables elsewhere
+ * keep their default appearance.
+ *
+ * Honours the standard WP modifier classes (`widefat`, `striped`, `fixed`).
+ */
+
+.wireframe-page {
+  table.wp-list-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--wpds-color-stroke-surface-neutral);
+    border-radius: var(--wpds-border-radius-md);
+    background: var(--wpds-color-bg-surface-neutral-strong);
+    overflow: hidden;
+    font-size: var(--wpds-typography-font-size-md);
+    color: var(--wpds-color-fg-content-neutral);
+    box-shadow: none;
+
+    th,
+    td {
+      padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+      text-align: left;
+      vertical-align: middle;
+      border: 0;
+      border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+      box-shadow: none;
+    }
+
+    thead {
+      th {
+        background: var(--wpds-color-bg-surface-neutral-weak);
+        font-weight: 600;
+        color: var(--wpds-color-fg-content-neutral-weak);
+        text-transform: none;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+    }
+
+    tbody {
+      tr {
+        background: transparent;
+        transition: background-color 0.12s ease;
+
+        &:hover {
+          background: var(--wpds-color-bg-surface-neutral);
+        }
+
+        &:last-child td {
+          border-bottom: 0;
+        }
+      }
+    }
+
+    tfoot {
+      th,
+      td {
+        background: var(--wpds-color-bg-surface-neutral-weak);
+        font-weight: 600;
+        border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+        border-bottom: 0;
+      }
+    }
+
+    // Honour the WP `.striped` modifier when the consumer opts in.
+    &.striped tbody tr:nth-child(odd) {
+      background: var(--wpds-color-bg-surface-neutral);
+
+      &:hover {
+        background: var(--wpds-color-bg-surface-neutral-weak);
+      }
+    }
+
+    // Compact variant — smaller cell padding for dense data.
+    &.is-compact {
+      th,
+      td {
+        padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+      }
+    }
+
+    // Numeric / right-aligned cells.
+    .num,
+    [data-align='right'] {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}

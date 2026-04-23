@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.4] - 2026-04-23
+
+### Features
+- New `.wp-list-table` styling scoped to `.wireframe-page`. Render-callback HTML can now include `<table class="wp-list-table widefat fixed striped">` and pick up framework-styled tables (rounded border, neutral header, hover highlight, optional `.is-compact` and `.striped` modifiers) without leaking into other WP admin screens.
+- `App::boot()` now accepts an `assets_url` config key for environments where the package lives outside `WP_PLUGIN_DIR` (e.g. symlinked into `vendor/` during local development), where `plugins_url()` can't derive the URL on its own.
+
+### Fixes
+- Removed the divider borders above/below the action footer and below the title in the table detail view for a cleaner card layout.
+- All SCSS WPDS token references now resolve — replaced fabricated names (`--wpds-color-bg-surface`, `--wpds-color-text-default`, `--wpds-dimension-radius-sm`, etc.) with their actual counterparts (`--wpds-color-bg-surface-neutral-strong`, `--wpds-color-fg-content-neutral`, `--wpds-border-radius-md`, …).
+
 ## [1.0.3] - 2026-04-23
 
 ### Features

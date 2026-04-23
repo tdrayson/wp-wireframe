@@ -47,6 +47,14 @@ final class App
     private static string $packageDir = '';
 
     /**
+     * Optional override for the admin-asset URL base. Consumers can pass
+     * `assets_url` to boot() when the package lives outside WP_PLUGIN_DIR —
+     * e.g. symlinked into vendor/ during local development, where __DIR__
+     * resolves to the real target and plugins_url() can't derive the URL.
+     */
+    private static string $assetsUrl = '';
+
+    /**
      * Bootstrap the framework for one consuming plugin.
      *
      * Safe to call many times from different plugins; each call registers
@@ -56,6 +64,10 @@ final class App
     {
         if (self::$packageDir === '') {
             self::$packageDir = dirname(__DIR__) . '/';
+        }
+
+        if (self::$assetsUrl === '' && !empty($config['assets_url'])) {
+            self::$assetsUrl = trailingslashit((string) $config['assets_url']);
         }
 
         $prefix = $config['prefix'] ?? 'wireframe';
@@ -234,6 +246,10 @@ final class App
 
     public static function assetsUrl(): string
     {
+        if (self::$assetsUrl !== '') {
+            return self::$assetsUrl;
+        }
+
         $packageDir = self::packageDir();
         $pluginDir  = WP_PLUGIN_DIR . '/';
 
