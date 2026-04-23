@@ -21,12 +21,15 @@ import { writeEntryParam } from '../../utils/tableDetailUrl';
 
 /**
  * Resolve an icon name (kebab or camelCase) to a @wordpress/icons export.
- * DataViews requires bulk action buttons to have an icon, otherwise the
- * button is filtered out of the footer entirely.
+ *
+ * DataViews renders each bulk action as its own icon-only button (no
+ * "more actions" dropdown) and drops any action whose icon is falsy, so
+ * every action needs one. When the consumer hasn't supplied one we fall
+ * back based on intent: destructive → trash, otherwise a generic cog.
  */
-function resolveIcon( name ) {
+function resolveIcon( name, { isDestructive = false } = {} ) {
 	if ( ! name ) {
-		return wpIcons.cog;
+		return isDestructive ? wpIcons.trash : wpIcons.cog;
 	}
 
 	if ( typeof name !== 'string' ) {
@@ -248,8 +251,10 @@ export default function TableField( { field } ) {
 				// View actions are inherently single-row.
 				supportsBulk: action.opens_detail ? false : !! action.supports_bulk,
 				// DataViews omits bulk action buttons that have no icon,
-				// so always resolve one (with a generic fallback).
-				icon: resolveIcon( action.icon ),
+				// so resolve one — falling back based on intent.
+				icon: resolveIcon( action.icon, {
+					isDestructive: !! action.is_destructive,
+				} ),
 				callback: ( selected ) => runAction( action, selected ),
 			} ) ),
 		[ actionConfigs, runAction ]
