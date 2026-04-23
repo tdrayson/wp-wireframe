@@ -18,6 +18,7 @@ import apiFetch from '@wordpress/api-fetch';
 import {
 	archive,
 	arrowRight,
+	atSymbol,
 	backup,
 	check,
 	chevronRight,
@@ -26,6 +27,7 @@ import {
 	copy,
 	download,
 	edit,
+	envelope,
 	external,
 	help,
 	info,
@@ -53,6 +55,7 @@ import { writeEntryParam } from '../../utils/tableDetailUrl';
 const ICONS = {
 	archive,
 	arrowRight,
+	atSymbol,
 	backup,
 	check,
 	chevronRight,
@@ -61,6 +64,8 @@ const ICONS = {
 	copy,
 	download,
 	edit,
+	email: envelope,
+	envelope,
 	external,
 	help,
 	info,
