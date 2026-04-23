@@ -64,7 +64,6 @@ const ICONS = {
 	copy,
 	download,
 	edit,
-	email: envelope,
 	envelope,
 	external,
 	help,
