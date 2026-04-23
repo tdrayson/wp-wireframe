@@ -15,9 +15,68 @@ import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import * as wpIcons from '@wordpress/icons';
+import {
+	archive,
+	arrowRight,
+	backup,
+	check,
+	chevronRight,
+	close,
+	cog,
+	copy,
+	download,
+	edit,
+	external,
+	help,
+	info,
+	key,
+	lock,
+	more,
+	plus,
+	seen,
+	share,
+	star,
+	trash,
+	unlock,
+	unseen,
+	update,
+	upload,
+} from '@wordpress/icons';
 import { useSettings } from '../../hooks/useSettings';
 import { writeEntryParam } from '../../utils/tableDetailUrl';
+
+/**
+ * Explicit icon map — entries must be statically imported above, otherwise
+ * webpack tree-shakes them out of the bundle (dynamic lookups on a
+ * namespace import return undefined at runtime).
+ */
+const ICONS = {
+	archive,
+	arrowRight,
+	backup,
+	check,
+	chevronRight,
+	close,
+	cog,
+	copy,
+	download,
+	edit,
+	external,
+	help,
+	info,
+	key,
+	lock,
+	more,
+	plus,
+	seen,
+	share,
+	star,
+	trash,
+	unlock,
+	unseen,
+	update,
+	upload,
+};
 
 /**
  * Resolve an icon name (kebab or camelCase) to a @wordpress/icons export.
@@ -29,7 +88,7 @@ import { writeEntryParam } from '../../utils/tableDetailUrl';
  */
 function resolveIcon( name, { isDestructive = false } = {} ) {
 	if ( ! name ) {
-		return isDestructive ? wpIcons.trash : wpIcons.cog;
+		return isDestructive ? trash : cog;
 	}
 
 	if ( typeof name !== 'string' ) {
@@ -37,7 +96,7 @@ function resolveIcon( name, { isDestructive = false } = {} ) {
 	}
 
 	const camel = name.replace( /-([a-z])/g, ( _, c ) => c.toUpperCase() );
-	return wpIcons[ camel ] || wpIcons[ name ] || wpIcons.cog;
+	return ICONS[ camel ] || ICONS[ name ] || cog;
 }
 
 /**
