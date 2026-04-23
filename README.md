@@ -20,6 +20,14 @@ A fast, standardised way to build WordPress settings pages. List your fields in 
 
 ---
 
+## Demo Settings UI
+
+An example of what the settings page looks like
+
+<img width="1558" height="3191" alt="plugin-settings-demo" src="https://github.com/user-attachments/assets/c8f062bd-ca9d-4054-b6f0-54b50ee91a62" />
+
+---
+
 ## Example plugins
 
 Working starting points you can copy and adapt:
