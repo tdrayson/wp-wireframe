@@ -32,6 +32,7 @@ An example of what the settings page looks like
 
 Working starting points you can copy and adapt:
 
+- [Field Reference](./examples/field-reference) — kitchen-sink demo of every field type, plus an "Example" tab that reads like a real product settings page
 - [Newsletter Signup](./examples/newsletter-signup) — config loaded from `config/settings.php`
 - [QuickChat](./examples/quickchat) — SaaS-style plugin with its entire config inline in one file
 
