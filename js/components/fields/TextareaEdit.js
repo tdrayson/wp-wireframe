@@ -15,7 +15,7 @@ export default function TextareaEdit( { data, field, onChange, error } ) {
 		<TextareaControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			value={ value }
 			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }
 			rows={ _args.rows || 4 }

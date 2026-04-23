@@ -21,7 +21,7 @@ export default function TimeEdit( { data, field, onChange, error } ) {
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			type="time"
 			value={ value }
 			onChange={ ( newValue ) => onChange( { [ field.id ]: newValue } ) }

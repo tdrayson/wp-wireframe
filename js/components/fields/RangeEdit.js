@@ -13,7 +13,7 @@ export default function RangeEdit( { data, field, onChange, error } ) {
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			value={ value }
 			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }
 			min={ _args.min ?? 0 }

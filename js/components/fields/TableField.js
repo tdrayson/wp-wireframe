@@ -15,8 +15,27 @@ import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
+import * as wpIcons from '@wordpress/icons';
 import { useSettings } from '../../hooks/useSettings';
 import { writeEntryParam } from '../../utils/tableDetailUrl';
+
+/**
+ * Resolve an icon name (kebab or camelCase) to a @wordpress/icons export.
+ * DataViews requires bulk action buttons to have an icon, otherwise the
+ * button is filtered out of the footer entirely.
+ */
+function resolveIcon( name ) {
+	if ( ! name ) {
+		return wpIcons.cog;
+	}
+
+	if ( typeof name !== 'string' ) {
+		return name;
+	}
+
+	const camel = name.replace( /-([a-z])/g, ( _, c ) => c.toUpperCase() );
+	return wpIcons[ camel ] || wpIcons[ name ] || wpIcons.cog;
+}
 
 /**
  * Parse "{prefix}/v1/settings/{pageId}" → { namespace: "{prefix}/v1", pageId }.
@@ -228,6 +247,9 @@ export default function TableField( { field } ) {
 				isDestructive: !! action.is_destructive,
 				// View actions are inherently single-row.
 				supportsBulk: action.opens_detail ? false : !! action.supports_bulk,
+				// DataViews omits bulk action buttons that have no icon,
+				// so always resolve one (with a generic fallback).
+				icon: resolveIcon( action.icon ),
 				callback: ( selected ) => runAction( action, selected ),
 			} ) ),
 		[ actionConfigs, runAction ]

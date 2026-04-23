@@ -297,7 +297,7 @@ These are common to all field types:
 | `id`          | Unique field identifier             | Required |
 | `type`        | Field type                          | `'text'` |
 | `label`       | Display label                       | `''`     |
-| `description` | Help text below the field           | `''`     |
+| `description` | Help text below the field. Supports `{field_id}` tokens that interpolate live values (e.g. `'URL: https://example.com/{slug}'`). | `''`     |
 | `default`     | Default value                       | `null`   |
 | `required`    | Whether the field must have a value | `false`  |
 | `validation`  | Rakit validation rules string       | `''`     |

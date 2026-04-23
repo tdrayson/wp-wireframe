@@ -31,12 +31,14 @@ $btn-top: calc(#{$label-offset} + (#{$input-h} - #{$btn-size}) / 2);
     height: $btn-size;
     min-width: $btn-size;
     padding: 0;
+    background-color: var(--wpds-color-bg-surface-neutral-strong);
     opacity: 0.65;
     transition: opacity 0.15s ease;
 
     &:hover,
     &:focus {
       opacity: 1;
+      background-color: var(--wpds-color-bg-surface-neutral-strong);
     }
   }
 

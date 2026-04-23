@@ -40,7 +40,7 @@ export default function DateEdit( { data, field, onChange, error } ) {
 		<BaseControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			id={ `wireframe-date-${ field.id }` }
 			className={ error ? 'has-error' : undefined }
 		>

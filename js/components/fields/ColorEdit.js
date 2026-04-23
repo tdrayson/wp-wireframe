@@ -24,7 +24,7 @@ export default function ColorEdit( { data, field, onChange, error } ) {
 		<BaseControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			id={ `wireframe-color-${ field.id }` }
 			className={ error ? 'has-error' : undefined }
 		>

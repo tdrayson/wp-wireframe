@@ -42,7 +42,7 @@ export default function SelectEdit( { data, field, onChange, error } ) {
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			value={ value }
 			options={ options }
 			onChange={ ( newValue ) => onChange( { [ field.id ]: newValue } ) }
@@ -97,7 +97,7 @@ function MultiSelect( { data, field, onChange, error } ) {
 		<BaseControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			id={ `wireframe-multiselect-${ field.id }` }
 			className={ error ? 'has-error' : undefined }
 		>

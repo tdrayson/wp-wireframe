@@ -23,7 +23,7 @@ export default function TextInputEdit( { data, field, onChange, error } ) {
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			type={ TYPE_MAP[ _phpType ] || 'text' }
 			value={ value }
 			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }

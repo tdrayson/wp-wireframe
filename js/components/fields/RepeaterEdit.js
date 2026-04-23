@@ -5,6 +5,8 @@ import { Button, BaseControl } from '@wordpress/components';
 import { useState, useCallback } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { mapField } from '../../utils/mapConfig';
+import { interpolate } from '../../utils/interpolate';
+import { getFieldHelp } from './useFieldError';
 import { customEditComponents } from './index';
 
 export default function RepeaterEdit( { data, field, onChange } ) {
@@ -76,14 +78,14 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 		if ( ! titleTemplate ) {
 			return `#${ index + 1 }`;
 		}
-		return titleTemplate.replace( /\{(\w+)\}/g, ( _, key ) => row[ key ] ?? '' ) || `#${ index + 1 }`;
+		return interpolate( titleTemplate, row ) || `#${ index + 1 }`;
 	};
 
 	return (
 		<BaseControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ field.description }
+			help={ getFieldHelp( field.description, undefined, data ) }
 			id={ `wireframe-repeater-${ field.id }` }
 		>
 			<div className="wireframe-repeater">

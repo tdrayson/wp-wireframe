@@ -15,7 +15,7 @@ export default function NumberEdit( { data, field, onChange, error } ) {
 		<NumberControl
 			__next40pxDefaultSize
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			value={ value }
 			onChange={ ( newVal ) => {
 				const parsed = _args.integer ? parseInt( newVal, 10 ) : parseFloat( newVal );

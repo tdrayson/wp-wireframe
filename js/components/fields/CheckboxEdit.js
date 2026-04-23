@@ -12,7 +12,7 @@ export default function CheckboxEdit( { data, field, onChange, error } ) {
 		<CheckboxControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			checked={ value }
 			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }
 			className={ error ? 'has-error' : undefined }

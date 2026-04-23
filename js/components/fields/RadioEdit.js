@@ -16,7 +16,7 @@ export default function RadioEdit( { data, field, onChange, error } ) {
 	return (
 		<RadioControl
 			label={ field.label }
-			help={ getFieldHelp( field.description, error ) }
+			help={ getFieldHelp( field.description, error, data ) }
 			selected={ value }
 			options={ options }
 			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }
