@@ -250,14 +250,78 @@ final class App
             return self::$assetsUrl;
         }
 
-        $packageDir = self::packageDir();
-        $pluginDir  = WP_PLUGIN_DIR . '/';
+        $packageDir = self::normalizePath(self::packageDir());
 
-        if (str_starts_with($packageDir, $pluginDir)) {
-            $relativePath = substr($packageDir, strlen($pluginDir));
-            return plugins_url($relativePath . 'src/assets/');
+        if ($packageDir === '') {
+            return '';
+        }
+
+        foreach (self::contentRoots() as [$dir, $urlBase]) {
+            $realDir = self::normalizePath($dir);
+
+            if ($realDir === '' || !str_starts_with($packageDir, $realDir)) {
+                continue;
+            }
+
+            $relative = substr($packageDir, strlen($realDir));
+
+            return trailingslashit($urlBase) . $relative . 'src/assets/';
         }
 
         return '';
+    }
+
+    /**
+     * Known content roots paired with their public URL base.
+     *
+     * Checked in priority order by `assetsUrl()`; the first root that contains
+     * the package wins. Themes cover most cases; `WP_CONTENT_DIR` is the catch
+     * for anything else (mu-plugins sub-dirs, drop-ins, unusual layouts).
+     *
+     * @return array<int, array{0:string, 1:string}>
+     */
+    private static function contentRoots(): array
+    {
+        $roots = [];
+
+        if (defined('WP_PLUGIN_DIR')) {
+            $roots[] = [WP_PLUGIN_DIR, plugins_url()];
+        }
+
+        if (defined('WPMU_PLUGIN_DIR') && defined('WPMU_PLUGIN_URL')) {
+            $roots[] = [WPMU_PLUGIN_DIR, WPMU_PLUGIN_URL];
+        }
+
+        if (function_exists('get_stylesheet_directory')) {
+            $roots[] = [get_stylesheet_directory(), get_stylesheet_directory_uri()];
+        }
+
+        if (function_exists('get_template_directory')) {
+            $roots[] = [get_template_directory(), get_template_directory_uri()];
+        }
+
+        if (defined('WP_CONTENT_DIR') && function_exists('content_url')) {
+            $roots[] = [WP_CONTENT_DIR, content_url()];
+        }
+
+        return $roots;
+    }
+
+    /**
+     * Canonicalise a filesystem path with a trailing slash.
+     *
+     * `realpath()` resolves symlinks on both ends of the comparison so an
+     * install where the package (or WP itself) lives behind a symlink still
+     * matches. Returns an empty string if the path cannot be resolved.
+     */
+    private static function normalizePath(string $path): string
+    {
+        $real = realpath($path);
+
+        if ($real === false) {
+            return '';
+        }
+
+        return rtrim($real, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
     }
 }

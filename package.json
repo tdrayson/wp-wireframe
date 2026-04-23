@@ -1,6 +1,6 @@
 {
   "name": "wp-wireframe",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "description": "React admin settings UI for WP Wireframe.",
   "scripts": {
