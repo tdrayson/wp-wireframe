@@ -114,6 +114,7 @@ final class App
                     'config'        => $configSlug,
                     'option_key'    => $optionKey,
                     'menu_slug'     => $pageConfig['menu_slug'] ?? $prefix . '-' . $pageId,
+                    'parent'        => $pageConfig['parent'] ?? $config['parent'] ?? '',
                 ];
 
                 self::$optionKeyToConfig[$optionKey] = $configSlug;
@@ -133,6 +134,7 @@ final class App
                 'config'        => $configSlug,
                 'option_key'    => $perBoot['option_key'],
                 'menu_slug'     => $prefix,
+                'parent'        => $config['parent'] ?? '',
             ];
 
             self::$optionKeyToConfig[$perBoot['option_key']] = $configSlug;

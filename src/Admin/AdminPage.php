@@ -18,20 +18,74 @@ final class AdminPage
 {
     /**
      * Register all configured admin menu pages across every booted plugin.
+     *
+     * Pages with a `parent` slug register as submenu items under that parent
+     * (e.g. `tools.php`, `options-general.php`). Bare aliases like `tools`
+     * or `settings` resolve to their canonical core slug.
      */
     public static function register(): void
     {
         foreach (App::pages() as $internalId => $page) {
+            $callback = fn() => self::render($internalId);
+            $parent   = self::resolveParent($page['parent'] ?? '');
+
+            if ($parent !== '') {
+                add_submenu_page(
+                    $parent,
+                    $page['page_title'],
+                    $page['menu_title'],
+                    $page['capability'],
+                    $page['menu_slug'],
+                    $callback,
+                    $page['menu_position']
+                );
+
+                continue;
+            }
+
             add_menu_page(
                 $page['page_title'],
                 $page['menu_title'],
                 $page['capability'],
                 $page['menu_slug'],
-                fn() => self::render($internalId),
+                $callback,
                 $page['menu_icon'],
                 $page['menu_position']
             );
         }
+    }
+
+    /**
+     * Map common parent-menu aliases to their canonical WordPress slugs.
+     *
+     * Accepts a bare alias (`tools`, `settings`, `appearance`, `users`,
+     * `dashboard`, `plugins`, `media`, `pages`, `posts`, `comments`) or any
+     * explicit slug (`tools.php`, `edit.php?post_type=page`). Empty string
+     * means "top-level menu".
+     */
+    private static function resolveParent(string $parent): string
+    {
+        $parent = trim($parent);
+
+        if ($parent === '') {
+            return '';
+        }
+
+        $aliases = [
+            'dashboard'  => 'index.php',
+            'posts'      => 'edit.php',
+            'media'      => 'upload.php',
+            'pages'      => 'edit.php?post_type=page',
+            'comments'   => 'edit-comments.php',
+            'appearance' => 'themes.php',
+            'plugins'    => 'plugins.php',
+            'users'      => 'users.php',
+            'tools'      => 'tools.php',
+            'settings'   => 'options-general.php',
+            'options'    => 'options-general.php',
+        ];
+
+        return $aliases[strtolower($parent)] ?? $parent;
     }
 
     /**

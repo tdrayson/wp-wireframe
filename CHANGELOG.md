@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+- New `parent` option on `App::boot()` (and per-page configs) registers a page as a submenu under any WordPress parent — e.g. `'parent' => 'tools'` puts the page under **Tools**. Accepts short aliases (`dashboard`, `posts`, `media`, `pages`, `comments`, `appearance`, `plugins`, `users`, `tools`, `settings`) or any explicit parent slug (`'options-general.php'`, `'edit.php?post_type=product'`).
+- `html` field now ships with default "prose" styling — paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`, and adjacent-sibling spacing (`p + ul`, `* + h2`, …) — built on the existing WPDS tokens. Raw HTML content now renders with WordPress-admin-flavoured rhythm without consumers having to bolt on their own stylesheet.
+
+### Design Rationale
+- Submenu support mirrors WordPress's native `add_submenu_page()` parent argument; the alias map covers the common cases (`tools`, `settings`) so consumers don't need to remember `tools.php` / `options-general.php`, while still allowing any raw slug for custom parents.
+- Prose styles are scoped to `.wireframe-html` so they can't leak into the rest of the admin. First/last-child margin resets keep the wrapper's own padding flush; `> * + *` plus targeted heading rules give Tailwind-`prose`-like rhythm using the framework's existing design tokens.
+
 ## [1.0.5] - 2026-04-23
 
 ### Features
