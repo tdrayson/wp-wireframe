@@ -23,6 +23,7 @@ import CodeEditorEdit from './CodeEditorEdit';
 import RepeaterEdit from './RepeaterEdit';
 import ImageRadioEdit from './ImageRadioEdit';
 import ImageCheckboxesEdit from './ImageCheckboxesEdit';
+import ActionButton from './ActionButton';
 import ExportButton from './ExportButton';
 import ImportButton from './ImportButton';
 import TableField from './TableField';
@@ -68,6 +69,7 @@ export const customEditComponents = {
 	table: TableField,
 
 	// Actions.
+	action: ActionButton,
 	export: ExportButton,
 	import: ImportButton,
 

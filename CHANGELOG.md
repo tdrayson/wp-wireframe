@@ -5,10 +5,18 @@
 ### Features
 - New `parent` option on `App::boot()` (and per-page configs) registers a page as a submenu under any WordPress parent — e.g. `'parent' => 'tools'` puts the page under **Tools**. Accepts short aliases (`dashboard`, `posts`, `media`, `pages`, `comments`, `appearance`, `plugins`, `users`, `tools`, `settings`) or any explicit parent slug (`'options-general.php'`, `'edit.php?post_type=product'`).
 - `html` field now ships with default "prose" styling — paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`, and adjacent-sibling spacing (`p + ul`, `* + h2`, …) — built on the existing WPDS tokens. Raw HTML content now renders with WordPress-admin-flavoured rhythm without consumers having to bolt on their own stylesheet.
+- New `action` field type: a button that POSTs the in-flight (sanitized) form values to `/{prefix}/v1/action/{pageId}/{fieldId}` and dispatches to a consumer-supplied `args.callback($values, $request)`. Result is rendered inline with success / error / warning / info variants, optional `message` + raw `html`, and an opt-in confirm modal (`args.confirm`).
+
+### Security
+- `Sanitizer::sanitize` is reused for the action endpoint: payload keys not declared in the config are dropped, and each declared value is run through its type handler before reaching the callback. Callbacks are documented to still treat values as untrusted (use `$wpdb->prepare()` etc.) — the sanitizers enforce format, not semantics.
+- The action route's `permission_callback` reuses `SettingsController::checkPermission()`, so it's gated by the page's `capability` (default `manage_options`) and the standard WP REST nonce — same authorization surface as Save/Reset.
+- Field lookup goes through `ConfigLoader::flatFields()` and rejects any request whose target isn't actually an `action` field (returns 404), so the route can't be coaxed into invoking other field-arg callables (`data_callback`, `fetch_callback`, etc.).
+- New `ClientConfig::forClient()` strips server-only keys (`callback`, `data_callback`, `fetch_callback`, `render_callback`) from the config before it's localized to the page. Closures already JSON-encode to `{}`, but string callables (`'my_callback'`) and array callables (`['MyClass', 'method']`) would have leaked their target names into the page source — this closes that disclosure window for the new `action` field and the existing `table` field.
 
 ### Design Rationale
 - Submenu support mirrors WordPress's native `add_submenu_page()` parent argument; the alias map covers the common cases (`tools`, `settings`) so consumers don't need to remember `tools.php` / `options-general.php`, while still allowing any raw slug for custom parents.
 - Prose styles are scoped to `.wireframe-html` so they can't leak into the rest of the admin. First/last-child margin resets keep the wrapper's own padding flush; `> * + *` plus targeted heading rules give Tailwind-`prose`-like rhythm using the framework's existing design tokens.
+- The action field deliberately doesn't run Rakit validation on the payload before invoking the callback: actions often want to run against partially-filled forms (e.g. "preview" against an unfinished config), and the consumer can validate inside their callback if they need to. Sanitization is non-negotiable; validation is opt-in.
 
 ## [1.0.5] - 2026-04-23
 

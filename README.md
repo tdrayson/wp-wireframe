@@ -430,6 +430,7 @@ Supported code modes: `css`, `js`, `html`, `php`, `json`, `xml`, `sql`
 | Type     | Description                                                      | Stored as |
 | -------- | ---------------------------------------------------------------- | --------- |
 | `html`   | Read-only display block (info, success, warning, error variants) | —         |
+| `action` | Button that runs a PHP callback and renders the result inline    | —         |
 | `export` | Download settings as JSON                                        | —         |
 | `import` | Upload JSON to restore settings                                  | —         |
 
@@ -540,6 +541,58 @@ The `html` field ships with built-in prose styling (paragraphs, headings, lists,
 **Supported condition operators:** `equals`, `not_equals`, `truthy`, `falsy`, `in`, `not_in`, `contains`, `not_contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `gt`, `gte`, `lt`, `lte`, `between`
 
 Combine with `all` (AND) or `any` (OR).
+
+### Action Buttons
+
+Run a server-side PHP callback from a button. The current (in-flight) form values are sent along, so the callback can read sibling fields — perfect for "pick from a dropdown, hit run, do something, show me the result" workflows.
+
+```php
+[
+    'id'    => 'recalculate',
+    'type'  => 'action',
+    'label' => __('Recalculate totals', 'my-plugin'),
+    'args'  => [
+        'button_label' => __('Run', 'my-plugin'),
+        'variant'      => 'primary',                                 // primary | secondary | tertiary
+        'destructive'  => false,
+        'confirm'      => __('This rebuilds every order total. Continue?', 'my-plugin'),
+        'callback'     => function (array $values, WP_REST_Request $request) {
+            global $wpdb;
+
+            // $values contains the sanitized form state — read sibling fields here.
+            $userId = absint($values['target_user'] ?? 0);
+
+            // Treat values as untrusted: always use $wpdb->prepare().
+            $rows = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}my_orders WHERE user_id = %d",
+                $userId
+            ));
+
+            return [
+                'status'  => 'success',                              // success | error | warning | info
+                'message' => sprintf(__('Recalculated %d rows.', 'my-plugin'), (int) $rows),
+                'html'    => '<p>' . esc_html__('All done.', 'my-plugin') . '</p>',
+            ];
+        },
+    ],
+],
+```
+
+**Response shape.** Return `bool` for a quick OK/fail, a `WP_Error` for a REST-style error, or an array — read by the client as:
+
+| Key       | Effect                                                                    |
+| --------- | ------------------------------------------------------------------------- |
+| `status`  | `success` / `error` / `warning` / `info` — picks the result panel colour. |
+| `message` | Plain-text line shown above any `html` block.                             |
+| `html`    | Optional rich HTML rendered verbatim — **escape user input yourself**.    |
+
+**Security notes.**
+
+- The route is gated by the page's `capability` (default `manage_options`) and a WP REST nonce — same as Save/Reset.
+- Only fields declared in your config are passed to the callback; unknown payload keys are dropped before sanitization, and each value is run through its type handler's `sanitize()` (so a `'number'` is an `int`, a `'url'` has been through `esc_url_raw`, etc.).
+- Sanitizers enforce format, not semantics — your callback must still validate authorization and use `$wpdb->prepare()` for any value it interpolates into SQL.
+- `html` you return is rendered raw on the client. Escape anything derived from user input with `esc_html()`, `wp_kses_post()`, or build the HTML server-side from trusted strings.
+- Callback PHP references (`callback`, `data_callback`, `fetch_callback`, `render_callback`) are stripped from the config before it's localized to the page, so neither function names nor `['Class', 'method']` pairs leak into the page source.
 
 ### Validation
 

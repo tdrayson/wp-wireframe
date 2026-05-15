@@ -55,7 +55,8 @@ function collectErrorLabels( config, fieldErrors ) {
  * @param {import('@wordpress/element').ReactNode} props.children
  */
 export function SettingsProvider( { config, initialValues, hasSavedInitial, prefix = 'wireframe', pageId = 'default', children } ) {
-	const restBase = `${ prefix }/v1/settings/${ pageId }`;
+	const restRoot = `${ prefix }/v1`;
+	const restBase = `${ restRoot }/settings/${ pageId }`;
 	const [ values, setValues ] = useState( () => ( { ...initialValues } ) );
 	const [ savedSnapshot, setSavedSnapshot ] = useState( () => ( { ...initialValues } ) );
 	const [ saving, setSaving ] = useState( false );
@@ -198,7 +199,9 @@ export function SettingsProvider( { config, initialValues, hasSavedInitial, pref
 		reset,
 		hasSaved,
 		restBase,
-	} ), [ config, values, setValue, setMultiple, isDirty, saving, errors, save, reset, hasSaved, restBase ] );
+		restRoot,
+		pageId,
+	} ), [ config, values, setValue, setMultiple, isDirty, saving, errors, save, reset, hasSaved, restBase, restRoot, pageId ] );
 
 	return (
 		<SettingsContext.Provider value={ contextValue }>
@@ -212,7 +215,7 @@ export function SettingsProvider( { config, initialValues, hasSavedInitial, pref
  *
  * Must be called within a `<SettingsProvider>`.
  *
- * @return {{ config: Object, values: Object, setValue: Function, setMultiple: Function, isDirty: boolean, saving: boolean, errors: Object, save: Function, reset: Function, hasSaved: boolean, restBase: string }}
+ * @return {{ config: Object, values: Object, setValue: Function, setMultiple: Function, isDirty: boolean, saving: boolean, errors: Object, save: Function, reset: Function, hasSaved: boolean, restBase: string, restRoot: string, pageId: string }}
  */
 export function useSettings() {
 	const context = useContext( SettingsContext );

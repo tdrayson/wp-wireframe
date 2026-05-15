@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\Admin;
 
 use Wireframe\App;
+use Wireframe\Framework\ClientConfig;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Settings;
 
@@ -216,7 +217,7 @@ final class AdminPage
         $pageId     = $page['page_id'];
 
         wp_localize_script(App::assetHandle(), App::jsObjectName($prefix, $pageId), [
-            'config'   => ConfigLoader::load($configSlug),
+            'config'   => ClientConfig::forClient(ConfigLoader::load($configSlug)),
             'values'   => Settings::resolvedFor($optionKey, $configSlug),
             'hasSaved' => Settings::existsFor($optionKey),
             'restUrl'  => rest_url(App::restNamespace($prefix) . '/'),

@@ -1,0 +1,61 @@
+// Action Field
+//
+// Button + inline result panel. Variants mirror the html-field notice
+// surfaces so a callback returning `status: 'error'` reads the same as
+// an `html: error` field.
+
+.wireframe-action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+.wireframe-action__result {
+  font-size: var(--wpds-typography-font-size-md);
+  line-height: var(--wpds-typography-line-height-md);
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-bg-surface-neutral-weak);
+  border-left: var(--wpds-border-width-md) solid
+    var(--wpds-color-stroke-surface-neutral);
+  color: var(--wpds-color-fg-content-neutral);
+
+  &--success {
+    background: var(--wpds-color-bg-surface-success-weak);
+    border-left-color: var(--wpds-color-stroke-surface-success-strong);
+    color: var(--wpds-color-fg-content-success);
+  }
+
+  &--error {
+    background: var(--wpds-color-bg-surface-error-weak);
+    border-left-color: var(--wpds-color-stroke-surface-error-strong);
+    color: var(--wpds-color-fg-content-error);
+  }
+
+  &--warning {
+    background: var(--wpds-color-bg-surface-warning-weak);
+    border-left-color: var(--wpds-color-stroke-surface-warning-strong);
+    color: var(--wpds-color-fg-content-warning);
+  }
+
+  &--info {
+    background: var(--wpds-color-bg-surface-info-weak);
+    border-left-color: var(--wpds-color-stroke-surface-info-strong);
+    color: var(--wpds-color-fg-content-info);
+  }
+}
+
+.wireframe-action__message {
+  margin: 0;
+}
+
+.wireframe-action__html {
+  margin-top: var(--wpds-dimension-gap-sm);
+
+  &:empty {
+    display: none;
+  }
+
+  > :first-child { margin-top: 0; }
+  > :last-child { margin-bottom: 0; }
+}
