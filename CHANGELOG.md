@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+- **Windows:** `App::assetsUrl()` now normalizes the filesystem-relative segment to forward slashes before building the public URL. On Windows, `realpath()` returns backslashes; those are not valid HTTP path separators and are stripped when WordPress escapes enqueued script/style URLs, which merged path segments (e.g. `…/plugins/notedvendor…/assets/` instead of `…/plugins/noted/vendor/…/src/assets/`).
+
 ## [1.0.5] - 2026-04-23
 
 ### Features
