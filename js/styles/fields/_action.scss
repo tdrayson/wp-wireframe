@@ -1,0 +1,45 @@
+// Action field — one or more buttons that dispatch to server-side hooks.
+
+.wireframe-action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-md);
+}
+
+.wireframe-action__buttons {
+  // FlexItem default margins look a little tight; let the outer Flex `gap`
+  // do the spacing instead.
+  margin: 0;
+}
+
+.wireframe-action__result {
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+  border-radius: var(--wpds-border-radius-md);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-bg-surface-neutral-weak);
+  color: var(--wpds-color-fg-content-neutral);
+
+  > :first-child { margin-top: 0; }
+  > :last-child  { margin-bottom: 0; }
+
+  &--success {
+    border-color: var(--wpds-color-stroke-surface-positive-weak);
+    background: var(--wpds-color-bg-surface-positive-weak);
+  }
+
+  &--error {
+    border-color: var(--wpds-color-stroke-surface-negative-weak);
+    background: var(--wpds-color-bg-surface-negative-weak);
+  }
+
+  &--warning {
+    border-color: var(--wpds-color-stroke-surface-warning-weak);
+    background: var(--wpds-color-bg-surface-warning-weak);
+  }
+
+  &--info {
+    border-color: var(--wpds-color-stroke-surface-info-weak);
+    background: var(--wpds-color-bg-surface-info-weak);
+  }
+}

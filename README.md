@@ -432,8 +432,11 @@ Supported code modes: `css`, `js`, `html`, `php`, `json`, `xml`, `sql`
 | `html`   | Read-only display block (info, success, warning, error variants) | —         |
 | `export` | Download settings as JSON                                        | —         |
 | `import` | Upload JSON to restore settings                                  | —         |
+| `action` | One or more buttons that dispatch to a server-side hook          | —         |
 
 The `html` field ships with built-in prose styling (paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`) using the same WPDS tokens as the rest of the framework, so raw markup renders with sensible spacing and WordPress-admin typography out of the box.
+
+See [Action Field](#action-field) below for details on the `action` field type, including button groups, response handling, and security considerations.
 
 ---
 
@@ -621,6 +624,96 @@ add_filter('wp-wireframe/access/can_reset', fn($can, $user, $viewable, $editable
 
 Custom field types receive a `field.readOnly` prop on their Edit component when the current user has view but not edit access. Honor it by disabling your input — the server enforces writes regardless, so this is purely a UI hint.
 
+### Action Field
+
+Run a server-side handler from a button. The current (in-flight) form values are sent along, so the handler can read sibling fields. Config is **pure data** — no PHP callables — and the handler is wired via `add_filter` anywhere in your plugin.
+
+#### Single-button (sugar)
+
+```php
+[
+    'id'    => 'recalculate',
+    'type'  => 'action',
+    'label' => __('Totals', 'my-plugin'),
+    'args'  => [
+        'button_label' => __('Recalculate', 'my-plugin'),
+        'variant'      => 'primary',
+        'confirm'      => __('Rebuild every order total?', 'my-plugin'),
+    ],
+],
+```
+
+The button id defaults to the field id, so the filter name is `my-plugin/action/{pageId}/recalculate/recalculate`.
+
+#### Button group
+
+```php
+[
+    'id'      => 'billing_tools',
+    'type'    => 'action',
+    'label'   => __('Billing tools', 'my-plugin'),
+    'buttons' => [
+        ['id' => 'recalculate', 'label' => __('Recalculate', 'my-plugin'), 'variant' => 'primary'],
+        ['id' => 'export',      'label' => __('Export CSV',  'my-plugin')],
+        ['id' => 'wipe',        'label' => __('Wipe',        'my-plugin'), 'destructive' => true, 'confirm' => __('Wipe everything?', 'my-plugin')],
+    ],
+],
+```
+
+Each button posts to its own route and fires its own filter:
+
+```php
+add_filter('my-plugin/action/billing/billing_tools/recalculate', function ($unhandled, array $values, WP_REST_Request $request) {
+    global $wpdb;
+
+    $userId = absint($values['target_user'] ?? 0);   // sibling field — already sanitized
+
+    $rows = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}my_orders WHERE user_id = %d",
+        $userId
+    ));
+
+    return [
+        'status'  => 'success',
+        'message' => sprintf(__('Recalculated %d rows.', 'my-plugin'), (int) $rows),
+        'html'    => '<p>' . esc_html__('All done.', 'my-plugin') . '</p>',
+    ];
+}, 10, 3);
+```
+
+#### Response shape
+
+Return any of:
+
+| Return | Effect |
+|---|---|
+| `array{status, message?, html?}` | `status` ∈ `success` / `error` / `warning` / `info`. `message` drives the snackbar. `html` (if present) renders an inline result panel matching the status. |
+| `WP_Error` | REST error — surfaces in the client error snackbar. |
+| `bool` | `true` → generic success, `false` → generic error. |
+
+The handler's return drives both UIs at once:
+
+- **Snackbar** (WordPress `core/notices`) — always shown when `status` + `message` are set. Brief, dismissible, good for "Done." / "Failed.".
+- **Inline panel** — shown only when `html` is non-empty. Persistent, good for rich result detail.
+
+Short responses get just the snackbar; rich responses get both. No extra config switch.
+
+#### Hook name
+
+```
+{prefix}/action/{pageId}/{fieldId}/{actionId}
+```
+
+Default value is a private `Unhandled` sentinel — if no listener attaches, the route returns `404 wireframe_action_unhandled`.
+
+#### Security
+
+- The route is gated by the page's `capability` (default `manage_options`) and a WP REST nonce — same as Save / Reset.
+- Only fields declared in your config reach the handler; unknown payload keys are dropped before sanitization, and each declared value runs through its type handler's `sanitize()` (so a `number` is an `int`, a `url` has been through `esc_url_raw`, etc.).
+- Sanitizers enforce format, not semantics — your handler must still authorize what's being asked for (e.g. "can this user modify *that* order?") and use `$wpdb->prepare()` for anything it interpolates into SQL.
+- Any `html` you return is rendered raw on the client. Escape anything user-derived with `esc_html()`, `wp_kses_post()`, or assemble the HTML server-side from trusted strings.
+- No PHP callables live in the config, so no callable target names leak into the page source.
+
 ### Validation
 
 ```php
@@ -800,6 +893,17 @@ Role-based access exposes additional hooks (see [Role-Based Access](#role-based-
 | `wp-wireframe/config/for_user`        | filter   | Mutate the config after access filtering, before localize     |
 | `wp-wireframe/save/editable_fields`   | filter   | Final list of writable field IDs for a save request           |
 | `wp-wireframe/save/payload`           | filter   | Transform the sanitized payload before merge                  |
+
+The `action` and `table` field types dispatch through per-page, per-field filters. All take `Unhandled::get()` as the default value — if no listener attaches, the controller surfaces an error (or, for table, falls back to the legacy callback keys for back-compat).
+
+| Hook                                                          | Type   | Purpose                                                                                     |
+| ------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------- |
+| `{prefix}/action/{pageId}/{fieldId}/{actionId}`               | filter | Handle a button press on an `action` field. See [Action Field](#action-field).              |
+| `{prefix}/table/{pageId}/{fieldId}/data`                      | filter | Row fetch for a `table` field. Receives `$query`, returns `['items', 'total']`.             |
+| `{prefix}/table/{pageId}/{fieldId}/{actionId}`                | filter | Row / bulk action on a `table` field. Receives `$ids`, `$request`.                          |
+| `{prefix}/table/{pageId}/{fieldId}/detail/fetch`              | filter | Load a single entry for the detail view. Receives `$entryId`, `$request`.                   |
+| `{prefix}/table/{pageId}/{fieldId}/detail/render`             | filter | Render the detail HTML. Receives `$entry`, `$request`.                                       |
+| `{prefix}/table/{pageId}/{fieldId}/detail/title`              | filter | Optional detail-view title. Receives `$entry`, `$request`.                                   |
 
 ---
 
