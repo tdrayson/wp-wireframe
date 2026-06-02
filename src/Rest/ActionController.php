@@ -113,14 +113,16 @@ final class ActionController
      * Two valid shapes:
      *  - `args.buttons[]` declared → `actionId` must match a declared `id`.
      *  - No `buttons` key (single-button sugar) → `actionId` must equal
-     *    the field's own id.
+     *    the literal string `run`. The sugar route is always
+     *    `…/{fieldId}/run` so the hook reads as "the run action on this
+     *    field" instead of repeating the field id.
      */
     private static function buttonExists(array $field, string $actionId): bool
     {
         $buttons = $field['args']['buttons'] ?? null;
 
         if (!is_array($buttons) || $buttons === []) {
-            return $actionId === ($field['id'] ?? '');
+            return $actionId === 'run';
         }
 
         foreach ($buttons as $button) {

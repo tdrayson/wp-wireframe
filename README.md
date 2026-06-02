@@ -643,7 +643,9 @@ Run a server-side handler from a button. The current (in-flight) form values are
 ],
 ```
 
-The button id defaults to the field id, so the filter name is `my-plugin/action/{pageId}/recalculate/recalculate`.
+In sugar mode the action id is the literal string `run`, so the filter name is `my-plugin/action/{pageId}/recalculate/run`. Pass `args.confirm` as a string for the simple "Are you sure?" case; pass it as an array (see [Confirm modal](#confirm-modal) below) to override the title, button labels, or cancel label.
+
+Omitting `label` is supported and the field's vertical alignment is preserved — useful when an action sits beside another labelled field in the same row and the button name is already self-explanatory.
 
 #### Button group
 
@@ -698,11 +700,32 @@ The handler's return drives both UIs at once:
 
 Short responses get just the snackbar; rich responses get both. No extra config switch.
 
+#### Confirm modal
+
+Set `confirm` to require a modal step before the button fires. Two shapes:
+
+```php
+// Shorthand — just the message; title and labels use defaults.
+'confirm' => __('Reset to defaults?', 'my-plugin'),
+
+// Full form — override anything in one grouped key.
+'confirm' => [
+    'message'      => __('Regenerating immediately invalidates the existing key. Continue?', 'my-plugin'),
+    'title'        => __('Regenerate API key', 'my-plugin'),
+    'button_label' => __('Yes, regenerate', 'my-plugin'),
+    'cancel_label' => __('Keep current key', 'my-plugin'),
+],
+```
+
+The shorthand is for the common case; the array form is for when you want to tune the dialog without adding more `confirm_*` keys at the field level.
+
 #### Hook name
 
 ```
 {prefix}/action/{pageId}/{fieldId}/{actionId}
 ```
+
+In sugar mode (no `args.buttons[]`) the `{actionId}` is the literal string `run`.
 
 Default value is a private `Unhandled` sentinel — if no listener attaches, the route returns `404 wireframe_action_unhandled`.
 

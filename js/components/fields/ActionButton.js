@@ -73,11 +73,47 @@ function resolveStatus( payload ) {
 }
 
 /**
+ * Normalize a confirm declaration into a uniform shape, or null.
+ *
+ * Accepts either:
+ *  - string         → shorthand, becomes `{ message }`
+ *  - array / object → `{ message, title, button_label, cancel_label }`
+ *
+ * Returning null means "no confirm" — the button fires immediately.
+ */
+function resolveConfirm( raw ) {
+	if ( ! raw ) {
+		return null;
+	}
+
+	if ( typeof raw === 'string' ) {
+		return {
+			message: raw,
+			title: '',
+			buttonLabel: '',
+			cancelLabel: '',
+		};
+	}
+
+	if ( typeof raw === 'object' ) {
+		return {
+			message: raw.message || '',
+			title: raw.title || '',
+			buttonLabel: raw.button_label || '',
+			cancelLabel: raw.cancel_label || '',
+		};
+	}
+
+	return null;
+}
+
+/**
  * Normalize the field's button list into the array form.
  *
  * Sugar: a field with no `buttons` key gets a single implicit button whose
- * id matches the field id and whose label comes from `args.button_label`
- * (then `field.label`, then a generic fallback).
+ * id is the literal string `'run'` (so the hook reads as `…/{fieldId}/run`
+ * rather than `…/{fieldId}/{fieldId}`). Label comes from
+ * `args.button_label`, then `field.label`, then a generic fallback.
  */
 function resolveButtons( field, args ) {
 	if ( Array.isArray( args.buttons ) && args.buttons.length > 0 ) {
@@ -88,24 +124,20 @@ function resolveButtons( field, args ) {
 				label: button.label || field.label || __( 'Run', 'wp-wireframe' ),
 				variant: button.variant || 'secondary',
 				destructive: Boolean( button.destructive ),
-				confirm: button.confirm || '',
-				confirmTitle: button.confirm_title || '',
-				confirmButtonLabel: button.confirm_button_label || '',
+				confirm: resolveConfirm( button.confirm ),
 			} ) );
 	}
 
 	return [
 		{
-			id: field.id,
+			id: 'run',
 			label:
 				args.button_label ||
 				field.label ||
 				__( 'Run', 'wp-wireframe' ),
 			variant: args.variant || 'secondary',
 			destructive: Boolean( args.destructive ),
-			confirm: args.confirm || '',
-			confirmTitle: args.confirm_title || '',
-			confirmButtonLabel: args.confirm_button_label || '',
+			confirm: resolveConfirm( args.confirm ),
 		},
 	];
 }
@@ -183,11 +215,16 @@ export default function ActionButton( { field } ) {
 		performAction( button );
 	}, [ confirmingButton, performAction ] );
 
+	// When no label is set, pass a non-breaking space so BaseControl still
+	// reserves the label row's vertical space — keeps an unlabelled action
+	// aligned with any labelled siblings sharing the same row.
+	const labelText = field.label || '\u00A0';
+
 	return (
 		<BaseControl
 			__nextHasNoMarginBottom
-			label={ field.label }
-			help={ field.description }
+			label={ labelText }
+			help={ field.description || undefined }
 			id={ `wireframe-action-${ field.id }` }
 		>
 			<div className="wireframe-action">
@@ -220,22 +257,23 @@ export default function ActionButton( { field } ) {
 				) }
 			</div>
 
-			{ confirmingButton && (
+			{ confirmingButton && confirmingButton.confirm && (
 				<Modal
 					title={
-						confirmingButton.confirmTitle ||
+						confirmingButton.confirm.title ||
 						__( 'Are you sure?', 'wp-wireframe' )
 					}
 					onRequestClose={ () => setConfirmingButton( null ) }
 				>
-					<p>{ confirmingButton.confirm }</p>
+					<p>{ confirmingButton.confirm.message }</p>
 					<Flex justify="flex-end" gap={ 2 }>
 						<FlexItem>
 							<Button
 								variant="tertiary"
 								onClick={ () => setConfirmingButton( null ) }
 							>
-								{ __( 'Cancel', 'wp-wireframe' ) }
+								{ confirmingButton.confirm.cancelLabel ||
+									__( 'Cancel', 'wp-wireframe' ) }
 							</Button>
 						</FlexItem>
 						<FlexItem>
@@ -244,7 +282,7 @@ export default function ActionButton( { field } ) {
 								isDestructive={ confirmingButton.destructive }
 								onClick={ handleConfirm }
 							>
-								{ confirmingButton.confirmButtonLabel ||
+								{ confirmingButton.confirm.buttonLabel ||
 									confirmingButton.label }
 							</Button>
 						</FlexItem>

@@ -24,22 +24,22 @@
   > :last-child  { margin-bottom: 0; }
 
   &--success {
-    border-color: var(--wpds-color-stroke-surface-positive-weak);
-    background: var(--wpds-color-bg-surface-positive-weak);
+    border-color: var(--wpds-color-stroke-surface-success);
+    background: var(--wpds-color-bg-surface-success-weak);
   }
 
   &--error {
-    border-color: var(--wpds-color-stroke-surface-negative-weak);
-    background: var(--wpds-color-bg-surface-negative-weak);
+    border-color: var(--wpds-color-stroke-surface-error);
+    background: var(--wpds-color-bg-surface-error-weak);
   }
 
   &--warning {
-    border-color: var(--wpds-color-stroke-surface-warning-weak);
+    border-color: var(--wpds-color-stroke-surface-warning);
     background: var(--wpds-color-bg-surface-warning-weak);
   }
 
   &--info {
-    border-color: var(--wpds-color-stroke-surface-info-weak);
+    border-color: var(--wpds-color-stroke-surface-info);
     background: var(--wpds-color-bg-surface-info-weak);
   }
 }
