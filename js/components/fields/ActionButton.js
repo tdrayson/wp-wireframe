@@ -232,19 +232,27 @@ export default function ActionButton( { field } ) {
 		performAction( button );
 	}, [ confirmingButton, performAction ] );
 
-	// When no label is set, pass a non-breaking space so BaseControl still
-	// reserves the label row's vertical space — keeps an unlabelled action
-	// aligned with any labelled siblings sharing the same row.
-	const labelText = field.label || '\u00A0';
+	// Each button's text IS the accessible name of its action, so when
+	// `field.label` is empty we deliberately omit BaseControl's <label>
+	// element entirely (rather than passing an NBSP, which would render
+	// an empty-but-present label in the a11y tree). A CSS spacer with
+	// aria-hidden keeps the visual alignment with sibling labelled fields.
+	const hasLabel = typeof field.label === 'string' && field.label !== '';
 
 	return (
 		<BaseControl
 			__nextHasNoMarginBottom
-			label={ labelText }
+			label={ hasLabel ? field.label : undefined }
 			help={ field.description || undefined }
 			id={ `wireframe-action-${ field.id }` }
 		>
 			<div className="wireframe-action">
+				{ ! hasLabel && (
+					<div
+						className="wireframe-action__label-spacer"
+						aria-hidden="true"
+					/>
+				) }
 				<Flex className="wireframe-action__buttons" gap={ 2 } wrap justify="flex-start">
 					{ buttons.map( ( button ) => (
 						<FlexItem key={ button.id }>
