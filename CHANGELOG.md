@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - 2026-05-21
+## [1.0.6] - 2026-06-02
 
 ### Features
 - **Role-based access control**: optional `access` key on tabs, sections, and fields. Two verbs (`view`, `edit`) accepting role slugs or capabilities; arrays evaluate as OR. Tabs and sections auto-hide when every descendant is filtered out. Non-editable but viewable fields render disabled. Strictly opt-in — pages without any `access` key behave exactly as before (`manage_options` required for everything).
@@ -10,6 +10,9 @@
 - New filters: `wp-wireframe/access/resolve`, `wp-wireframe/access/can_reset`, `wp-wireframe/config/for_user`, `wp-wireframe/save/editable_fields`, `wp-wireframe/save/payload`.
 - New classes: `Wireframe\Framework\Access\AccessResolver` and `Wireframe\Framework\Access\ConfigAccessMap`.
 - Worked example added to the Field Reference example plugin (new "Role-Based Access" tab).
+
+### Fixes
+- **Windows:** `App::assetsUrl()` now normalizes the filesystem-relative segment to forward slashes before building the public URL. On Windows, `realpath()` returns backslashes; those are not valid HTTP path separators and are stripped when WordPress escapes enqueued script/style URLs, which merged path segments (e.g. `…/plugins/notedvendor…/assets/` instead of `…/plugins/noted/vendor/…/src/assets/`).
 
 ### Design Rationale
 - **Strictly opt-in** was a deliberate choice: a page config with zero `access` keys produces byte-identical behavior to previous versions. The `AccessResolver::pageMode()` walk runs once at boot to decide whether to engage the new pipeline at all. This guarantees no plugin can accidentally widen access by upgrading.
