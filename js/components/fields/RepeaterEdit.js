@@ -15,9 +15,11 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 	const subfields = _args.subfields || [];
 	const minRows = _args.min_rows ?? 0;
 	const maxRows = _args.max_rows ?? Infinity;
-	const canAdd = rows.length < maxRows && ( _args.add_row !== false );
-	const canDelete = rows.length > minRows && ( _args.delete_row !== false );
-	const canDuplicate = _args.duplicate_row || false;
+	const readOnly = !! field.readOnly;
+	const canAdd = ! readOnly && rows.length < maxRows && ( _args.add_row !== false );
+	const canDelete = ! readOnly && rows.length > minRows && ( _args.delete_row !== false );
+	const canDuplicate = ! readOnly && ( _args.duplicate_row || false );
+	const canSort = ! readOnly && _args.sortable;
 	const collapsible = _args.collapsible || false;
 	const startCollapsed = _args.collapsed || false;
 	const titleTemplate = _args.title_template || '';
@@ -112,7 +114,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 									{ getRowTitle( row, index ) }
 								</span>
 								<div className="wireframe-repeater__row-actions">
-									{ _args.sortable && (
+									{ canSort && (
 										<>
 											<Button
 												size="small"
@@ -166,6 +168,12 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 
 										if ( ! EditComponent ) return null;
 
+										// Subfields inherit the parent repeater's readOnly state —
+										// access control treats the repeater as one editable unit.
+										const subFieldWithReadOnly = readOnly
+											? { ...subField, readOnly: true }
+											: subField;
+
 										return (
 											<div
 												key={ subField.id }
@@ -174,7 +182,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 											>
 												<EditComponent
 													data={ row }
-													field={ subField }
+													field={ subFieldWithReadOnly }
 													onChange={ ( edits ) => updateRow( index, edits ) }
 												/>
 											</div>

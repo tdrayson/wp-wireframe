@@ -29,8 +29,8 @@ function extractDateFromISO( isoDatetime ) {
 }
 
 export default function DateEdit( { data, field, onChange, error } ) {
-	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
+	const disabled = !! field.readOnly;
 
 	const displayValue = value
 		? dateI18n( getDateSettings().formats.date, value )
@@ -45,27 +45,33 @@ export default function DateEdit( { data, field, onChange, error } ) {
 			className={ error ? 'has-error' : undefined }
 		>
 			<div className="wireframe-date__controls">
-				<Dropdown
-					renderToggle={ ( { isOpen, onToggle } ) => (
-						<Button
-							__next40pxDefaultSize
-							variant="secondary"
-							onClick={ onToggle }
-							aria-expanded={ isOpen }
-						>
-							{ displayValue }
-						</Button>
-					) }
-					renderContent={ () => (
-						<DatePicker
-							currentDate={ value || undefined }
-							onChange={ ( selectedDate ) => {
-								onChange( { [ field.id ]: extractDateFromISO( selectedDate ) } );
-							} }
-						/>
-					) }
-				/>
-				{ value && (
+				{ disabled ? (
+					<Button __next40pxDefaultSize variant="secondary" disabled>
+						{ displayValue }
+					</Button>
+				) : (
+					<Dropdown
+						renderToggle={ ( { isOpen, onToggle } ) => (
+							<Button
+								__next40pxDefaultSize
+								variant="secondary"
+								onClick={ onToggle }
+								aria-expanded={ isOpen }
+							>
+								{ displayValue }
+							</Button>
+						) }
+						renderContent={ () => (
+							<DatePicker
+								currentDate={ value || undefined }
+								onChange={ ( selectedDate ) => {
+									onChange( { [ field.id ]: extractDateFromISO( selectedDate ) } );
+								} }
+							/>
+						) }
+					/>
+				) }
+				{ value && ! disabled && (
 					<Button
 						variant="link"
 						isDestructive

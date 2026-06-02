@@ -141,3 +141,21 @@ export function isSectionVisible( sectionConfig, values ) {
 	}
 	return evaluateCondition( conditions, values );
 }
+
+/**
+ * Check if a tab is visible given current values.
+ *
+ * Mirrors `isSectionVisible` — tabs support the same `conditions` shape as
+ * sections and fields, evaluated against current values.
+ *
+ * @param {Object} tabConfig Tab config.
+ * @param {Object} values    Current field values.
+ * @return {boolean}
+ */
+export function isTabVisible( tabConfig, values ) {
+	const conditions = tabConfig?.conditions;
+	if ( ! conditions ) {
+		return true;
+	}
+	return evaluateCondition( conditions, values );
+}

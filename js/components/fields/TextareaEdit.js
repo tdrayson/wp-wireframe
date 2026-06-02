@@ -8,7 +8,7 @@ import CopyButton from './CopyButton';
 export default function TextareaEdit( { data, field, onChange, error } ) {
 	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
-	const readOnly = !! _args.readonly;
+	const readOnly = !! field.readOnly || !! _args.readonly;
 	const copyable = !! _args.copyable;
 
 	const control = (

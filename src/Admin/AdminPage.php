@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\Admin;
 
 use Wireframe\App;
+use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Settings;
 
@@ -18,14 +19,40 @@ final class AdminPage
 {
     /**
      * Register all configured admin menu pages across every booted plugin.
+     *
+     * Legacy mode (no `access` keys on the config tree): uses the page's
+     * declared capability — same as it has always done, defaulting to
+     * `manage_options`.
+     *
+     * RBAC mode (at least one `access` key declared somewhere): drops the
+     * capability floor to `read` so any logged-in user can reach the page,
+     * then relies on per-element filtering to hide what they can't see.
+     * If the user has zero accessible elements, the menu is suppressed
+     * entirely so it doesn't appear in the sidebar at all.
      */
     public static function register(): void
     {
         foreach (App::pages() as $internalId => $page) {
+            $config = ConfigLoader::load($page['config']);
+            $mode   = AccessResolver::pageMode($config);
+
+            if ($mode === 'rbac') {
+                $resolver = new AccessResolver($page['capability']);
+                $map      = $resolver->resolveForConfig($config);
+
+                if (!$map->hasAnyAccess()) {
+                    continue;
+                }
+
+                $capability = 'read';
+            } else {
+                $capability = $page['capability'];
+            }
+
             add_menu_page(
                 $page['page_title'],
                 $page['menu_title'],
-                $page['capability'],
+                $capability,
                 $page['menu_slug'],
                 fn() => self::render($internalId),
                 $page['menu_icon'],
@@ -152,6 +179,11 @@ final class AdminPage
 
     /**
      * Localize config + saved values for the matched page.
+     *
+     * The config is filtered through the user's AccessMap before being sent
+     * to the React frontend so the browser never sees fields the user
+     * isn't allowed to view. The `wp-wireframe/config/for_user` filter is
+     * the developer hook for further mutating the config per-request.
      */
     private static function localizeData(string $internalId): void
     {
@@ -161,10 +193,30 @@ final class AdminPage
         $prefix     = $page['prefix'];
         $pageId     = $page['page_id'];
 
+        $config   = ConfigLoader::load($configSlug);
+        $resolver = new AccessResolver($page['capability']);
+        $map      = $resolver->resolveForConfig($config);
+        $config   = $resolver->filterConfig($config, $map);
+
+        /**
+         * Filter the per-user config just before it ships to the browser.
+         *
+         * Use this hook to mutate the config based on the current user (e.g.
+         * append extra fields for trusted roles, alter labels, etc.) without
+         * having to fork the original config array.
+         *
+         * @param array          $config Filtered config (already had non-viewable elements stripped).
+         * @param string         $pageId Page identifier (matches the REST route segment).
+         * @param ConfigAccessMap $map    The access map used to produce $config.
+         */
+        $config = apply_filters('wp-wireframe/config/for_user', $config, $pageId, $map);
+
         wp_localize_script(App::assetHandle(), App::jsObjectName($prefix, $pageId), [
-            'config'   => ConfigLoader::load($configSlug),
+            'config'   => $config,
             'values'   => Settings::resolvedFor($optionKey, $configSlug),
             'hasSaved' => Settings::existsFor($optionKey),
+            'canSave'  => !empty($map->editable),
+            'canReset' => $map->canReset && !empty($map->editable),
             'restUrl'  => rest_url(App::restNamespace($prefix) . '/'),
             'nonce'    => wp_create_nonce('wp_rest'),
             'version'  => $page['version'],

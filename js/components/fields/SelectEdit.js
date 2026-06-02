@@ -31,6 +31,7 @@ export default function SelectEdit( { data, field, onChange, error } ) {
 	}
 
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
+	const disabled = !! field.readOnly;
 
 	const options = ( field.elements || [] ).map( ( element ) => ( {
 		label: element.label,
@@ -45,7 +46,8 @@ export default function SelectEdit( { data, field, onChange, error } ) {
 			help={ getFieldHelp( field.description, error, data ) }
 			value={ value }
 			options={ options }
-			onChange={ ( newValue ) => onChange( { [ field.id ]: newValue } ) }
+			onChange={ disabled ? undefined : ( newValue ) => onChange( { [ field.id ]: newValue } ) }
+			disabled={ disabled }
 			className={ error ? 'has-error' : undefined }
 		/>
 	);
@@ -60,6 +62,7 @@ export default function SelectEdit( { data, field, onChange, error } ) {
 function MultiSelect( { data, field, onChange, error } ) {
 	const { _args = {} } = field;
 	const options = field.elements || [];
+	const disabled = !! field.readOnly;
 
 	const selectedKeys = Array.isArray( data[ field.id ] )
 		? data[ field.id ]
@@ -107,10 +110,11 @@ function MultiSelect( { data, field, onChange, error } ) {
 				__experimentalExpandOnFocus
 				__experimentalAutoSelectFirstMatch
 				value={ displayTokens }
-				suggestions={ allLabels }
-				onChange={ handleChange }
+				suggestions={ disabled ? [] : allLabels }
+				onChange={ disabled ? () => {} : handleChange }
 				placeholder={ _args.placeholder || '' }
 				maxLength={ _args.max ? Number( _args.max ) : undefined }
+				disabled={ disabled }
 			/>
 		</BaseControl>
 	);

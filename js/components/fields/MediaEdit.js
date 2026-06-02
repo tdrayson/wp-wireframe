@@ -14,6 +14,7 @@ export default function MediaEdit( { data, field, onChange } ) {
 	const ids = Array.isArray( value ) ? value : ( value ? [ value ] : [] );
 	const multiple = _args.multiple || false;
 	const mimeTypes = _args.mime_types || '';
+	const disabled = !! field.readOnly;
 
 	const [ previews, setPreviews ] = useState( [] );
 
@@ -89,31 +90,35 @@ export default function MediaEdit( { data, field, onChange } ) {
 					{ previews.map( ( preview ) => (
 						<div key={ preview.id } className="wireframe-media__preview">
 							<img src={ preview.url } alt={ preview.title } />
-							<Button
-								isDestructive
-								variant="link"
-								className="wireframe-media__remove"
-								onClick={ () => removeItem( preview.id ) }
-								aria-label={ __( 'Remove', 'wp-wireframe' ) }
-							>
-								&times;
-							</Button>
+							{ ! disabled && (
+								<Button
+									isDestructive
+									variant="link"
+									className="wireframe-media__remove"
+									onClick={ () => removeItem( preview.id ) }
+									aria-label={ __( 'Remove', 'wp-wireframe' ) }
+								>
+									&times;
+								</Button>
+							) }
 						</div>
 					) ) }
 				</div>
 			) }
-			<div className="wireframe-media__actions">
-				<Button __next40pxDefaultSize variant="secondary" onClick={ openMediaLibrary }>
-					{ ids.length > 0
-						? __( 'Replace', 'wp-wireframe' )
-						: __( 'Select', 'wp-wireframe' ) }
-				</Button>
-				{ ids.length > 0 && (
-					<Button variant="link" isDestructive onClick={ clearAll }>
-						{ __( 'Clear', 'wp-wireframe' ) }
+			{ ! disabled && (
+				<div className="wireframe-media__actions">
+					<Button __next40pxDefaultSize variant="secondary" onClick={ openMediaLibrary }>
+						{ ids.length > 0
+							? __( 'Replace', 'wp-wireframe' )
+							: __( 'Select', 'wp-wireframe' ) }
 					</Button>
-				) }
-			</div>
+					{ ids.length > 0 && (
+						<Button variant="link" isDestructive onClick={ clearAll }>
+							{ __( 'Clear', 'wp-wireframe' ) }
+						</Button>
+					) }
+				</div>
+			) }
 		</BaseControl>
 	);
 }

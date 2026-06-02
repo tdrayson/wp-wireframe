@@ -12,6 +12,7 @@ import { chevronLeft } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import { useSettings } from '../hooks/useSettings';
+import { isTabVisible } from '../utils/conditions';
 import { getTabs, getSections } from '../utils/mapConfig';
 import {
   findActiveDetailField,
@@ -53,7 +54,7 @@ function writeTabToUrl(tabId) {
 }
 
 export default function SettingsPage() {
-  const { config, isDirty, saving, save, reset, hasSaved, restBase } = useSettings();
+  const { config, values, isDirty, saving, save, reset, hasSaved, canSave, canReset, restBase } = useSettings();
   const notices = useSelect(
     (select) =>
       select(noticesStore)
@@ -62,7 +63,14 @@ export default function SettingsPage() {
     [],
   );
   const { removeNotice } = useDispatch(noticesStore);
-  const tabs = getTabs(config);
+  // Filter tabs by their `conditions` against current values. Sections and
+  // fields already do this — extending to tabs lets authors gate a whole
+  // tab behind a toggle (e.g. show "Advanced" only when advanced_mode=true).
+  const allTabs = getTabs(config);
+  const tabs = useMemo(
+    () => allTabs.filter((tab) => isTabVisible(tab, values)),
+    [allTabs, values],
+  );
   const tabIds = useMemo(() => tabs.map((t) => t.id), [tabs]);
   const [activeTab, setActiveTab] = useState(() =>
     resolveInitialTab(tabIds),
@@ -152,9 +160,13 @@ export default function SettingsPage() {
     reset();
   };
 
+  // Server tells us whether this user is allowed to save or reset. When
+  // false, the relevant button is hidden entirely (rather than disabled)
+  // so read-only users see no action affordance at all.
   const headerActions = (
     <>
-      {hasSaved &&
+      {canReset &&
+        hasSaved &&
         (confirmReset ? (
           <>
             <Button
@@ -185,15 +197,17 @@ export default function SettingsPage() {
             {__('Reset', 'wp-wireframe')}
           </Button>
         ))}
-      <Button
-        size="compact"
-        variant="primary"
-        onClick={save}
-        disabled={saving || !isDirty}
-        isBusy={saving}
-      >
-        {saving ? __('Saving…', 'wp-wireframe') : __('Save', 'wp-wireframe')}
-      </Button>
+      {canSave && (
+        <Button
+          size="compact"
+          variant="primary"
+          onClick={save}
+          disabled={saving || !isDirty}
+          isBusy={saving}
+        >
+          {saving ? __('Saving…', 'wp-wireframe') : __('Save', 'wp-wireframe')}
+        </Button>
+      )}
     </>
   );
 
