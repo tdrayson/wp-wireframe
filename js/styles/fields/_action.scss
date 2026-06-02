@@ -11,10 +11,11 @@
 // the same row. `aria-hidden` on the element keeps it out of the a11y
 // tree — accessibility comes from the button text itself.
 //
-// Height = font-size-xs (11px) * line-height ratio + label margin-bottom.
+// The wrapping flex `gap` already accounts for the row below; this only
+// needs to match the label's own text height.
 .wireframe-action__label-spacer {
   display: block;
-  height: calc(var(--wpds-typography-font-size-xs) * 1.4 + var(--wpds-dimension-gap-sm));
+  height: calc(var(--wpds-typography-font-size-xs) * 1.4);
 }
 
 .wireframe-action__buttons {
