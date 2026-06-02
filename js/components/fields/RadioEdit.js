@@ -5,12 +5,13 @@ import { RadioControl } from '@wordpress/components';
 import { getFieldHelp } from './useFieldError';
 
 export default function RadioEdit( { data, field, onChange, error } ) {
-	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
+	const disabled = !! field.readOnly;
 
 	const options = ( field.elements || [] ).map( ( el ) => ( {
 		label: el.label,
 		value: el.value,
+		disabled,
 	} ) );
 
 	return (
@@ -19,8 +20,8 @@ export default function RadioEdit( { data, field, onChange, error } ) {
 			help={ getFieldHelp( field.description, error, data ) }
 			selected={ value }
 			options={ options }
-			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }
-			className={ error ? 'has-error' : undefined }
+			onChange={ disabled ? undefined : ( newVal ) => onChange( { [ field.id ]: newVal } ) }
+			className={ `${ error ? 'has-error' : '' } ${ disabled ? 'is-readonly' : '' }`.trim() || undefined }
 		/>
 	);
 }

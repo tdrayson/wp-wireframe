@@ -220,11 +220,29 @@ Wireframe\App::boot([
     'version'       => '1.0.0',                             // Plugin version.
     'menu_icon'     => 'dashicons-admin-generic',
     'menu_position' => 80,
+    'parent'        => 'tools',                             // Optional. Register as a submenu — see below.
     'capability'    => 'manage_options',
 ]);
 ```
 
 Everything except `prefix` has a sensible default. `config` accepts either a PHP file path or an inline array — see [Config Structure](#config-structure).
+
+### Submenu Pages
+
+Set `parent` to register the page as a submenu item instead of a top-level menu. Accepts a short alias or any explicit WordPress parent slug:
+
+```php
+Wireframe\App::boot([
+    'prefix'     => 'my-plugin',
+    'page_title' => __('My Plugin', 'my-plugin'),
+    'parent'     => 'tools',                  // → Tools › My Plugin
+    'config'     => __DIR__ . '/config/settings.php',
+]);
+```
+
+Aliases: `dashboard`, `posts`, `media`, `pages`, `comments`, `appearance`, `plugins`, `users`, `tools`, `settings` (or `options`). For anything else — including custom post types — pass the raw slug (e.g. `'options-general.php'`, `'edit.php?post_type=product'`).
+
+When `parent` is set, `menu_icon` is ignored (submenus don't display one). In multi-page configs, each page can set its own `parent`, or inherit the boot-level value.
 
 ### Multi-Page
 
@@ -415,6 +433,8 @@ Supported code modes: `css`, `js`, `html`, `php`, `json`, `xml`, `sql`
 | `export` | Download settings as JSON                                        | —         |
 | `import` | Upload JSON to restore settings                                  | —         |
 
+The `html` field ships with built-in prose styling (paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`) using the same WPDS tokens as the rest of the framework, so raw markup renders with sensible spacing and WordPress-admin typography out of the box.
+
 ---
 
 ## Field Examples
@@ -520,6 +540,86 @@ Supported code modes: `css`, `js`, `html`, `php`, `json`, `xml`, `sql`
 **Supported condition operators:** `equals`, `not_equals`, `truthy`, `falsy`, `in`, `not_in`, `contains`, `not_contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `gt`, `gte`, `lt`, `lte`, `between`
 
 Combine with `all` (AND) or `any` (OR).
+
+Conditions work at the **tab**, **section**, and **field** level. Tabs auto-hide when their conditions evaluate to false, the same way sections and fields do.
+
+### Role-Based Access
+
+Restrict who can view or edit a tab, section, or field with the optional `access` key. Two verbs: `view` and `edit`. Values can be a **role slug** (`editor`, `author`) or a **capability** (`manage_options`, `edit_posts`). Arrays evaluate as OR.
+
+```php
+[
+    'id'     => 'api_keys',
+    'type'   => 'text',
+    'label'  => 'API Key',
+    'access' => [
+        'view' => 'editor',         // editors and above can see the key
+        'edit' => 'manage_options', // only admins can change it
+    ],
+],
+
+// Shorthand: same role/cap for both verbs.
+[
+    'id'     => 'internal_note',
+    'type'   => 'textarea',
+    'label'  => 'Internal note',
+    'access' => 'editor',
+],
+
+// Hide an entire section from non-admins.
+[
+    'id'       => 'danger_zone',
+    'title'    => 'Danger Zone',
+    'access'   => ['view' => 'manage_options'],
+    'fields'   => [ ... ],
+],
+```
+
+#### Defaults at a glance
+
+Role-based access is **strictly opt-in**. If a page config contains zero `access` keys anywhere, behavior is identical to previous versions — `manage_options` required for everything. The table below describes what kicks in once at least one `access` key is declared on the page:
+
+| Behavior                                             | Default                                                                                                       | Override                                                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Page capability                                      | `manage_options`                                                                                              | Set `capability` on the boot config                                                            |
+| Menu visibility (RBAC mode)                          | Floor drops to `read`; menu suppressed entirely when the user has zero accessible elements                    | n/a                                                                                            |
+| Access value resolution                              | Match role slug first, then capability                                                                        | Both formats are accepted                                                                      |
+| `access` shorthand `'editor'`                        | Applied to both `view` and `edit`                                                                             | Use long form `['view' => …, 'edit' => …]` to split                                            |
+| `access` arrays                                      | Logical OR — any match grants access                                                                          | n/a                                                                                            |
+| `edit` without `view`                                | Implicitly denied                                                                                             | `edit` always requires `view`                                                                  |
+| Tab / section / field with no `access` key           | Inherits from parent (ultimately the page capability)                                                         | Add an `access` key                                                                            |
+| Non-viewable elements                                | Stripped from the config sent to the browser entirely                                                         | `wp-wireframe/config/for_user` filter                                                          |
+| Non-editable but viewable fields                     | Rendered with the input disabled; server rejects any writes                                                   | n/a                                                                                            |
+| Empty tab/section after filtering                    | Auto-hidden                                                                                                   | n/a                                                                                            |
+| Save endpoint                                        | Merges editable fields into existing values — fields outside the user's scope are never touched               | `wp-wireframe/save/editable_fields` and `wp-wireframe/save/payload`                            |
+| Reset endpoint                                       | Resets only the user's editable fields (admins with full access naturally reset everything)                   | `wp-wireframe/access/can_reset` filter                                                         |
+| Reset eligibility                                    | Any user with at least one editable field on the page may reset                                               | `wp-wireframe/access/can_reset` returns false                                                  |
+| Save / Reset buttons                                 | Hidden when the user has no editable fields                                                                   | n/a                                                                                            |
+| REST permission callback (legacy, no `access` keys)  | `current_user_can($page['capability'])`                                                                       | Page declares an `access` key → switches to RBAC mode                                          |
+| REST permission callback (RBAC mode)                 | `current_user_can('read')` AND has at least one editable field                                                | `wp-wireframe/access/resolve` filter                                                           |
+
+#### Developer filters
+
+Four filters let you override decisions on the fly without forking the config array. All are listed under **Hooks & Filters** below; this is the summary:
+
+```php
+// Override the yes/no for a single (verb, level, id, user) check.
+add_filter('wp-wireframe/access/resolve', fn($allowed, $ctx) => $allowed, 10, 2);
+
+// Mutate the config after access filtering, before localize.
+add_filter('wp-wireframe/config/for_user', fn($config, $pageId, $map) => $config, 10, 3);
+
+// Prune or extend the writable field list for the current save.
+add_filter('wp-wireframe/save/editable_fields', fn($ids, $pageId, $map) => $ids, 10, 3);
+
+// Transform sanitized values before they're merged into saved state.
+add_filter('wp-wireframe/save/payload', fn($values, $pageId, $payload) => $values, 10, 3);
+
+// Override whether the current user may reset on this page.
+add_filter('wp-wireframe/access/can_reset', fn($can, $user, $viewable, $editable) => $can, 10, 4);
+```
+
+Custom field types receive a `field.readOnly` prop on their Edit component when the current user has view but not edit access. Honor it by disabling your input — the server enforces writes regardless, so this is purely a UI hint.
 
 ### Validation
 
@@ -691,6 +791,16 @@ add_filter('wp-wireframe/field_types', function (array $types) {
 });
 ```
 
+Role-based access exposes additional hooks (see [Role-Based Access](#role-based-access) above):
+
+| Hook                                  | Type     | Purpose                                                       |
+| ------------------------------------- | -------- | ------------------------------------------------------------- |
+| `wp-wireframe/access/resolve`         | filter   | Override yes/no for a single (verb, level, id, user) check    |
+| `wp-wireframe/access/can_reset`       | filter   | Override whether a user may reset on a given page             |
+| `wp-wireframe/config/for_user`        | filter   | Mutate the config after access filtering, before localize     |
+| `wp-wireframe/save/editable_fields`   | filter   | Final list of writable field IDs for a save request           |
+| `wp-wireframe/save/payload`           | filter   | Transform the sanitized payload before merge                  |
+
 ---
 
 ## Custom Field Types
@@ -746,7 +856,9 @@ Settings are managed via REST endpoints:
 | `POST`   | `/{prefix}/v1/settings/{pageId}` | Validate, sanitize, save |
 | `DELETE` | `/{prefix}/v1/settings/{pageId}` | Reset to defaults        |
 
-All endpoints require `manage_options` capability (or your configured `capability`).
+All endpoints require `manage_options` capability (or your configured `capability`) by default.
+
+If the page opts into [Role-Based Access](#role-based-access) by declaring an `access` key anywhere in its config, the permission gate switches to `read` plus a per-element check, and the save flow merges editable fields into existing values rather than overwriting. Reset is scoped to the user's editable fields. See the Role-Based Access section for the full behavior table.
 
 ---
 

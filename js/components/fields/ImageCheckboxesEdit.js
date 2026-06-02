@@ -4,9 +4,9 @@
 import { BaseControl } from '@wordpress/components';
 
 export default function ImageCheckboxesEdit( { data, field, onChange } ) {
-	const { _args = {} } = field;
 	const value = Array.isArray( data[ field.id ] ) ? data[ field.id ] : ( field.defaultValue || [] );
 	const options = field.elements || [];
+	const disabled = !! field.readOnly;
 
 	const toggle = ( optionValue ) => {
 		const newValue = value.includes( optionValue )
@@ -29,8 +29,9 @@ export default function ImageCheckboxesEdit( { data, field, onChange } ) {
 						type="button"
 						role="checkbox"
 						aria-checked={ value.includes( option.value ) }
-						className={ `wireframe-image-choice__option ${ value.includes( option.value ) ? 'is-selected' : '' }` }
-						onClick={ () => toggle( option.value ) }
+						disabled={ disabled }
+						className={ `wireframe-image-choice__option ${ value.includes( option.value ) ? 'is-selected' : '' } ${ disabled ? 'is-readonly' : '' }`.trim() }
+						onClick={ disabled ? undefined : () => toggle( option.value ) }
 					>
 						{ option._image && (
 							<img

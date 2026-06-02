@@ -4,9 +4,9 @@
 import { BaseControl } from '@wordpress/components';
 
 export default function ImageRadioEdit( { data, field, onChange } ) {
-	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
 	const options = field.elements || [];
+	const disabled = !! field.readOnly;
 
 	return (
 		<BaseControl
@@ -22,8 +22,9 @@ export default function ImageRadioEdit( { data, field, onChange } ) {
 						type="button"
 						role="radio"
 						aria-checked={ value === option.value }
-						className={ `wireframe-image-choice__option ${ value === option.value ? 'is-selected' : '' }` }
-						onClick={ () => onChange( { [ field.id ]: option.value } ) }
+						disabled={ disabled }
+						className={ `wireframe-image-choice__option ${ value === option.value ? 'is-selected' : '' } ${ disabled ? 'is-readonly' : '' }`.trim() }
+						onClick={ disabled ? undefined : () => onChange( { [ field.id ]: option.value } ) }
 					>
 						{ option._image && (
 							<img

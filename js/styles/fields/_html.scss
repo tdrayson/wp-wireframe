@@ -1,17 +1,276 @@
-// HTML Display Variants
+// HTML Display
+//
+// Two responsibilities:
+//   1. Variant chrome (info / success / warning / error / plain notice frames).
+//   2. Built-in "prose" styles so raw HTML — paragraphs, lists, headings,
+//      blockquotes, inline / block code, tables, images, hr — renders with
+//      sensible WordPress-admin-flavoured spacing without consumers having
+//      to ship their own stylesheet.
+//
+// Reference points: Tailwind `prose`, Pico CSS, and the existing WPDS tokens
+// already used elsewhere in the framework.
 
 .wireframe-html {
   font-size: var(--wpds-typography-font-size-md);
   line-height: var(--wpds-typography-line-height-md);
+  color: var(--wpds-color-fg-content-neutral);
   padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
 
-  p {
+  // ── Prose: block flow ──────────────────────────────
+  //
+  // Every block child gets a baseline top margin so adjacent elements breathe.
+  // First/last-child resets keep the wrapper's own padding flush.
+
+  p,
+  ul,
+  ol,
+  dl,
+  blockquote,
+  pre,
+  table,
+  figure,
+  hr,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     margin: 0;
   }
+
+  > * + *,
+  p + *,
+  ul + *,
+  ol + *,
+  dl + *,
+  blockquote + *,
+  pre + *,
+  table + *,
+  figure + *,
+  hr + * {
+    margin-top: var(--wpds-dimension-gap-md);
+  }
+
+  // Tighter rhythm between a heading and the block it introduces.
+  h1 + *,
+  h2 + *,
+  h3 + *,
+  h4 + *,
+  h5 + *,
+  h6 + * {
+    margin-top: var(--wpds-dimension-gap-sm);
+  }
+
+  // More air before a heading that follows body copy.
+  * + h1,
+  * + h2,
+  * + h3,
+  * + h4,
+  * + h5,
+  * + h6 {
+    margin-top: var(--wpds-dimension-gap-xl);
+  }
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  // ── Inline ─────────────────────────────────────────
+
   a {
     color: inherit;
     text-decoration: underline;
   }
+
+  strong,
+  b {
+    font-weight: var(--wpds-typography-font-weight-medium);
+  }
+
+  em,
+  i {
+    font-style: italic;
+  }
+
+  small {
+    font-size: var(--wpds-typography-font-size-sm);
+  }
+
+  // ── Headings ───────────────────────────────────────
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: var(--wpds-typography-font-weight-medium);
+    line-height: var(--wpds-typography-line-height-xs);
+    color: var(--wpds-color-fg-content-neutral);
+  }
+
+  h1 { font-size: calc(var(--wpds-typography-font-size-lg) * 1.5); }
+  h2 { font-size: calc(var(--wpds-typography-font-size-lg) * 1.25); }
+  h3 { font-size: var(--wpds-typography-font-size-lg); }
+  h4 { font-size: var(--wpds-typography-font-size-md); }
+  h5,
+  h6 {
+    font-size: var(--wpds-typography-font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--wpds-color-fg-content-neutral-weak);
+  }
+
+  // ── Lists ──────────────────────────────────────────
+
+  ul,
+  ol {
+    padding-left: var(--wpds-dimension-padding-xl);
+  }
+
+  ul { list-style: disc; }
+  ol { list-style: decimal; }
+
+  ul ul { list-style: circle; }
+  ul ul ul { list-style: square; }
+
+  li + li,
+  li > ul,
+  li > ol {
+    margin-top: var(--wpds-dimension-gap-xs);
+  }
+
+  li > p {
+    margin: 0;
+  }
+
+  li > p + p {
+    margin-top: var(--wpds-dimension-gap-xs);
+  }
+
+  // Description lists
+  dt {
+    font-weight: var(--wpds-typography-font-weight-medium);
+  }
+
+  dd {
+    margin: 0 0 var(--wpds-dimension-gap-xs) var(--wpds-dimension-padding-md);
+  }
+
+  dd:last-child {
+    margin-bottom: 0;
+  }
+
+  // ── Blockquote ─────────────────────────────────────
+
+  blockquote {
+    padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+    border-left: var(--wpds-border-width-md) solid
+      var(--wpds-color-stroke-surface-neutral-weak);
+    color: var(--wpds-color-fg-content-neutral-weak);
+    font-style: italic;
+  }
+
+  blockquote > :first-child { margin-top: 0; }
+  blockquote > :last-child { margin-bottom: 0; }
+
+  // ── Code ───────────────────────────────────────────
+
+  code,
+  kbd,
+  samp {
+    font-family: var(--wpds-typography-font-family-mono);
+    font-size: 0.9em;
+  }
+
+  // Inline code
+  :not(pre) > code,
+  :not(pre) > kbd,
+  :not(pre) > samp {
+    background: var(--wpds-color-bg-surface-neutral-weak);
+    color: var(--wpds-color-fg-content-neutral);
+    padding: 0.1em 0.35em;
+    border-radius: var(--wpds-border-radius-sm);
+    border: var(--wpds-border-width-xs) solid
+      var(--wpds-color-stroke-surface-neutral-weak);
+  }
+
+  // Code block
+  pre {
+    background: var(--wpds-color-bg-surface-neutral-weak);
+    color: var(--wpds-color-fg-content-neutral);
+    padding: var(--wpds-dimension-padding-md);
+    border-radius: var(--wpds-border-radius-md);
+    border: var(--wpds-border-width-xs) solid
+      var(--wpds-color-stroke-surface-neutral-weak);
+    overflow-x: auto;
+    line-height: var(--wpds-typography-line-height-sm);
+  }
+
+  pre code {
+    background: transparent;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  // ── Tables ─────────────────────────────────────────
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--wpds-typography-font-size-sm);
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+    border-bottom: var(--wpds-border-width-xs) solid
+      var(--wpds-color-stroke-surface-neutral-weak);
+  }
+
+  th {
+    font-weight: var(--wpds-typography-font-weight-medium);
+    color: var(--wpds-color-fg-content-neutral);
+    background: var(--wpds-color-bg-surface-neutral-weak);
+  }
+
+  // ── Media ──────────────────────────────────────────
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--wpds-border-radius-sm);
+  }
+
+  figure {
+    margin: 0;
+  }
+
+  figcaption {
+    font-size: var(--wpds-typography-font-size-sm);
+    color: var(--wpds-color-fg-content-neutral-weak);
+    margin-top: var(--wpds-dimension-gap-xs);
+  }
+
+  // ── Rule ───────────────────────────────────────────
+
+  hr {
+    border: 0;
+    border-top: var(--wpds-border-width-xs) solid
+      var(--wpds-color-stroke-surface-neutral-weak);
+  }
+
+  // ── Variants ───────────────────────────────────────
 
   &--plain {
     background: transparent;

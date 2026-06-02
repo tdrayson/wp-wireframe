@@ -16,8 +16,13 @@ export default function WysiwygEdit( { data, field, onChange } ) {
 	const initializedRef = useRef( false );
 	const onChangeRef = useRef( onChange );
 	onChangeRef.current = onChange;
+	const readOnly = !! field.readOnly;
 
 	useEffect( () => {
+		if ( readOnly ) {
+			return;
+		}
+
 		if ( initializedRef.current || ! textareaRef.current ) {
 			return;
 		}
@@ -48,7 +53,7 @@ export default function WysiwygEdit( { data, field, onChange } ) {
 			}
 			initializedRef.current = false;
 		};
-	}, [ editorId, field.id ] );
+	}, [ editorId, field.id, readOnly ] );
 
 	return (
 		<BaseControl
@@ -57,13 +62,21 @@ export default function WysiwygEdit( { data, field, onChange } ) {
 			help={ field.description }
 			id={ editorId }
 		>
-			<textarea
-				ref={ textareaRef }
-				id={ editorId }
-				defaultValue={ value }
-				rows={ _args.rows || 8 }
-				style={ { width: '100%' } }
-			/>
+			{ readOnly ? (
+				<div
+					className="wireframe-wysiwyg-readonly"
+					// eslint-disable-next-line react/no-danger
+					dangerouslySetInnerHTML={ { __html: value } }
+				/>
+			) : (
+				<textarea
+					ref={ textareaRef }
+					id={ editorId }
+					defaultValue={ value }
+					rows={ _args.rows || 8 }
+					style={ { width: '100%' } }
+				/>
+			) }
 		</BaseControl>
 	);
 }

@@ -843,5 +843,86 @@ return [
                 ],
             ],
         ],
+
+        // ─── Role-Based Access ────────────────────────────
+        //
+        // Demonstrates the `access` key. Until at least one `access` key is
+        // declared somewhere on the page, RBAC stays dormant and the page
+        // behaves exactly like the rest of the demo (admin-only). The mere
+        // presence of the keys below switches this entire page into RBAC
+        // mode — drop the `access` lines and you're back to legacy mode.
+        [
+            'id'       => 'access',
+            'title'    => __('Role-Based Access', 'field-reference'),
+            'sections' => [
+                [
+                    'id'          => 'rbac_intro',
+                    'title'       => __('How it works', 'field-reference'),
+                    'description' => __('Each tab, section, and field accepts an optional `access` key. Values can be a role slug or a capability. Two verbs: `view` (can see) and `edit` (can write).', 'field-reference'),
+                    'fields'      => [
+                        [
+                            'id'    => 'rbac_explainer',
+                            'type'  => 'html',
+                            'args'  => [
+                                'content' => __('Sign in as an Editor to see how this page changes — fields you cannot edit render disabled, fields you cannot view disappear entirely, and Save/Reset only affects fields in your scope.', 'field-reference'),
+                                'variant' => 'info',
+                            ],
+                        ],
+                    ],
+                ],
+
+                // Editors can see + edit this section.
+                [
+                    'id'          => 'rbac_editor_zone',
+                    'title'       => __('Editor zone', 'field-reference'),
+                    'description' => __('Section visible and editable to anyone in the editor role or above.', 'field-reference'),
+                    'access'      => 'editor',
+                    'fields'      => [
+                        [
+                            'id'          => 'rbac_editor_note',
+                            'type'        => 'textarea',
+                            'label'       => __('Editorial note', 'field-reference'),
+                            'description' => __('Editors can change this. Admins can change this. Subscribers see nothing.', 'field-reference'),
+                            'args'        => ['rows' => 3],
+                        ],
+                    ],
+                ],
+
+                // Editors can VIEW but not EDIT — the field renders disabled.
+                [
+                    'id'     => 'rbac_view_only',
+                    'title'  => __('View-only fields', 'field-reference'),
+                    'fields' => [
+                        [
+                            'id'          => 'rbac_api_key',
+                            'type'        => 'text',
+                            'label'       => __('API key (view-only for editors)', 'field-reference'),
+                            'description' => __('Editors can see the key for reference, but only admins can change it.', 'field-reference'),
+                            'default'     => 'sk_demo_••••••••••••',
+                            'access'      => [
+                                'view' => 'editor',
+                                'edit' => 'manage_options',
+                            ],
+                        ],
+                    ],
+                ],
+
+                // Hidden from editors entirely — stripped from their config.
+                [
+                    'id'          => 'rbac_admin_zone',
+                    'title'       => __('Admin-only zone', 'field-reference'),
+                    'description' => __('Both this section and its fields require `manage_options`. Editors never see this section in the menu *or* the API.', 'field-reference'),
+                    'access'      => ['view' => 'manage_options'],
+                    'fields'      => [
+                        [
+                            'id'      => 'rbac_secret',
+                            'type'    => 'password',
+                            'label'   => __('Secret token', 'field-reference'),
+                            'default' => '',
+                        ],
+                    ],
+                ],
+            ],
+        ],
     ],
 ];

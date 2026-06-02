@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.6] - 2026-06-02
+
+### Features
+- **Role-based access control**: optional `access` key on tabs, sections, and fields. Two verbs (`view`, `edit`) accepting role slugs or capabilities; arrays evaluate as OR. Tabs and sections auto-hide when every descendant is filtered out. Non-editable but viewable fields render disabled. Strictly opt-in — pages without any `access` key behave exactly as before (`manage_options` required for everything).
+- **Conditional tabs**: tabs now support the same `conditions` DSL as sections and fields, evaluated against current form values.
+- **Save merges instead of overwrites**: the REST save endpoint now intersects the payload with the user's editable field list and merges into existing saved state. A partial-access user can no longer wipe fields outside their scope.
+- **Scoped reset**: the REST reset endpoint now only resets fields the user can edit. For admins with full access this is equivalent to a full reset; for partial-access users it's bounded to their slice.
+- New filters: `wp-wireframe/access/resolve`, `wp-wireframe/access/can_reset`, `wp-wireframe/config/for_user`, `wp-wireframe/save/editable_fields`, `wp-wireframe/save/payload`.
+- New classes: `Wireframe\Framework\Access\AccessResolver` and `Wireframe\Framework\Access\ConfigAccessMap`.
+- Worked example added to the Field Reference example plugin (new "Role-Based Access" tab).
+- **Submenu pages**: new `parent` option on `App::boot()` (and per-page configs) registers a page as a submenu under any WordPress parent — e.g. `'parent' => 'tools'` puts the page under **Tools**. Accepts short aliases (`dashboard`, `posts`, `media`, `pages`, `comments`, `appearance`, `plugins`, `users`, `tools`, `settings`) or any explicit parent slug (`'options-general.php'`, `'edit.php?post_type=product'`).
+- **Default prose styling on `html` field**: paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`, and adjacent-sibling spacing (`p + ul`, `* + h2`, …) — built on the existing WPDS tokens. Raw HTML content now renders with WordPress-admin-flavoured rhythm without consumers having to bolt on their own stylesheet.
+
+### Fixes
+- **Windows:** `App::assetsUrl()` now normalizes the filesystem-relative segment to forward slashes before building the public URL. On Windows, `realpath()` returns backslashes; those are not valid HTTP path separators and are stripped when WordPress escapes enqueued script/style URLs, which merged path segments (e.g. `…/plugins/notedvendor…/assets/` instead of `…/plugins/noted/vendor/…/src/assets/`).
+
+### Design Rationale
+- **Strictly opt-in** was a deliberate choice: a page config with zero `access` keys produces byte-identical behavior to previous versions. The `AccessResolver::pageMode()` walk runs once at boot to decide whether to engage the new pipeline at all. This guarantees no plugin can accidentally widen access by upgrading.
+- **Merge instead of overwrite** on save replaces the old `preserveHiddenFieldValues` pass — preservation now falls out of the merge for free, and the same code path handles both condition-hidden and access-restricted fields consistently.
+- **Strip non-viewable elements from the config** sent to the browser, rather than rendering placeholders, so partial-access users have no idea hidden fields exist. The reset confirmation dialog uses neutral wording ("Reset the settings on this page to their defaults?") for the same reason.
+- **Capability is the primitive, role slugs are sugar**: strings are matched against role slugs first (via `get_role()`), falling back to capability lookups (`user_can`). This keeps configs readable (`'editor'`) without sacrificing the flexibility of custom capabilities.
+- Submenu support mirrors WordPress's native `add_submenu_page()` parent argument; the alias map covers the common cases (`tools`, `settings`) so consumers don't need to remember `tools.php` / `options-general.php`, while still allowing any raw slug for custom parents.
+- Prose styles are scoped to `.wireframe-html` so they can't leak into the rest of the admin. First/last-child margin resets keep the wrapper's own padding flush; `> * + *` plus targeted heading rules give Tailwind-`prose`-like rhythm using the framework's existing design tokens.
+
+### Notes & Caveats
+- Custom field types should honor the new `field.readOnly` prop from `mapField()`. If a custom field ignores it, the server still rejects writes — the prop is a UI hint only.
+- Repeater subfields don't get their own `access` keys (would be confusing UX). The whole repeater is one editable unit; subfields inherit the parent's editability.
+- The Reset button label stays "Reset" (not "Reset my fields") for partial-access users — the UX uses inline confirm buttons rather than a popup, and neutral labels avoid leaking the existence of hidden fields.
+
 ## [1.0.5] - 2026-04-23
 
 ### Features

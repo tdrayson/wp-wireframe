@@ -5,8 +5,8 @@ import { ToggleControl } from '@wordpress/components';
 import { getFieldHelp } from './useFieldError';
 
 export default function ToggleEdit( { data, field, onChange, error } ) {
-	const { _args = {} } = field;
 	const value = !! data[ field.id ];
+	const disabled = !! field.readOnly;
 
 	return (
 		<ToggleControl
@@ -14,7 +14,8 @@ export default function ToggleEdit( { data, field, onChange, error } ) {
 			label={ field.label }
 			help={ getFieldHelp( field.description, error, data ) }
 			checked={ value }
-			onChange={ ( newVal ) => onChange( { [ field.id ]: newVal } ) }
+			onChange={ disabled ? undefined : ( newVal ) => onChange( { [ field.id ]: newVal } ) }
+			disabled={ disabled }
 			className={ error ? 'has-error' : undefined }
 		/>
 	);

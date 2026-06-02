@@ -13,9 +13,9 @@ import { CheckboxControl, BaseControl } from '@wordpress/components';
 import { getFieldHelp } from './useFieldError';
 
 export default function CheckboxGroupEdit( { data, field, onChange, error } ) {
-	const { _args = {} } = field;
 	const value = Array.isArray( data[ field.id ] ) ? data[ field.id ] : ( field.defaultValue || [] );
 	const options = field.elements || [];
+	const disabled = !! field.readOnly;
 
 	/**
 	 * Toggle a single option in the selected values array.
@@ -46,7 +46,8 @@ export default function CheckboxGroupEdit( { data, field, onChange, error } ) {
 						key={ option.value }
 						label={ option.label }
 						checked={ value.includes( option.value ) }
-						onChange={ ( isChecked ) => handleChange( option.value, isChecked ) }
+						onChange={ disabled ? undefined : ( isChecked ) => handleChange( option.value, isChecked ) }
+						disabled={ disabled }
 					/>
 				) ) }
 			</div>

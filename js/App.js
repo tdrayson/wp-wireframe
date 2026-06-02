@@ -25,6 +25,8 @@ export default function App( { data } ) {
 			config={ data.config }
 			initialValues={ data.values }
 			hasSavedInitial={ data.hasSaved }
+			canSave={ data.canSave !== false }
+			canReset={ data.canReset !== false }
 			prefix={ data.prefix }
 			pageId={ data.pageId || 'default' }
 		>
