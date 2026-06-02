@@ -220,11 +220,29 @@ Wireframe\App::boot([
     'version'       => '1.0.0',                             // Plugin version.
     'menu_icon'     => 'dashicons-admin-generic',
     'menu_position' => 80,
+    'parent'        => 'tools',                             // Optional. Register as a submenu — see below.
     'capability'    => 'manage_options',
 ]);
 ```
 
 Everything except `prefix` has a sensible default. `config` accepts either a PHP file path or an inline array — see [Config Structure](#config-structure).
+
+### Submenu Pages
+
+Set `parent` to register the page as a submenu item instead of a top-level menu. Accepts a short alias or any explicit WordPress parent slug:
+
+```php
+Wireframe\App::boot([
+    'prefix'     => 'my-plugin',
+    'page_title' => __('My Plugin', 'my-plugin'),
+    'parent'     => 'tools',                  // → Tools › My Plugin
+    'config'     => __DIR__ . '/config/settings.php',
+]);
+```
+
+Aliases: `dashboard`, `posts`, `media`, `pages`, `comments`, `appearance`, `plugins`, `users`, `tools`, `settings` (or `options`). For anything else — including custom post types — pass the raw slug (e.g. `'options-general.php'`, `'edit.php?post_type=product'`).
+
+When `parent` is set, `menu_icon` is ignored (submenus don't display one). In multi-page configs, each page can set its own `parent`, or inherit the boot-level value.
 
 ### Multi-Page
 
@@ -414,6 +432,8 @@ Supported code modes: `css`, `js`, `html`, `php`, `json`, `xml`, `sql`
 | `html`   | Read-only display block (info, success, warning, error variants) | —         |
 | `export` | Download settings as JSON                                        | —         |
 | `import` | Upload JSON to restore settings                                  | —         |
+
+The `html` field ships with built-in prose styling (paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`) using the same WPDS tokens as the rest of the framework, so raw markup renders with sensible spacing and WordPress-admin typography out of the box.
 
 ---
 

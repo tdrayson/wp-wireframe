@@ -10,6 +10,8 @@
 - New filters: `wp-wireframe/access/resolve`, `wp-wireframe/access/can_reset`, `wp-wireframe/config/for_user`, `wp-wireframe/save/editable_fields`, `wp-wireframe/save/payload`.
 - New classes: `Wireframe\Framework\Access\AccessResolver` and `Wireframe\Framework\Access\ConfigAccessMap`.
 - Worked example added to the Field Reference example plugin (new "Role-Based Access" tab).
+- **Submenu pages**: new `parent` option on `App::boot()` (and per-page configs) registers a page as a submenu under any WordPress parent — e.g. `'parent' => 'tools'` puts the page under **Tools**. Accepts short aliases (`dashboard`, `posts`, `media`, `pages`, `comments`, `appearance`, `plugins`, `users`, `tools`, `settings`) or any explicit parent slug (`'options-general.php'`, `'edit.php?post_type=product'`).
+- **Default prose styling on `html` field**: paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>`, and adjacent-sibling spacing (`p + ul`, `* + h2`, …) — built on the existing WPDS tokens. Raw HTML content now renders with WordPress-admin-flavoured rhythm without consumers having to bolt on their own stylesheet.
 
 ### Fixes
 - **Windows:** `App::assetsUrl()` now normalizes the filesystem-relative segment to forward slashes before building the public URL. On Windows, `realpath()` returns backslashes; those are not valid HTTP path separators and are stripped when WordPress escapes enqueued script/style URLs, which merged path segments (e.g. `…/plugins/notedvendor…/assets/` instead of `…/plugins/noted/vendor/…/src/assets/`).
@@ -19,6 +21,8 @@
 - **Merge instead of overwrite** on save replaces the old `preserveHiddenFieldValues` pass — preservation now falls out of the merge for free, and the same code path handles both condition-hidden and access-restricted fields consistently.
 - **Strip non-viewable elements from the config** sent to the browser, rather than rendering placeholders, so partial-access users have no idea hidden fields exist. The reset confirmation dialog uses neutral wording ("Reset the settings on this page to their defaults?") for the same reason.
 - **Capability is the primitive, role slugs are sugar**: strings are matched against role slugs first (via `get_role()`), falling back to capability lookups (`user_can`). This keeps configs readable (`'editor'`) without sacrificing the flexibility of custom capabilities.
+- Submenu support mirrors WordPress's native `add_submenu_page()` parent argument; the alias map covers the common cases (`tools`, `settings`) so consumers don't need to remember `tools.php` / `options-general.php`, while still allowing any raw slug for custom parents.
+- Prose styles are scoped to `.wireframe-html` so they can't leak into the rest of the admin. First/last-child margin resets keep the wrapper's own padding flush; `> * + *` plus targeted heading rules give Tailwind-`prose`-like rhythm using the framework's existing design tokens.
 
 ### Notes & Caveats
 - Custom field types should honor the new `field.readOnly` prop from `mapField()`. If a custom field ignores it, the server still rejects writes — the prop is a UI hint only.
