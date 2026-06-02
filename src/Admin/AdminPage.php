@@ -98,6 +98,18 @@ final class AdminPage
         $page   = App::page($internalId);
         $assets = $page['assets'] ?? [];
 
+        /**
+         * Filter the external assets enqueued on this page.
+         *
+         * Hook name uses the page's prefix (e.g. `my-plugin/assets`) so each
+         * consuming plugin owns its own namespace. Return an array of asset
+         * entries shaped the same as the static `assets` config.
+         *
+         * @param array $assets Asset entries already declared in page config.
+         * @param array $page   The matched page definition.
+         */
+        $assets = apply_filters(App::hookName($page['prefix'], 'assets'), $assets, $page);
+
         if (!is_array($assets) || $assets === []) {
             return;
         }
