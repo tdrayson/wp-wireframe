@@ -150,13 +150,18 @@ export default function ActionButton( { field } ) {
 	const { createNotice } = useDispatch( noticesStore );
 
 	const [ runningId, setRunningId ] = useState( null );
-	const [ result, setResult ] = useState( null );
+
+	// Result panels are keyed by button id, so each button owns its own
+	// slot. Clicking button A only ever updates A's panel — B's previous
+	// rich result stays visible. A button's own subsequent click overwrites
+	// (returns html → replaces) or clears (returns no html → removes) only
+	// its own slot.
+	const [ results, setResults ] = useState( {} );
 	const [ confirmingButton, setConfirmingButton ] = useState( null );
 
 	const performAction = useCallback(
 		async ( button ) => {
 			setRunningId( button.id );
-			setResult( null );
 
 			const endpoint = `/${ restRoot }/action/${ pageId }/${ encodeURIComponent(
 				field.id
@@ -177,15 +182,27 @@ export default function ActionButton( { field } ) {
 					createNotice( status, message, { type: 'snackbar' } );
 				}
 
-				if ( html ) {
-					setResult( { status, message, html } );
-				}
+				// Update only this button's slot. Other buttons' panels are
+				// untouched.
+				setResults( ( previous ) => {
+					const next = { ...previous };
+
+					if ( html ) {
+						next[ button.id ] = { status, message, html };
+					} else {
+						delete next[ button.id ];
+					}
+
+					return next;
+				} );
 			} catch ( requestError ) {
 				const message =
 					requestError?.message ||
 					__( 'Action failed.', 'wp-wireframe' );
 
 				createNotice( 'error', message, { type: 'snackbar' } );
+				// Don't touch any result slots on error — whatever was
+				// showing before stays visible.
 			} finally {
 				setRunningId( null );
 			}
@@ -245,16 +262,25 @@ export default function ActionButton( { field } ) {
 					) ) }
 				</Flex>
 
-				{ result && result.html && (
-					<div
-						className={ `wireframe-action__result ${
-							VARIANT_CLASSES[ result.status ] || ''
-						}` }
-						role={ result.status === 'error' ? 'alert' : 'status' }
-					>
-						<RawHTML>{ result.html }</RawHTML>
-					</div>
-				) }
+				{ buttons.map( ( button ) => {
+					const result = results[ button.id ];
+
+					if ( ! result || ! result.html ) {
+						return null;
+					}
+
+					return (
+						<div
+							key={ `result-${ button.id }` }
+							className={ `wireframe-action__result ${
+								VARIANT_CLASSES[ result.status ] || ''
+							}` }
+							role={ result.status === 'error' ? 'alert' : 'status' }
+						>
+							<RawHTML>{ result.html }</RawHTML>
+						</div>
+					);
+				} ) }
 			</div>
 
 			{ confirmingButton && confirmingButton.confirm && (
