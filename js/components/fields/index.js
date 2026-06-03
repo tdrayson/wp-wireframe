@@ -26,6 +26,7 @@ import ImageCheckboxesEdit from './ImageCheckboxesEdit';
 import ExportButton from './ExportButton';
 import ImportButton from './ImportButton';
 import TableField from './TableField';
+import ActionButton from './ActionButton';
 
 /**
  * Registry of custom Edit components keyed by PHP field type.
@@ -70,6 +71,7 @@ export const customEditComponents = {
 	// Actions.
 	export: ExportButton,
 	import: ImportButton,
+	action: ActionButton,
 
 	// Display.
 	html: HtmlDisplay,

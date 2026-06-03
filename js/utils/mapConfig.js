@@ -26,7 +26,10 @@ export function mapField( fieldConfig ) {
 	const field = {
 		id: fieldConfig.id,
 		type: 'text',
-		label: fieldConfig.label || fieldConfig.id,
+		// `??` (not `||`) so an explicit empty string passes through —
+		// some field types (e.g. `action`) want to opt out of rendering a
+		// label entirely. Only `undefined` / missing falls back to the id.
+		label: fieldConfig.label ?? fieldConfig.id,
 		description: fieldConfig.description || '',
 		defaultValue: fieldConfig.default ?? null,
 		required: fieldConfig.required || false,
