@@ -134,8 +134,8 @@ final class App
                 'menu_position' => $config['menu_position'] ?? 80,
                 'config'        => $configSlug,
                 'option_key'    => $perBoot['option_key'],
-                'menu_slug'     => $prefix,
                 'assets'        => $config['assets'] ?? [],
+                'menu_slug'     => $config['menu_slug'] ?? $prefix,
                 'parent'        => $config['parent'] ?? '',
             ];
 

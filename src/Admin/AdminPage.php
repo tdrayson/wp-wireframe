@@ -85,6 +85,26 @@ final class AdminPage
     }
 
     /**
+     * True when the given screen / hook suffix belongs to a Wireframe page.
+     *
+     * WP always builds the screen ID as `{page_type}_page_{menu_slug}` (with
+     * `page_type` being `toplevel` or the parent menu's hook). Matching on
+     * the suffix `_page_{menu_slug}` is the leanest exact-ish check — the
+     * underscore-bounded `_page_` separator can't be confused with any
+     * other dash-delimited segment in a normal admin slug.
+     */
+    public static function isWireframeScreen(string $screenId): bool
+    {
+        foreach (App::pages() as $page) {
+            if (str_ends_with($screenId, '_page_' . $page['menu_slug'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Map common parent-menu aliases to their canonical WordPress slugs.
      *
      * Accepts a bare alias (`tools`, `settings`, `appearance`, `users`,
@@ -227,11 +247,16 @@ final class AdminPage
 
     /**
      * Find which internal page ID matches the current admin hook suffix.
+     *
+     * Anchored on the `_page_{menu_slug}` suffix so sibling subpages whose
+     * own slug starts with a Wireframe page's slug don't false-positive
+     * (e.g. an `example-plugin-diagnostics` subpage being mistaken for
+     * the `example-plugin` Wireframe page).
      */
     private static function matchPage(string $hookSuffix): ?string
     {
         foreach (App::pages() as $internalId => $page) {
-            if (str_contains($hookSuffix, $page['menu_slug'])) {
+            if (str_ends_with($hookSuffix, '_page_' . $page['menu_slug'])) {
                 return $internalId;
             }
         }
