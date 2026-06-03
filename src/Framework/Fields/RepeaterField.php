@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Wireframe\Framework\Fields;
 
+use Wireframe\Framework\Conditions;
+
 class RepeaterField extends BaseField
 {
     public static function type(): string
@@ -30,6 +32,12 @@ class RepeaterField extends BaseField
             $cleanRow = [];
 
             foreach ($subfields as $subConfig) {
+                // Hidden subfields aren't persisted — matches top-level Sanitizer
+                // semantics where condition-hidden fields drop out of the payload.
+                if (!Conditions::evaluate($subConfig['conditions'] ?? null, $row)) {
+                    continue;
+                }
+
                 $subId      = $subConfig['id'] ?? '';
                 $subType    = $subConfig['type'] ?? 'text';
                 $subArgs    = $subConfig['args'] ?? [];
