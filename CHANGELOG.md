@@ -16,6 +16,7 @@
 ### Fixes
 - **Windows:** `App::assetsUrl()` now normalizes the filesystem-relative segment to forward slashes before building the public URL. On Windows, `realpath()` returns backslashes; those are not valid HTTP path separators and are stripped when WordPress escapes enqueued script/style URLs, which merged path segments (e.g. `…/plugins/notedvendor…/assets/` instead of `…/plugins/noted/vendor/…/src/assets/`).
 - **Single-page `menu_slug` ignored** (#5): the single-page boot branch in `App::resolvePages()` hardcoded `'menu_slug' => $prefix`, silently dropping any `menu_slug` value passed at boot. The README and the multi-page branch both honour the override; the single-page branch now matches (`$config['menu_slug'] ?? $prefix`).
+- **`SlotFillProvider` missing at app root** (#4): the React app rendered `@wordpress/components` widgets (Popover, Dropdown, ComboboxControl, SnackbarList) without wrapping in `SlotFillProvider`, which logged a console warning on every page load (*"Components must be wrapped within `SlotFillProvider`"*) and could leave popovers / portaled content positioned incorrectly. The app root in `js/index.js` now wraps `<App>` in `<SlotFillProvider>`.
 
 ### Design Rationale
 - **Strictly opt-in** was a deliberate choice: a page config with zero `access` keys produces byte-identical behavior to previous versions. The `AccessResolver::pageMode()` walk runs once at boot to decide whether to engage the new pipeline at all. This guarantees no plugin can accidentally widen access by upgrading.
