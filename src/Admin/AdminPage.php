@@ -178,7 +178,71 @@ final class AdminPage
 
         self::enqueueScriptsAndStyles($asset);
         self::enqueueWordPressEditors();
+        self::enqueueExternalAssets($matchedId);
         self::localizeData($matchedId);
+    }
+
+    /**
+     * Enqueue any external scripts/styles a page declared via its `assets` config.
+     *
+     * Each entry is shaped:
+     *   [
+     *       'handle'    => 'my-vendor-lib',         // required
+     *       'src'       => 'https://cdn/lib.js',    // required
+     *       'deps'      => ['jquery'],              // optional, default []
+     *       'version'   => '1.2.3',                 // optional, falls back to page version
+     *       'type'      => 'script' | 'style',      // optional, default 'script'
+     *       'in_footer' => true,                    // scripts only, default true
+     *       'media'     => 'all',                   // styles only, default 'all'
+     *   ]
+     */
+    private static function enqueueExternalAssets(string $internalId): void
+    {
+        $page   = App::page($internalId);
+        $assets = $page['assets'] ?? [];
+
+        /**
+         * Filter the external assets enqueued on this page.
+         *
+         * Hook name uses the page's prefix (e.g. `my-plugin/assets`) so each
+         * consuming plugin owns its own namespace. Return an array of asset
+         * entries shaped the same as the static `assets` config.
+         *
+         * @param array $assets Asset entries already declared in page config.
+         * @param array $page   The matched page definition.
+         */
+        $assets = apply_filters(App::hookName($page['prefix'], 'assets'), $assets, $page);
+
+        if (!is_array($assets) || $assets === []) {
+            return;
+        }
+
+        foreach ($assets as $asset) {
+            if (!is_array($asset) || empty($asset['handle']) || empty($asset['src'])) {
+                continue;
+            }
+
+            $handle  = (string) $asset['handle'];
+            $src     = (string) $asset['src'];
+            $deps    = isset($asset['deps']) && is_array($asset['deps']) ? $asset['deps'] : [];
+            $version = $asset['version'] ?? $page['version'];
+            $type    = ($asset['type'] ?? 'script') === 'style' ? 'style' : 'script';
+
+            if ($type === 'style') {
+                if (wp_style_is($handle, 'enqueued')) {
+                    continue;
+                }
+
+                wp_enqueue_style($handle, $src, $deps, $version, (string) ($asset['media'] ?? 'all'));
+                continue;
+            }
+
+            if (wp_script_is($handle, 'enqueued')) {
+                continue;
+            }
+
+            wp_enqueue_script($handle, $src, $deps, $version, (bool) ($asset['in_footer'] ?? true));
+        }
     }
 
     /**

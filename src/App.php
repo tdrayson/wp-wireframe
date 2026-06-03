@@ -114,6 +114,7 @@ final class App
                     'config'        => $configSlug,
                     'option_key'    => $optionKey,
                     'menu_slug'     => $pageConfig['menu_slug'] ?? $prefix . '-' . $pageId,
+                    'assets'        => $pageConfig['assets'] ?? $config['assets'] ?? [],
                     'parent'        => $pageConfig['parent'] ?? $config['parent'] ?? '',
                 ];
 
@@ -133,6 +134,7 @@ final class App
                 'menu_position' => $config['menu_position'] ?? 80,
                 'config'        => $configSlug,
                 'option_key'    => $perBoot['option_key'],
+                'assets'        => $config['assets'] ?? [],
                 'menu_slug'     => $config['menu_slug'] ?? $prefix,
                 'parent'        => $config['parent'] ?? '',
             ];
