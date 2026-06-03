@@ -50,8 +50,15 @@ final class Plugin
     }
 
     /**
-     * Add a consistent body class to the settings page so styles
-     * can target it regardless of the consuming plugin's prefix.
+     * Add a consistent body class to Wireframe-managed pages so styles
+     * can target them regardless of the consuming plugin's prefix.
+     *
+     * Uses the `_page_{menu_slug}` suffix check from
+     * `AdminPage::isWireframeScreen()`. Previous versions used
+     * `str_contains($screen->id, $menu_slug)`, which false-positived on
+     * sibling subpages whose own slug started with a Wireframe page's
+     * slug, applying `wireframe-admin` (and its `#wpcontent
+     * { padding-left: 0 }` reset) to admin screens that aren't ours.
      *
      * @param string $classes Existing admin body classes.
      * @return string
@@ -60,13 +67,12 @@ final class Plugin
     {
         $screen = get_current_screen();
 
-        if ($screen) {
-            foreach (App::pages() as $page) {
-                if (str_contains($screen->id, $page['menu_slug'])) {
-                    $classes .= ' wireframe-admin';
-                    break;
-                }
-            }
+        if (! $screen) {
+            return $classes;
+        }
+
+        if (AdminPage::isWireframeScreen($screen->id)) {
+            $classes .= ' wireframe-admin';
         }
 
         return $classes;

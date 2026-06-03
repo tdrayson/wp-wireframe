@@ -85,6 +85,26 @@ final class AdminPage
     }
 
     /**
+     * True when the given screen / hook suffix belongs to a Wireframe page.
+     *
+     * WP always builds the screen ID as `{page_type}_page_{menu_slug}` (with
+     * `page_type` being `toplevel` or the parent menu's hook). Matching on
+     * the suffix `_page_{menu_slug}` is the leanest exact-ish check — the
+     * underscore-bounded `_page_` separator can't be confused with any
+     * other dash-delimited segment in a normal admin slug.
+     */
+    public static function isWireframeScreen(string $screenId): bool
+    {
+        foreach (App::pages() as $page) {
+            if (str_ends_with($screenId, '_page_' . $page['menu_slug'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Map common parent-menu aliases to their canonical WordPress slugs.
      *
      * Accepts a bare alias (`tools`, `settings`, `appearance`, `users`,
@@ -158,16 +178,85 @@ final class AdminPage
 
         self::enqueueScriptsAndStyles($asset);
         self::enqueueWordPressEditors();
+        self::enqueueExternalAssets($matchedId);
         self::localizeData($matchedId);
     }
 
     /**
+     * Enqueue any external scripts/styles a page declared via its `assets` config.
+     *
+     * Each entry is shaped:
+     *   [
+     *       'handle'    => 'my-vendor-lib',         // required
+     *       'src'       => 'https://cdn/lib.js',    // required
+     *       'deps'      => ['jquery'],              // optional, default []
+     *       'version'   => '1.2.3',                 // optional, falls back to page version
+     *       'type'      => 'script' | 'style',      // optional, default 'script'
+     *       'in_footer' => true,                    // scripts only, default true
+     *       'media'     => 'all',                   // styles only, default 'all'
+     *   ]
+     */
+    private static function enqueueExternalAssets(string $internalId): void
+    {
+        $page   = App::page($internalId);
+        $assets = $page['assets'] ?? [];
+
+        /**
+         * Filter the external assets enqueued on this page.
+         *
+         * Hook name uses the page's prefix (e.g. `my-plugin/assets`) so each
+         * consuming plugin owns its own namespace. Return an array of asset
+         * entries shaped the same as the static `assets` config.
+         *
+         * @param array $assets Asset entries already declared in page config.
+         * @param array $page   The matched page definition.
+         */
+        $assets = apply_filters(App::hookName($page['prefix'], 'assets'), $assets, $page);
+
+        if (!is_array($assets) || $assets === []) {
+            return;
+        }
+
+        foreach ($assets as $asset) {
+            if (!is_array($asset) || empty($asset['handle']) || empty($asset['src'])) {
+                continue;
+            }
+
+            $handle  = (string) $asset['handle'];
+            $src     = (string) $asset['src'];
+            $deps    = isset($asset['deps']) && is_array($asset['deps']) ? $asset['deps'] : [];
+            $version = $asset['version'] ?? $page['version'];
+            $type    = ($asset['type'] ?? 'script') === 'style' ? 'style' : 'script';
+
+            if ($type === 'style') {
+                if (wp_style_is($handle, 'enqueued')) {
+                    continue;
+                }
+
+                wp_enqueue_style($handle, $src, $deps, $version, (string) ($asset['media'] ?? 'all'));
+                continue;
+            }
+
+            if (wp_script_is($handle, 'enqueued')) {
+                continue;
+            }
+
+            wp_enqueue_script($handle, $src, $deps, $version, (bool) ($asset['in_footer'] ?? true));
+        }
+    }
+
+    /**
      * Find which internal page ID matches the current admin hook suffix.
+     *
+     * Anchored on the `_page_{menu_slug}` suffix so sibling subpages whose
+     * own slug starts with a Wireframe page's slug don't false-positive
+     * (e.g. an `example-plugin-diagnostics` subpage being mistaken for
+     * the `example-plugin` Wireframe page).
      */
     private static function matchPage(string $hookSuffix): ?string
     {
         foreach (App::pages() as $internalId => $page) {
-            if (str_contains($hookSuffix, $page['menu_slug'])) {
+            if (str_ends_with($hookSuffix, '_page_' . $page['menu_slug'])) {
                 return $internalId;
             }
         }
