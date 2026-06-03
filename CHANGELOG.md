@@ -15,6 +15,7 @@
 
 ### Fixes
 - **Windows:** `App::assetsUrl()` now normalizes the filesystem-relative segment to forward slashes before building the public URL. On Windows, `realpath()` returns backslashes; those are not valid HTTP path separators and are stripped when WordPress escapes enqueued script/style URLs, which merged path segments (e.g. `…/plugins/notedvendor…/assets/` instead of `…/plugins/noted/vendor/…/src/assets/`).
+- **`SlotFillProvider` missing at app root** (#4): the React app rendered `@wordpress/components` widgets (Popover, Dropdown, ComboboxControl, SnackbarList) without wrapping in `SlotFillProvider`, which logged a console warning on every page load (*"Components must be wrapped within `SlotFillProvider`"*) and could leave popovers / portaled content positioned incorrectly. The app root in `js/index.js` now wraps `<App>` in `<SlotFillProvider>`.
 
 ### Design Rationale
 - **Strictly opt-in** was a deliberate choice: a page config with zero `access` keys produces byte-identical behavior to previous versions. The `AccessResolver::pageMode()` walk runs once at boot to decide whether to engage the new pipeline at all. This guarantees no plugin can accidentally widen access by upgrading.
