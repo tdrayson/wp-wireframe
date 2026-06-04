@@ -13,10 +13,10 @@
 
 ### Fixes
 - Resolve admin assets correctly on Windows (#1).
-- Honour `menu_slug` in single-page `App::boot()` (#5).
-- Wrap React root in `SlotFillProvider` (#4) — silences the warning and fixes popover positioning.
-- Anchor admin-screen matching on `_page_{menu_slug}` suffix instead of substring (#6).
-- `DateField` falls back to a sensible format when WP's date format setting is empty (#3, thanks to the external contributor).
+- Honour `menu_slug` in single-page `App::boot()` (#5, reported by @davidofchatham).
+- Wrap React root in `SlotFillProvider` (#4, reported by @davidofchatham) — silences the warning and fixes popover positioning.
+- Anchor admin-screen matching on `_page_{menu_slug}` suffix instead of substring (#6, reported by @davidofchatham).
+- `DateField` falls back to a sensible format when WP's date format setting is empty (#3, thanks to @drkskwlkr).
 
 ## [1.0.5] - 2026-04-23
 
