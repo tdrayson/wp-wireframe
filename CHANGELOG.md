@@ -3,6 +3,7 @@
 ## [1.0.6] - 2026-06-02
 
 ### Features
+- **Conditional subfields in repeater**: repeater subfields now support the same `conditions` DSL as top-level fields, evaluated against the row instead of page-level settings. Hidden subfields don't render, aren't validated (so `required` won't reject a form on a field the user can't see), and aren't persisted on save. Works with every existing operator (`equals`, `truthy`, `in`, `between`, etc.) and combinator (`all` / `any`). Unlocks UIs like "Type: Single | Recurring" where each row shows a different field set.
 - **Role-based access control**: optional `access` key on tabs, sections, and fields. Two verbs (`view`, `edit`) accepting role slugs or capabilities; arrays evaluate as OR. Tabs and sections auto-hide when every descendant is filtered out. Non-editable but viewable fields render disabled. Strictly opt-in — pages without any `access` key behave exactly as before (`manage_options` required for everything).
 - **Conditional tabs**: tabs now support the same `conditions` DSL as sections and fields, evaluated against current form values.
 - **Save merges instead of overwrites**: the REST save endpoint now intersects the payload with the user's editable field list and merges into existing saved state. A partial-access user can no longer wipe fields outside their scope.
@@ -37,6 +38,8 @@
 - **Hook-based dispatch over config callables** is now the framework's preferred shape for new fields. Config carries only data; behaviour wires in via `add_filter`. Wins: configs become serializable / cacheable / exportable, no callable target names leak into the page source, multiple plugins can compose behaviour on the same action, and bootstrap files become the single discoverable place to grep for handlers. The `table` field keeps its callback keys as fallback so existing consumers aren't broken; new field types won't add callable keys at all.
 - The `Unhandled` sentinel exists because filters can't natively distinguish "nobody listened" from "a listener returned null / false / []." Identity-checking against a private object lets handlers return any value without being mistaken for unhandled.
 - **Snackbar + inline panel split** for the action field is response-shape driven, not config driven: short responses (just `status` + `message`) show the snackbar alone; rich responses (with `html`) also render the inline panel. Devs pick the experience by what they return, not by an extra config key.
+- **Subfield conditions evaluate against the row, not page values**: the same DSL works in both contexts because `Conditions::evaluate()` is data-source agnostic — it just takes a values bag. Subfield rules reference sibling field IDs within the row; top-level rules reference page-level field IDs. No new operators or syntax.
+- **Skip hidden subfields from sanitization** (not just validation) to match top-level `Sanitizer` semantics where condition-hidden fields drop out of the payload. Toggling a row's "type" off and back on resets the conditional fields to their defaults — same predictability as page-level conditions.
 
 ### Notes & Caveats
 - Custom field types should honor the new `field.readOnly` prop from `mapField()`. If a custom field ignores it, the server still rejects writes — the prop is a UI hint only.

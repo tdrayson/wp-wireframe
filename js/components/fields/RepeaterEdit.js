@@ -6,6 +6,7 @@ import { useState, useCallback } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { mapField } from '../../utils/mapConfig';
 import { interpolate } from '../../utils/interpolate';
+import { evaluateCondition } from '../../utils/conditions';
 import { getFieldHelp } from './useFieldError';
 import { customEditComponents } from './index';
 
@@ -162,6 +163,11 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 							{ ! isCollapsed && (
 								<div className="wireframe-repeater__row-body wireframe-grid">
 									{ subfields.map( ( subConfig ) => {
+										// Subfield conditions evaluate against the row, not page-level settings.
+										if ( subConfig.conditions && ! evaluateCondition( subConfig.conditions, row ) ) {
+											return null;
+										}
+
 										const subField = mapField( subConfig );
 										const EditComponent = customEditComponents[ subConfig.type ];
 										const columns = subConfig.columns || 12;
