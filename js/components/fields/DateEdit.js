@@ -32,9 +32,10 @@ export default function DateEdit( { data, field, onChange, error } ) {
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
 	const disabled = !! field.readOnly;
 
+	const dateFormat = getDateSettings().formats.date || 'Y-m-d';
 	const displayValue = value
-		? dateI18n( getDateSettings().formats.date, value )
-		: __( 'Select date', 'wp-wireframe' );
+	    ? dateI18n( dateFormat, value )
+	    : __( 'Select date', 'wp-wireframe' );
 
 	return (
 		<BaseControl
