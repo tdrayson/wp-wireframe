@@ -5,3 +5,7 @@ wp-wireframe.zip
 .DS_Store
 *.log
 
+# Webpack source maps — emitted by `npm run start` (dev build), never
+# wanted in the production bundle.
+src/assets/*.map
+
