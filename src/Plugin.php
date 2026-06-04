@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe;
 
 use Wireframe\Admin\AdminPage;
+use Wireframe\Rest\ActionController;
 use Wireframe\Rest\SettingsController;
 use Wireframe\Rest\TableController;
 
@@ -44,12 +45,60 @@ final class Plugin
         add_action('admin_enqueue_scripts', [AdminPage::class, 'enqueueAssets']);
         add_action('rest_api_init', [SettingsController::class, 'register']);
         add_action('rest_api_init', [TableController::class, 'register']);
+        add_action('rest_api_init', [ActionController::class, 'register']);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
+        add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
     }
 
     /**
-     * Add a consistent body class to the settings page so styles
-     * can target it regardless of the consuming plugin's prefix.
+     * Suppress third-party admin notices on Wireframe-managed pages.
+     *
+     * Plugins commonly stack notices on every admin screen via
+     * `admin_notices` / `all_admin_notices`. They clutter our settings page
+     * and push the Wireframe header down. We register on `in_admin_header`
+     * with high priority so the `do_action('admin_notices')` call in
+     * `wp-admin/admin-header.php` runs against an empty handler list.
+     *
+     * The behaviour is filterable — return false from
+     * `wp-wireframe/suppress_admin_notices` to opt out (e.g. for a critical
+     * banner you want to keep visible everywhere).
+     */
+    public function suppressForeignNotices(): void
+    {
+        $screen = get_current_screen();
+
+        if (! $screen || ! AdminPage::isWireframeScreen($screen->id)) {
+            return;
+        }
+
+        /**
+         * Filter: should foreign admin notices be suppressed on Wireframe pages?
+         *
+         * @param bool      $suppress Default true.
+         * @param \WP_Screen $screen   The current screen.
+         */
+        $suppress = (bool) apply_filters('wp-wireframe/suppress_admin_notices', true, $screen);
+
+        if (! $suppress) {
+            return;
+        }
+
+        remove_all_actions('admin_notices');
+        remove_all_actions('all_admin_notices');
+        remove_all_actions('user_admin_notices');
+        remove_all_actions('network_admin_notices');
+    }
+
+    /**
+     * Add a consistent body class to Wireframe-managed pages so styles
+     * can target them regardless of the consuming plugin's prefix.
+     *
+     * Uses the `_page_{menu_slug}` suffix check from
+     * `AdminPage::isWireframeScreen()`. Previous versions used
+     * `str_contains($screen->id, $menu_slug)`, which false-positived on
+     * sibling subpages whose own slug started with a Wireframe page's
+     * slug, applying `wireframe-admin` (and its `#wpcontent
+     * { padding-left: 0 }` reset) to admin screens that aren't ours.
      *
      * @param string $classes Existing admin body classes.
      * @return string
@@ -58,13 +107,12 @@ final class Plugin
     {
         $screen = get_current_screen();
 
-        if ($screen) {
-            foreach (App::pages() as $page) {
-                if (str_contains($screen->id, $page['menu_slug'])) {
-                    $classes .= ' wireframe-admin';
-                    break;
-                }
-            }
+        if (! $screen) {
+            return $classes;
+        }
+
+        if (AdminPage::isWireframeScreen($screen->id)) {
+            $classes .= ' wireframe-admin';
         }
 
         return $classes;

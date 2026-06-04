@@ -114,6 +114,8 @@ final class App
                     'config'        => $configSlug,
                     'option_key'    => $optionKey,
                     'menu_slug'     => $pageConfig['menu_slug'] ?? $prefix . '-' . $pageId,
+                    'assets'        => $pageConfig['assets'] ?? $config['assets'] ?? [],
+                    'parent'        => $pageConfig['parent'] ?? $config['parent'] ?? '',
                 ];
 
                 self::$optionKeyToConfig[$optionKey] = $configSlug;
@@ -132,7 +134,9 @@ final class App
                 'menu_position' => $config['menu_position'] ?? 80,
                 'config'        => $configSlug,
                 'option_key'    => $perBoot['option_key'],
-                'menu_slug'     => $prefix,
+                'assets'        => $config['assets'] ?? [],
+                'menu_slug'     => $config['menu_slug'] ?? $prefix,
+                'parent'        => $config['parent'] ?? '',
             ];
 
             self::$optionKeyToConfig[$perBoot['option_key']] = $configSlug;
@@ -264,6 +268,9 @@ final class App
             }
 
             $relative = substr($packageDir, strlen($realDir));
+            // realpath() uses backslashes on Windows; esc_url() strips them from
+            // script/style URLs, collapsing path segments into a single bogus path.
+            $relative = str_replace('\\', '/', $relative);
 
             return trailingslashit($urlBase) . $relative . 'src/assets/';
         }

@@ -108,6 +108,7 @@ final class FieldRegistry
             'export'            => ExportField::class,
             'import'            => ImportField::class,
             'table'             => TableField::class,
+            'action'            => ActionField::class,
         ];
     }
 }

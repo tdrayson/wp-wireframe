@@ -743,6 +743,72 @@ return [
                         ],
                     ],
                 ],
+                [
+                    'id'          => 'repeater_conditional',
+                    'title'       => __('Repeater with conditional subfields', 'field-reference'),
+                    'description' => __('Subfields can use the same `conditions` DSL as top-level fields. Rules evaluate against the row, not page settings.', 'field-reference'),
+                    'fields'      => [
+                        [
+                            'id'    => 'ref_schedule',
+                            'type'  => 'repeater',
+                            'label' => __('Schedules', 'field-reference'),
+                            'args'  => [
+                                'sortable'       => true,
+                                'collapsible'    => true,
+                                'add_label'      => __('Add schedule', 'field-reference'),
+                                'empty_message'  => __('No schedules configured.', 'field-reference'),
+                                'title_template' => '{kind}',
+                                'subfields'      => [
+                                    [
+                                        'id'      => 'kind',
+                                        'type'    => 'select',
+                                        'label'   => __('Type', 'field-reference'),
+                                        'default' => 'once',
+                                        'columns' => 4,
+                                        'args'    => [
+                                            'options' => [
+                                                'once'      => __('One-off', 'field-reference'),
+                                                'recurring' => __('Recurring', 'field-reference'),
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        'id'         => 'run_at',
+                                        'type'       => 'date',
+                                        'label'      => __('Run at', 'field-reference'),
+                                        'required'   => true,
+                                        'columns'    => 8,
+                                        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'once']]],
+                                    ],
+                                    [
+                                        'id'         => 'frequency',
+                                        'type'       => 'select',
+                                        'label'      => __('Frequency', 'field-reference'),
+                                        'default'    => 'daily',
+                                        'columns'    => 4,
+                                        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'recurring']]],
+                                        'args'       => [
+                                            'options' => [
+                                                'daily'   => __('Daily', 'field-reference'),
+                                                'weekly'  => __('Weekly', 'field-reference'),
+                                                'monthly' => __('Monthly', 'field-reference'),
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        'id'         => 'interval',
+                                        'type'       => 'number',
+                                        'label'      => __('Every', 'field-reference'),
+                                        'default'    => 1,
+                                        'columns'    => 4,
+                                        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'recurring']]],
+                                        'args'       => ['min' => 1, 'max' => 99],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
             ],
         ],
 
@@ -839,6 +905,87 @@ return [
                     'fields'      => [
                         ['id' => 'ref_export', 'type' => 'export', 'label' => __('Export', 'field-reference'), 'description' => __('Download all settings as JSON.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Download JSON', 'field-reference'), 'filename' => 'field-reference-settings']],
                         ['id' => 'ref_import', 'type' => 'import', 'label' => __('Import', 'field-reference'), 'description' => __('Upload JSON to replace settings.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Upload JSON', 'field-reference')]],
+                    ],
+                ],
+            ],
+        ],
+
+        // ─── Role-Based Access ────────────────────────────
+        //
+        // Demonstrates the `access` key. Until at least one `access` key is
+        // declared somewhere on the page, RBAC stays dormant and the page
+        // behaves exactly like the rest of the demo (admin-only). The mere
+        // presence of the keys below switches this entire page into RBAC
+        // mode — drop the `access` lines and you're back to legacy mode.
+        [
+            'id'       => 'access',
+            'title'    => __('Role-Based Access', 'field-reference'),
+            'sections' => [
+                [
+                    'id'          => 'rbac_intro',
+                    'title'       => __('How it works', 'field-reference'),
+                    'description' => __('Each tab, section, and field accepts an optional `access` key. Values can be a role slug or a capability. Two verbs: `view` (can see) and `edit` (can write).', 'field-reference'),
+                    'fields'      => [
+                        [
+                            'id'    => 'rbac_explainer',
+                            'type'  => 'html',
+                            'args'  => [
+                                'content' => __('Sign in as an Editor to see how this page changes — fields you cannot edit render disabled, fields you cannot view disappear entirely, and Save/Reset only affects fields in your scope.', 'field-reference'),
+                                'variant' => 'info',
+                            ],
+                        ],
+                    ],
+                ],
+
+                // Editors can see + edit this section.
+                [
+                    'id'          => 'rbac_editor_zone',
+                    'title'       => __('Editor zone', 'field-reference'),
+                    'description' => __('Section visible and editable to anyone in the editor role or above.', 'field-reference'),
+                    'access'      => 'editor',
+                    'fields'      => [
+                        [
+                            'id'          => 'rbac_editor_note',
+                            'type'        => 'textarea',
+                            'label'       => __('Editorial note', 'field-reference'),
+                            'description' => __('Editors can change this. Admins can change this. Subscribers see nothing.', 'field-reference'),
+                            'args'        => ['rows' => 3],
+                        ],
+                    ],
+                ],
+
+                // Editors can VIEW but not EDIT — the field renders disabled.
+                [
+                    'id'     => 'rbac_view_only',
+                    'title'  => __('View-only fields', 'field-reference'),
+                    'fields' => [
+                        [
+                            'id'          => 'rbac_api_key',
+                            'type'        => 'text',
+                            'label'       => __('API key (view-only for editors)', 'field-reference'),
+                            'description' => __('Editors can see the key for reference, but only admins can change it.', 'field-reference'),
+                            'default'     => 'sk_demo_••••••••••••',
+                            'access'      => [
+                                'view' => 'editor',
+                                'edit' => 'manage_options',
+                            ],
+                        ],
+                    ],
+                ],
+
+                // Hidden from editors entirely — stripped from their config.
+                [
+                    'id'          => 'rbac_admin_zone',
+                    'title'       => __('Admin-only zone', 'field-reference'),
+                    'description' => __('Both this section and its fields require `manage_options`. Editors never see this section in the menu *or* the API.', 'field-reference'),
+                    'access'      => ['view' => 'manage_options'],
+                    'fields'      => [
+                        [
+                            'id'      => 'rbac_secret',
+                            'type'    => 'password',
+                            'label'   => __('Secret token', 'field-reference'),
+                            'default' => '',
+                        ],
                     ],
                 ],
             ],

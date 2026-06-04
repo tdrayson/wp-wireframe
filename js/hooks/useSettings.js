@@ -54,8 +54,9 @@ function collectErrorLabels( config, fieldErrors ) {
  * @param {boolean} props.hasSavedInitial Whether any settings have been persisted.
  * @param {import('@wordpress/element').ReactNode} props.children
  */
-export function SettingsProvider( { config, initialValues, hasSavedInitial, prefix = 'wireframe', pageId = 'default', children } ) {
-	const restBase = `${ prefix }/v1/settings/${ pageId }`;
+export function SettingsProvider( { config, initialValues, hasSavedInitial, canSave = true, canReset = true, prefix = 'wireframe', pageId = 'default', children } ) {
+	const restRoot = `${ prefix }/v1`;
+	const restBase = `${ restRoot }/settings/${ pageId }`;
 	const [ values, setValues ] = useState( () => ( { ...initialValues } ) );
 	const [ savedSnapshot, setSavedSnapshot ] = useState( () => ( { ...initialValues } ) );
 	const [ saving, setSaving ] = useState( false );
@@ -197,8 +198,13 @@ export function SettingsProvider( { config, initialValues, hasSavedInitial, pref
 		save,
 		reset,
 		hasSaved,
+		canSave,
+		canReset,
 		restBase,
-	} ), [ config, values, setValue, setMultiple, isDirty, saving, errors, save, reset, hasSaved, restBase ] );
+		restRoot,
+		prefix,
+		pageId,
+	} ), [ config, values, setValue, setMultiple, isDirty, saving, errors, save, reset, hasSaved, canSave, canReset, restBase, restRoot, prefix, pageId ] );
 
 	return (
 		<SettingsContext.Provider value={ contextValue }>
@@ -212,7 +218,7 @@ export function SettingsProvider( { config, initialValues, hasSavedInitial, pref
  *
  * Must be called within a `<SettingsProvider>`.
  *
- * @return {{ config: Object, values: Object, setValue: Function, setMultiple: Function, isDirty: boolean, saving: boolean, errors: Object, save: Function, reset: Function, hasSaved: boolean, restBase: string }}
+ * @return {{ config: Object, values: Object, setValue: Function, setMultiple: Function, isDirty: boolean, saving: boolean, errors: Object, save: Function, reset: Function, hasSaved: boolean, canSave: boolean, canReset: boolean, restBase: string, restRoot: string, prefix: string, pageId: string }}
  */
 export function useSettings() {
 	const context = useContext( SettingsContext );

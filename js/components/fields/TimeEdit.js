@@ -13,8 +13,8 @@ import { TextControl } from '@wordpress/components';
 import { getFieldHelp } from './useFieldError';
 
 export default function TimeEdit( { data, field, onChange, error } ) {
-	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
+	const readOnly = !! field.readOnly;
 
 	return (
 		<TextControl
@@ -25,6 +25,7 @@ export default function TimeEdit( { data, field, onChange, error } ) {
 			type="time"
 			value={ value }
 			onChange={ ( newValue ) => onChange( { [ field.id ]: newValue } ) }
+			readOnly={ readOnly }
 			className={ error ? 'has-error' : undefined }
 		/>
 	);

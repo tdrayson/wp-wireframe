@@ -25,6 +25,7 @@ export default function CodeEditorEdit( { data, field, onChange } ) {
 	const editorRef = useRef( null );
 	const onChangeRef = useRef( onChange );
 	onChangeRef.current = onChange;
+	const readOnly = !! field.readOnly;
 
 	useEffect( () => {
 		if ( ! textareaRef.current ) {
@@ -45,13 +46,14 @@ export default function CodeEditorEdit( { data, field, onChange } ) {
 			settings.codemirror = {
 				...settings.codemirror,
 				mode,
+				readOnly: readOnly ? 'nocursor' : false,
 			};
 		}
 
 		const instance = wp.codeEditor.initialize( textareaRef.current, settings );
 		editorRef.current = instance;
 
-		if ( instance.codemirror ) {
+		if ( instance.codemirror && ! readOnly ) {
 			instance.codemirror.on( 'change', () => {
 				const content = instance.codemirror.getValue();
 				onChangeRef.current( { [ field.id ]: content } );
@@ -64,7 +66,7 @@ export default function CodeEditorEdit( { data, field, onChange } ) {
 			}
 			editorRef.current = null;
 		};
-	}, [ field.id, _args.mode ] );
+	}, [ field.id, _args.mode, readOnly ] );
 
 	return (
 		<BaseControl
@@ -78,6 +80,7 @@ export default function CodeEditorEdit( { data, field, onChange } ) {
 				id={ `wireframe-code-${ field.id }` }
 				defaultValue={ value }
 				rows={ _args.rows || 10 }
+				readOnly={ readOnly }
 				style={ { width: '100%', fontFamily: 'var(--wpds-typography-font-family-mono, monospace)', fontSize: 'var(--wpds-typography-font-size-md, 13px)' } }
 			/>
 		</BaseControl>

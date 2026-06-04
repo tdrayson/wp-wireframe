@@ -13,11 +13,18 @@ return [
         [
             'id'       => 'form',
             'title'    => __('Form', 'newsletter-signup'),
+            // Editors and admins can reach the Form tab. The `edit_pages`
+            // capability is held by both roles — `'editor'` as a role slug
+            // would exclude admins (no role hierarchy in WordPress).
+            'access'   => 'edit_pages',
             'sections' => [
                 [
                     'id'          => 'content',
                     'title'       => __('Content', 'newsletter-signup'),
                     'description' => __('What your visitors see when the form appears.', 'newsletter-signup'),
+                    // Content is admin-only. Editors fail the check and the
+                    // entire section is stripped from the localized config.
+                    'access'      => 'manage_options',
                     'fields'      => [
                         [
                             'id'       => 'heading',
@@ -68,6 +75,9 @@ return [
         [
             'id'       => 'provider',
             'title'    => __('Provider', 'newsletter-signup'),
+            // Provider tab is admin-only. Editors never see it in the tab
+            // bar and the REST permission gate rejects writes to its fields.
+            'access'   => 'manage_options',
             'sections' => [
                 [
                     'id'          => 'connection',

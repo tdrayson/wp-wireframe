@@ -12,6 +12,13 @@ namespace Wireframe\Framework;
  */
 final class Conditions
 {
+    /**
+     * Evaluate a condition node (may be a combinator or single rule).
+     *
+     * @param array|null $condition The condition object.
+     * @param array      $values    Current field values.
+     * @return bool True if the condition evaluates to true, false otherwise.
+     */
     public static function evaluate(array|null $condition, array $values): bool
     {
         if ($condition === null) {
@@ -46,6 +53,13 @@ final class Conditions
         return true;
     }
 
+    /**
+     * Evaluate a single condition rule.
+     *
+     * @param array $rule   The rule: { field, operator, value }.
+     * @param array $values Current field values.
+     * @return bool True if the rule evaluates to true, false otherwise.
+     */
     private static function evaluateRule(array $rule, array $values): bool
     {
         $field    = $rule['field'];
@@ -75,6 +89,13 @@ final class Conditions
         };
     }
 
+    /**
+     * Check if a value is between two values.
+     *
+     * @param mixed $actual   The value to check.
+     * @param mixed $expected The value to check for.
+     * @return bool True if the value is between the expected values, false otherwise.
+     */
     private static function evaluateBetween(mixed $actual, mixed $expected): bool
     {
         if (!is_array($expected) || count($expected) < 2) {
@@ -85,6 +106,13 @@ final class Conditions
         return $num >= (float) $expected[0] && $num <= (float) $expected[1];
     }
 
+    /**
+     * Check if a value contains another value.
+     *
+     * @param mixed $actual   The value to check.
+     * @param mixed $expected The value to check for.
+     * @return bool True if the value contains the expected value, false otherwise.
+     */
     private static function evaluateContains(mixed $actual, mixed $expected): bool
     {
         if (is_string($actual)) {
@@ -98,6 +126,12 @@ final class Conditions
         return false;
     }
 
+    /**
+     * Check if a value is empty.
+     *
+     * @param mixed $value The value to check.
+     * @return bool True if the value is empty, false otherwise.
+     */
     private static function isEmpty(mixed $value): bool
     {
         return $value === '' || $value === null || (is_array($value) && empty($value));

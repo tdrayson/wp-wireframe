@@ -19,6 +19,7 @@ import { getFieldHelp } from './useFieldError';
 export default function ColorEdit( { data, field, onChange, error } ) {
 	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '#000000';
+	const disabled = !! field.readOnly;
 
 	return (
 		<BaseControl
@@ -28,28 +29,39 @@ export default function ColorEdit( { data, field, onChange, error } ) {
 			id={ `wireframe-color-${ field.id }` }
 			className={ error ? 'has-error' : undefined }
 		>
-			<Dropdown
-				className="wireframe-color-dropdown"
-				contentClassName="wireframe-color-dropdown__popover"
-				renderToggle={ ( { isOpen, onToggle } ) => (
-					<button
-						type="button"
-						className="wireframe-color-swatch"
-						onClick={ onToggle }
-						aria-expanded={ isOpen }
-					>
-						<ColorIndicator colorValue={ value } />
-						<span className="wireframe-color-swatch__value">{ value }</span>
-					</button>
-				) }
-				renderContent={ () => (
-					<ColorPicker
-						color={ value }
-						onChange={ ( newValue ) => onChange( { [ field.id ]: newValue } ) }
-						enableAlpha={ _args.enableAlpha || false }
-					/>
-				) }
-			/>
+			{ disabled ? (
+				<button
+					type="button"
+					className="wireframe-color-swatch is-readonly"
+					disabled
+				>
+					<ColorIndicator colorValue={ value } />
+					<span className="wireframe-color-swatch__value">{ value }</span>
+				</button>
+			) : (
+				<Dropdown
+					className="wireframe-color-dropdown"
+					contentClassName="wireframe-color-dropdown__popover"
+					renderToggle={ ( { isOpen, onToggle } ) => (
+						<button
+							type="button"
+							className="wireframe-color-swatch"
+							onClick={ onToggle }
+							aria-expanded={ isOpen }
+						>
+							<ColorIndicator colorValue={ value } />
+							<span className="wireframe-color-swatch__value">{ value }</span>
+						</button>
+					) }
+					renderContent={ () => (
+						<ColorPicker
+							color={ value }
+							onChange={ ( newValue ) => onChange( { [ field.id ]: newValue } ) }
+							enableAlpha={ _args.enableAlpha || false }
+						/>
+					) }
+				/>
+			) }
 		</BaseControl>
 	);
 }

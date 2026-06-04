@@ -17,15 +17,25 @@ export function mapField( fieldConfig ) {
 	const type = fieldConfig.type || 'text';
 	const args = fieldConfig.args || {};
 
+	// `readOnly` is the unified UI hint — it merges the access-control flag
+	// (set by AccessResolver::filterConfig when a user has view but not edit)
+	// with any author-supplied `args.readonly` opt-in. Field components read
+	// the single prop and disable their input.
+	const readOnly = Boolean( fieldConfig.readonly || args.readonly );
+
 	const field = {
 		id: fieldConfig.id,
 		type: 'text',
-		label: fieldConfig.label || fieldConfig.id,
+		// `??` (not `||`) so an explicit empty string passes through —
+		// some field types (e.g. `action`) want to opt out of rendering a
+		// label entirely. Only `undefined` / missing falls back to the id.
+		label: fieldConfig.label ?? fieldConfig.id,
 		description: fieldConfig.description || '',
 		defaultValue: fieldConfig.default ?? null,
 		required: fieldConfig.required || false,
 		columns: fieldConfig.columns || 12,
 		conditions: fieldConfig.conditions || null,
+		readOnly,
 		_phpType: type,
 		_args: args,
 	};
@@ -63,6 +73,7 @@ export function getTabs( config ) {
 		id: tab.id || 'default',
 		title: tab.title || '',
 		sections: tab.sections || [],
+		conditions: tab.conditions || null,
 	} ) );
 }
 

@@ -180,6 +180,13 @@ final class Validator
             $rowErrors = [];
 
             foreach ($subfields as $subConfig) {
+                // Subfield conditions evaluate against the row, mirroring the client.
+                // Hidden subfields skip both Rakit and structural validation so a
+                // `required` rule can't reject a form for a field the user never sees.
+                if (!Conditions::evaluate($subConfig['conditions'] ?? null, $row)) {
+                    continue;
+                }
+
                 $subId      = $subConfig['id'] ?? '';
                 $subArgs    = $subConfig['args'] ?? [];
                 $subType    = $subConfig['type'] ?? 'text';

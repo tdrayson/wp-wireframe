@@ -15,7 +15,7 @@ const TYPE_MAP = {
 export default function TextInputEdit( { data, field, onChange, error } ) {
 	const { _phpType = 'text', _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
-	const readOnly = !! _args.readonly;
+	const readOnly = !! field.readOnly || !! _args.readonly;
 	const copyable = !! _args.copyable;
 
 	const control = (
