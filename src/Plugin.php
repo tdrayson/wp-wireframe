@@ -47,6 +47,46 @@ final class Plugin
         add_action('rest_api_init', [TableController::class, 'register']);
         add_action('rest_api_init', [ActionController::class, 'register']);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
+        add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
+    }
+
+    /**
+     * Suppress third-party admin notices on Wireframe-managed pages.
+     *
+     * Plugins commonly stack notices on every admin screen via
+     * `admin_notices` / `all_admin_notices`. They clutter our settings page
+     * and push the Wireframe header down. We register on `in_admin_header`
+     * with high priority so the `do_action('admin_notices')` call in
+     * `wp-admin/admin-header.php` runs against an empty handler list.
+     *
+     * The behaviour is filterable — return false from
+     * `wp-wireframe/suppress_admin_notices` to opt out (e.g. for a critical
+     * banner you want to keep visible everywhere).
+     */
+    public function suppressForeignNotices(): void
+    {
+        $screen = get_current_screen();
+
+        if (! $screen || ! AdminPage::isWireframeScreen($screen->id)) {
+            return;
+        }
+
+        /**
+         * Filter: should foreign admin notices be suppressed on Wireframe pages?
+         *
+         * @param bool      $suppress Default true.
+         * @param \WP_Screen $screen   The current screen.
+         */
+        $suppress = (bool) apply_filters('wp-wireframe/suppress_admin_notices', true, $screen);
+
+        if (! $suppress) {
+            return;
+        }
+
+        remove_all_actions('admin_notices');
+        remove_all_actions('all_admin_notices');
+        remove_all_actions('user_admin_notices');
+        remove_all_actions('network_admin_notices');
     }
 
     /**

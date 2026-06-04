@@ -10,6 +10,7 @@
 - Default prose styling on the `html` field (#8).
 - Conditions DSL now works at the tab level.
 - Repeater subfields support the conditions DSL (#13).
+- Suppress third-party admin notices on Wireframe-managed pages — filterable via `wp-wireframe/suppress_admin_notices`.
 
 ### Fixes
 - Resolve admin assets correctly on Windows (#1).
