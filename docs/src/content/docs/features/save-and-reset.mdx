@@ -1,0 +1,78 @@
+---
+title: Save & Reset
+description: How values round-trip — dirty tracking, merge-not-overwrite semantics, scoped reset, and the snackbar UX.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The save and reset buttons in the page header drive two REST endpoints (`POST /settings/{pageId}` and `DELETE /settings/{pageId}`). Both flows are designed so a user with partial access can never destroy values outside their scope.
+
+## Save: merges, never overwrites
+
+When you hit **Save**, the client posts the in-flight values to the REST endpoint. The server:
+
+1. Looks up the user's editable field list (via the access map).
+2. Intersects the posted payload with that list — fields outside it are silently dropped.
+3. Sanitises every remaining value through its type handler.
+4. Runs the [validation pass](/features/validation/).
+5. **Merges** the validated values into the existing saved state, replacing only the keys it received.
+6. Persists, fires `{prefix}/settings_saved`, returns the updated value set.
+
+The merge step is the important one. A user editing 3 of 20 fields will leave the other 17 alone. Same for fields hidden by [conditions](/features/conditional-visibility/) — their saved values are preserved.
+
+<Aside type="tip">
+This means a `wp_options` row can hold values from multiple authors with different access scopes, and nobody overwrites anyone else's work.
+</Aside>
+
+## Reset: scoped to your editable fields
+
+Hitting **Reset** in the header opens an inline confirm. Confirming sends `DELETE /settings/{pageId}`. The server:
+
+1. Looks up the user's editable field list.
+2. Computes the **defaults** for those fields only.
+3. Merges the defaults into the existing saved state.
+4. Persists, fires `{prefix}/settings_reset`, returns the new value set.
+
+For an admin with full access, this is the same as resetting everything on the page. For a partial-access user, it resets only their slice — fields they can't edit stay at their current saved values.
+
+The Reset button itself is hidden when the user has no editable fields, or when `wp-wireframe/access/can_reset` returns false.
+
+## Dirty tracking
+
+The client compares the in-flight values against the last-saved snapshot to compute `isDirty`. The Save button enables only when dirty. Refreshing the page or saving the form resets the snapshot.
+
+## Snackbar UX
+
+Both flows show a `core/notices` snackbar on completion:
+
+| Outcome           | Snackbar                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| Save success      | `Settings saved.`                                                                         |
+| Save validation   | `Failed to save, please check: <comma-separated field labels>`                            |
+| Save failure      | The error's `message` if present, else `Failed to save settings.`                          |
+| Reset success     | `Settings reset to defaults.`                                                              |
+| Reset failure     | The error's `message` if present, else `Failed to reset settings.`                         |
+
+Validation errors also populate `errors[field_id]` on each affected field, so the user sees both the snackbar summary and inline messages on the affected inputs.
+
+## Hooks fired
+
+```php
+// Fired after a successful save.
+do_action('{prefix}/settings_saved', array $values, string $pageId);
+
+// Fired after a successful reset.
+do_action('{prefix}/settings_reset', string $pageId);
+```
+
+Useful for clearing object caches, triggering re-indexing, or syncing values to an external service:
+
+```php
+add_action('my-plugin/settings_saved', function (array $values, string $pageId) {
+    wp_cache_delete('my-plugin-config', 'options');
+}, 10, 2);
+```
+
+For finer-grained mutation, see the `wp-wireframe/save/editable_fields` and `wp-wireframe/save/payload` filters in [Hooks & Filters](/reference/hooks-and-filters/).

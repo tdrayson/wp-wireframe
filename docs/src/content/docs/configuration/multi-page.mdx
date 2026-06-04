@@ -1,0 +1,82 @@
+---
+title: Multi-Page
+description: Register multiple admin pages from a single plugin under one prefix.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Pass `pages` instead of `config` to register multiple admin pages from one boot call:
+
+```php
+Wireframe\App::boot([
+    'prefix'     => 'my-plugin',
+    'option_key' => 'my_plugin',
+    'pages'      => [
+        [
+            'page_title' => __('General', 'my-plugin'),
+            'config'     => __DIR__ . '/config/general.php',
+            'menu_icon'  => 'dashicons-admin-generic',
+        ],
+        [
+            'page_title' => __('Advanced', 'my-plugin'),
+            'config'     => __DIR__ . '/config/advanced.php',
+            'menu_icon'  => 'dashicons-admin-tools',
+        ],
+    ],
+]);
+```
+
+Each page gets its own admin menu entry, REST endpoint, and option key.
+
+## What each page can declare
+
+Per-page entries accept the same options as a single-page boot, with two extras (`id` and `menu_slug`):
+
+| Option         | Default                                | Notes                                                                                  |
+| -------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
+| `id`           | derived from `config` filename or index | Stable identifier used in REST routes and hook names. Set explicitly if you care.     |
+| `page_title`   | `ucfirst($id)`                         | Page title and default menu label.                                                     |
+| `menu_title`   | `page_title`                           | Alternate menu label.                                                                  |
+| `menu_slug`    | `{prefix}-{id}`                        | Override the URL slug (`?page=…`).                                                     |
+| `option_key`   | `{boot_option_key}_{id_snake_cased}`   | Storage row. Each page gets its own by default.                                         |
+| `config`       | —                                      | Path **or** inline array — same as single-page.                                        |
+| `parent`       | inherits from boot                     | Override per page. See [Submenu Pages](/configuration/submenu-pages/).                  |
+| `menu_icon`    | `'dashicons-admin-generic'`            | Ignored when `parent` is set.                                                          |
+| `menu_position`| `80 + $index`                          | Auto-incremented if omitted.                                                            |
+
+## Option keys
+
+By default each page persists into its own `wp_options` row (`{boot_option_key}_{page_id}`), so values on one page never bleed into another. Override per-page if you want a shared row:
+
+```php
+'pages' => [
+    [
+        'id'         => 'general',
+        'option_key' => 'my_plugin_shared',
+        'config'     => /* … */,
+    ],
+    [
+        'id'         => 'advanced',
+        'option_key' => 'my_plugin_shared',   // Same row → shared storage
+        'config'     => /* … */,
+    ],
+],
+```
+
+<Aside type="caution">
+When two pages share an `option_key`, save / reset on one page affects the values declared on it only — fields outside that page's config are untouched. The merge happens server-side via the same logic as the [save flow](/features/save-and-reset/).
+</Aside>
+
+## REST endpoints
+
+Each page registers under the per-page id:
+
+```
+GET    /{prefix}/v1/settings/{page_id}
+POST   /{prefix}/v1/settings/{page_id}
+DELETE /{prefix}/v1/settings/{page_id}
+```
+
+So `'id' => 'general'` becomes `/my-plugin/v1/settings/general`. Same pattern for table and action routes.

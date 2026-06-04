@@ -1,0 +1,97 @@
+---
+title: Multi-plugin setup
+description: Multiple plugins sharing one WP Wireframe install — without stepping on each other's hooks, REST namespaces, or option keys.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The framework is designed for multi-tenant use. Each consuming plugin calls `App::boot()` with its own prefix; the framework wires up that plugin's pages, hooks, REST namespace, and option key independently.
+
+Two plugins on the same site:
+
+```php
+// Plugin A — plugins/plugin-a/plugin-a.php
+add_action('init', function () {
+    Wireframe\App::boot([
+        'prefix'     => 'plugin-a',
+        'option_key' => 'plugin_a_settings',
+        'config'     => __DIR__ . '/config/settings.php',
+    ]);
+});
+
+// Plugin B — plugins/plugin-b/plugin-b.php
+add_action('init', function () {
+    Wireframe\App::boot([
+        'prefix'     => 'plugin-b',
+        'option_key' => 'plugin_b_settings',
+        'config'     => __DIR__ . '/config/settings.php',
+    ]);
+});
+```
+
+Both plugins bundle their own copy of the framework in `vendor/`. At runtime PHP loads whichever copy autoloads first — they share the same class definitions but each `boot()` call registers its own state.
+
+## What's isolated per prefix
+
+| Surface              | Plugin A                                           | Plugin B                                           |
+| -------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| Admin menu slug      | `?page=plugin-a`                                   | `?page=plugin-b`                                   |
+| REST namespace       | `/plugin-a/v1/…`                                   | `/plugin-b/v1/…`                                   |
+| Hooks                | `plugin-a/settings_saved`, `plugin-a/action/…`     | `plugin-b/settings_saved`, `plugin-b/action/…`     |
+| Option key           | `plugin_a_settings`                                | `plugin_b_settings`                                |
+| JS global            | `pluginASettingsData` (camelCased from prefix)     | `pluginBSettingsData`                              |
+| `wireframe-admin` class | applied only to plugin A's screen IDs           | applied only to plugin B's screen IDs              |
+
+`Settings::get('plugin_a_settings', …)` and `Settings::get('plugin_b_settings', …)` are entirely independent — no global state to coordinate.
+
+## What's shared (intentionally)
+
+| Surface                     | Notes                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Field type registry         | Custom field types registered via `wp-wireframe/field_types` are visible to every plugin.   |
+| Package-level filters       | `wp-wireframe/access/resolve`, `wp-wireframe/save/payload`, etc. apply across all consumers.|
+| Compiled JS / CSS bundle    | One copy enqueued. The first plugin to boot wins the asset URL derivation.                  |
+| The `Wireframe\` namespace  | Singleton classes (`App`, `Plugin`) hold per-prefix state internally.                       |
+
+Plugins that want to add a custom field type for their own use can still register globally and just not reference the type from other plugins' configs.
+
+## A pattern for "the framework lives in mu-plugins"
+
+If you want one canonical copy of the framework instead of N bundled copies, install it as an mu-plugin or shared library:
+
+```
+wp-content/
+├── mu-plugins/
+│   └── wp-wireframe/        # one shared copy
+└── plugins/
+    ├── plugin-a/
+    │   └── plugin-a.php     # just calls App::boot(), no vendor/
+    └── plugin-b/
+        └── plugin-b.php
+```
+
+Each plugin then just requires the framework's autoloader from the shared location:
+
+```php
+require_once WPMU_PLUGIN_DIR . '/wp-wireframe/vendor/autoload.php';
+```
+
+<Aside type="tip">
+The framework's `App::assetsUrl()` resolves URLs whether the package lives in `plugins/`, `mu-plugins/`, the active theme, or anywhere under `wp-content/`. You don't need to pass `assets_url` for any of these layouts — it's auto-derived. The override is only for unusual cases (e.g. symlinked vendor directories during local dev).
+</Aside>
+
+## Avoiding option-key collisions
+
+The default `option_key` derives from the prefix (`{prefix_snake_cased}_settings`), so two plugins with different prefixes never collide. If you set `option_key` explicitly, make it plugin-specific:
+
+```php
+// Good — namespaced
+'option_key' => 'plugin_a_settings',
+
+// Bad — generic, will collide with anyone else who picks the same name
+'option_key' => 'settings',
+```
+
+For [multi-page boots](/configuration/multi-page/) the per-page option key is `{boot_option_key}_{page_id}` by default. Override per-page if you want a shared row across pages.

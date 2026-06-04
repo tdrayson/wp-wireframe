@@ -1,0 +1,169 @@
+---
+title: Action handlers
+description: Named-function pattern for action-field hook listeners — greppable, replaceable, Query-Monitor friendly.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+[Action-field](/features/action-field/) handlers run as filter listeners. They're easy to write as anonymous closures but **a lot more useful as named functions**:
+
+- Greppable across your plugin.
+- Removable via `remove_filter('hook', 'function_name')`.
+- Show up cleanly in tools like Query Monitor (anonymous closures show as `Closure`).
+
+Here's the pattern used in the plugin-boilerplate's `demo/action-handlers.php`.
+
+## File scaffolding
+
+```php
+<?php
+
+/**
+ * Action-field handlers for My Plugin.
+ *
+ * The framework dispatches every button press through a per-button filter:
+ *
+ *   {prefix}/action/{pageId}/{fieldId}/{actionId}
+ *
+ * For this single-page plugin, `{prefix}` is `my-plugin` and `{pageId}` is
+ * `default`. Each handler receives the sanitised in-flight form values and
+ * the WP_REST_Request, and returns a response array shaped:
+ *
+ *   [
+ *       'status'  => 'success' | 'error' | 'warning' | 'info',
+ *       'message' => string,   // drives a snackbar
+ *       'html'    => string,   // optional — renders an inline result panel
+ *   ]
+ *
+ * @package MyPlugin
+ */
+
+declare(strict_types=1);
+
+if (! defined('ABSPATH')) {
+    exit;
+}
+```
+
+Require it from your main plugin file:
+
+```php
+require_once __DIR__ . '/includes/action-handlers.php';
+```
+
+## A simple handler — sugar mode, snackbar-only
+
+```php
+/**
+ * Ping the server. Sugar-mode handler — the `run` action id is the framework
+ * default when the field has no `args.buttons[]` declared.
+ *
+ * Hook: my-plugin/action/default/ping/run
+ *
+ * @param mixed           $unhandled Sentinel passed by the framework.
+ * @param array           $values    Sanitised in-flight form values.
+ * @param WP_REST_Request $request   The originating REST request.
+ * @return array{status: string, message: string}
+ */
+function my_plugin_action_ping(mixed $unhandled, array $values, WP_REST_Request $request): array
+{
+    return [
+        'status'  => 'success',
+        'message' => __('Pong!', 'my-plugin'),
+    ];
+}
+add_filter('my-plugin/action/default/ping/run', 'my_plugin_action_ping', 10, 3);
+```
+
+## Reading a sibling field
+
+The values array already carries every declared field's current value — sanitised. Read siblings directly:
+
+```php
+/**
+ * Test email delivery. Reads the sibling `test_email` field, validates it,
+ * sends the message.
+ *
+ * Hook: my-plugin/action/default/send_test/run
+ */
+function my_plugin_action_send_test_email(mixed $unhandled, array $values, WP_REST_Request $request): array
+{
+    $email = (string) ($values['test_email'] ?? '');
+
+    if ($email === '' || ! is_email($email)) {
+        return [
+            'status'  => 'error',
+            'message' => __('Enter a valid email address first.', 'my-plugin'),
+        ];
+    }
+
+    // Send the email…
+
+    return [
+        'status'  => 'success',
+        'message' => sprintf(
+            /* translators: %s: email address */
+            __('Test email sent to %s.', 'my-plugin'),
+            $email
+        ),
+    ];
+}
+add_filter('my-plugin/action/default/send_test/run', 'my_plugin_action_send_test_email', 10, 3);
+```
+
+## Returning a rich result
+
+When the handler returns a non-empty `html`, the framework also renders an inline result panel beneath the button — coloured to match `status`. The snackbar still shows the `message`; the panel shows the detail.
+
+```php
+function my_plugin_action_refresh_stats(mixed $unhandled, array $values, WP_REST_Request $request): array
+{
+    $stats = [
+        __('Active orders', 'my-plugin') => wp_rand(120, 480),
+        __('Active users',  'my-plugin') => wp_rand(40, 200),
+    ];
+
+    $rows = '';
+    foreach ($stats as $name => $value) {
+        $rows .= sprintf(
+            '<tr><th>%s</th><td><code>%s</code></td></tr>',
+            esc_html($name),
+            esc_html(number_format_i18n($value))
+        );
+    }
+
+    return [
+        'status'  => 'success',
+        'message' => __('Stats refreshed.', 'my-plugin'),
+        'html'    => '<table>' . $rows . '</table>',
+    ];
+}
+add_filter('my-plugin/action/default/billing_tools/refresh_stats', 'my_plugin_action_refresh_stats', 10, 3);
+```
+
+<Aside type="caution">
+The `html` you return is rendered raw on the client. Use `esc_html()` / `wp_kses_post()` to escape any user-derived content — sanitiser-escape every dynamic value before string-concatenating into your output.
+</Aside>
+
+## Failing with a `WP_Error`
+
+For validation-like failures the framework surfaces in a consistent way:
+
+```php
+function my_plugin_action_wipe(mixed $unhandled, array $values, WP_REST_Request $request)
+{
+    if (! current_user_can('manage_options')) {
+        return new WP_Error(
+            'wireframe_forbidden',
+            __('You do not have permission to wipe.', 'my-plugin'),
+            ['status' => 403]
+        );
+    }
+
+    // …
+
+    return ['status' => 'warning', 'message' => __('Wipe complete.', 'my-plugin')];
+}
+```

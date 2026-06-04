@@ -1,0 +1,91 @@
+---
+title: REST API
+description: Every REST route the framework registers — settings, table, and action endpoints.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The framework registers REST routes under each consuming plugin's prefix (`{prefix}/v1/...`). All routes go through `SettingsController::checkPermission()` — the page's `capability` plus the standard WP REST nonce.
+
+## Settings endpoints
+
+Used by the page's save / reset / load flow.
+
+| Method   | Endpoint                          | Purpose                                                  |
+| -------- | --------------------------------- | -------------------------------------------------------- |
+| `GET`    | `/{prefix}/v1/settings/{pageId}`  | Return the config + resolved values for first render.    |
+| `POST`   | `/{prefix}/v1/settings/{pageId}`  | Validate, sanitise, merge, and save.                     |
+| `DELETE` | `/{prefix}/v1/settings/{pageId}`  | Reset the user's editable fields to their defaults.       |
+
+`pageId` is `default` in single-page mode, or the page's `id` in multi-page mode.
+
+See [Save & Reset](/features/save-and-reset/) for the merge semantics that distinguish a full overwrite from a per-user scoped save.
+
+## Table endpoints
+
+The `table` field type registers three routes per table per page:
+
+| Method   | Endpoint                                                              | Purpose                                                              |
+| -------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET`    | `/{prefix}/v1/table/{pageId}/{fieldId}`                               | Paginated row fetch. Dispatches via `…/table/{...}/data` filter.     |
+| `POST`   | `/{prefix}/v1/table/{pageId}/{fieldId}/action/{actionId}`             | Run a row / bulk action. Dispatches via per-action filter.            |
+| `GET`    | `/{prefix}/v1/table/{pageId}/{fieldId}/entry/{id}`                    | Load + render a single entry for the detail view.                     |
+
+Each dispatch slot is hooks-first with a legacy callback fallback for back-compat — see [Hooks & Filters](/reference/hooks-and-filters/#table-dispatch).
+
+### Row-fetch query parameters
+
+| Parameter   | Type      | Notes                                                                                |
+| ----------- | --------- | ------------------------------------------------------------------------------------ |
+| `page`      | `int`     | 1-indexed page number. Defaults to `1`.                                              |
+| `per_page`  | `int`     | Page size. Defaults to `10`.                                                         |
+| `search`    | `string`  | Free-text search term. Defaults to `''`.                                             |
+| `orderby`   | `string`  | Column id to sort on. Defaults to `''` (no sort).                                    |
+| `order`     | `string`  | `asc` or `desc`. Defaults to `asc`.                                                   |
+| `filters`   | `JSON`    | URL-encoded JSON of `{ [columnId]: value }` pairs. Defaults to `{}`.                  |
+
+### Row-fetch response shape
+
+```json
+{
+    "items": [ /* row objects */ ],
+    "total": 4823
+}
+```
+
+## Action endpoints
+
+The `action` field type registers one route per page:
+
+| Method | Endpoint                                                          | Purpose                                                       |
+| ------ | ----------------------------------------------------------------- | ------------------------------------------------------------- |
+| `POST` | `/{prefix}/v1/action/{pageId}/{fieldId}/{actionId}`               | Dispatch a button press to its filter handler.                |
+
+The request body carries the in-flight form values:
+
+```json
+{
+    "values": {
+        "target_user": 42,
+        "email":       "hello@example.com"
+    }
+}
+```
+
+The server sanitises every declared key, drops unknown ones, then fires:
+
+```
+{prefix}/action/{pageId}/{fieldId}/{actionId}
+```
+
+See [Action Field](/features/action-field/) for the full handler contract and response shape.
+
+## Permission gate
+
+All endpoints use the same gate: the page's `capability` (default `manage_options`) plus the standard WP REST nonce. When the page opts into [Role-Based Access](/features/role-based-access/), the gate switches to `read` plus a per-element check.
+
+<Aside type="tip">
+Custom REST routes added by your own plugin keep using your own permission callbacks — the framework only registers the routes documented above. There's no global REST middleware to work around.
+</Aside>

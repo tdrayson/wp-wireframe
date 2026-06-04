@@ -1,0 +1,23 @@
+---
+title: Plugin Structure
+description: How WP Wireframe sits inside your plugin as a bundled dependency.
+sidebar:
+  order: 3
+---
+
+import { FileTree } from '@astrojs/starlight/components';
+
+WP Wireframe lives inside your plugin as a bundled dependency. A typical layout:
+
+<FileTree>
+- my-plugin/
+  - my-plugin.php (Boot call — ~15 lines)
+  - config/
+    - settings.php (Field definitions, or pass inline)
+  - vendor/
+    - wp-wireframe/ (Extracted from the release zip)
+      - src/
+      - vendor/ (rakit/validation)
+</FileTree>
+
+The `config/` directory is convention, not a requirement — `boot()` accepts either a path to a PHP file or an inline config array. See [Boot Options](/configuration/boot-options/) for the full list.

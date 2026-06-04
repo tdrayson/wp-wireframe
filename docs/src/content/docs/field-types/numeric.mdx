@@ -1,0 +1,59 @@
+---
+title: Numeric
+description: Number inputs and range sliders.
+sidebar:
+  order: 3
+---
+
+## Types
+
+| Type     | Description                       | Stored as        |
+| -------- | --------------------------------- | ---------------- |
+| `number` | Numeric input with min/max/step   | `int` or `float` |
+| `range`  | Slider with tooltip               | `int` or `float` |
+
+## `args`
+
+| Arg    | Default | Notes                                                                              |
+| ------ | ------- | ---------------------------------------------------------------------------------- |
+| `min`  | —       | Minimum allowed value.                                                             |
+| `max`  | —       | Maximum allowed value.                                                             |
+| `step` | `1`     | Increment between valid values. Set to `0.1`, `0.01`, etc. for decimals.           |
+| `unit` | `''`    | Suffix shown next to the value (e.g. `'px'`, `'%'`). Visual only — not stored.     |
+
+## Example — `number` with bounds
+
+```php
+[
+    'id'      => 'cache_ttl',
+    'type'    => 'number',
+    'label'   => __('Cache TTL', 'my-plugin'),
+    'default' => 3600,
+    'columns' => 6,
+    'args'    => [
+        'min'  => 0,
+        'max'  => 86_400,
+        'step' => 60,
+        'unit' => 'seconds',
+    ],
+],
+```
+
+## Example — `range` slider
+
+```php
+[
+    'id'      => 'preview_size',
+    'type'    => 'range',
+    'label'   => __('Preview size', 'my-plugin'),
+    'default' => 50,
+    'args'    => [
+        'min'  => 10,
+        'max'  => 100,
+        'step' => 5,
+        'unit' => '%',
+    ],
+],
+```
+
+Stored value is an `int` when `step` is a whole number, `float` when it isn't.

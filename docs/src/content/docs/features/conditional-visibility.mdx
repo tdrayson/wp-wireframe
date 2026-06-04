@@ -1,0 +1,97 @@
+---
+title: Conditional Visibility
+description: Show or hide tabs, sections, and fields based on the current form values.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Any tab, section, or field can declare a `conditions` block. The framework evaluates them against the **in-flight form values** (not just the saved values), so visibility updates instantly as the user edits.
+
+## Shape
+
+```php
+'conditions' => [
+    'all' => [                                            // AND of every rule
+        ['field' => 'debug_mode',  'operator' => 'truthy'],
+        ['field' => 'log_level',   'operator' => 'in', 'value' => ['info', 'debug']],
+    ],
+    // 'any' => [ ... ],                                  // OR of every rule
+],
+```
+
+Both `all` and `any` may be declared together — `all` is required, then `any` is required, both with their own rule sets.
+
+## Worked example — show a select when a toggle is on
+
+```php
+[
+    'id'      => 'debug_mode',
+    'type'    => 'toggle',
+    'label'   => __('Debug mode', 'my-plugin'),
+    'default' => false,
+],
+[
+    'id'         => 'log_level',
+    'type'       => 'select',
+    'label'      => __('Log level', 'my-plugin'),
+    'default'    => 'error',
+    'columns'    => 6,
+    'conditions' => [
+        'all' => [
+            ['field' => 'debug_mode', 'operator' => 'truthy'],
+        ],
+    ],
+    'args' => [
+        'options' => [
+            'error' => __('Errors only', 'my-plugin'),
+            'info'  => __('Info & above', 'my-plugin'),
+            'debug' => __('Everything', 'my-plugin'),
+        ],
+    ],
+],
+```
+
+When `debug_mode` is off, `log_level` collapses out of the form and its value won't be saved on the next write. Toggle it on and the field reappears.
+
+## Operators
+
+| Operator        | Compares                              | Example                                                    |
+| --------------- | ------------------------------------- | ---------------------------------------------------------- |
+| `equals`        | strict equality                       | `['field' => 'status', 'operator' => 'equals',  'value' => 'live']`      |
+| `not_equals`    | strict inequality                     | `['field' => 'status', 'operator' => 'not_equals', 'value' => 'draft']`   |
+| `truthy`        | JS truthiness                         | `['field' => 'flag', 'operator' => 'truthy']`              |
+| `falsy`         | JS falsiness                          | `['field' => 'flag', 'operator' => 'falsy']`               |
+| `in`            | value is in `value` array             | `['field' => 'role', 'operator' => 'in',  'value' => ['admin', 'editor']]` |
+| `not_in`        | value is NOT in `value` array         | `['field' => 'role', 'operator' => 'not_in', 'value' => ['guest']]`        |
+| `contains`      | string includes substring             | `['field' => 'url',  'operator' => 'contains', 'value' => 'staging']`      |
+| `not_contains`  | string does NOT include substring     | `['field' => 'url',  'operator' => 'not_contains', 'value' => 'localhost']` |
+| `starts_with`   | string starts with                    | `['field' => 'slug', 'operator' => 'starts_with', 'value' => 'sale-']`     |
+| `ends_with`     | string ends with                      | `['field' => 'slug', 'operator' => 'ends_with', 'value' => '-2026']`       |
+| `is_empty`      | empty string / `null` / `[]`          | `['field' => 'note', 'operator' => 'is_empty']`             |
+| `is_not_empty`  | not empty                             | `['field' => 'note', 'operator' => 'is_not_empty']`         |
+| `gt` / `gte`    | numeric greater-than / >=             | `['field' => 'qty',  'operator' => 'gte', 'value' => 1]`    |
+| `lt` / `lte`    | numeric less-than / <=                | `['field' => 'qty',  'operator' => 'lt', 'value' => 100]`   |
+| `between`       | numeric between (inclusive)           | `['field' => 'qty',  'operator' => 'between', 'value' => [1, 100]]`        |
+
+## Scopes — tab, section, and field
+
+Conditions work the same way at every level. A tab that evaluates to false **hides itself from the tab bar entirely** — users can't see or click into it. Same for sections (entire card disappears) and fields (single input hides).
+
+```php
+[
+    'id'         => 'advanced',
+    'title'      => __('Advanced', 'my-plugin'),
+    'conditions' => [
+        'all' => [
+            ['field' => 'show_advanced', 'operator' => 'truthy'],
+        ],
+    ],
+    'sections' => [ /* … */ ],
+],
+```
+
+<Aside type="tip">
+A hidden field's value is preserved across saves — the framework merges the existing saved value back in. Toggle the condition true again and you'll see the value reappear unchanged.
+</Aside>

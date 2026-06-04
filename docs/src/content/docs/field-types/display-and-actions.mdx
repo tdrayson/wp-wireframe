@@ -1,0 +1,94 @@
+---
+title: Display & Actions
+description: Stateless field types — html display blocks, JSON export/import, and action buttons.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+These types are **stateless** — they don't persist a value. They render UI and (for export / import / action) wire into server-side flows.
+
+## Types
+
+| Type     | Description                                                      | Stored as |
+| -------- | ---------------------------------------------------------------- | --------- |
+| `html`   | Read-only display block (info, success, warning, error variants) | —         |
+| `export` | Download settings as JSON                                        | —         |
+| `import` | Upload JSON to restore settings                                  | —         |
+| `action` | One or more buttons that dispatch to a server-side hook          | —         |
+
+## `html`
+
+A read-only block of markup. Ships with built-in prose styling — paragraphs, headings, lists, blockquotes, inline + block `<code>`, tables, images, `<hr>` — using the framework's WPDS tokens, so raw markup renders with sensible spacing.
+
+```php
+[
+    'id'   => 'docs_link',
+    'type' => 'html',
+    'args' => [
+        'variant' => 'info',
+        'content' => '<p><strong>Tip:</strong> See the <a href="…">setup guide</a> for the full walkthrough.</p>',
+    ],
+],
+```
+
+### Variants
+
+`plain` (default), `info`, `success`, `warning`, `error`. Affects the surrounding chrome but not the prose inside.
+
+## `export`
+
+Renders a download button. Clicking serialises the page's saved settings to JSON and triggers a browser download.
+
+```php
+[
+    'id'    => 'backup',
+    'type'  => 'export',
+    'label' => __('Export settings', 'my-plugin'),
+    'args'  => [
+        'button_label' => __('Download JSON', 'my-plugin'),
+        'filename'     => 'my-plugin-settings',
+    ],
+],
+```
+
+## `import`
+
+Pairs with `export` — file picker + button that uploads a JSON file and replaces the page's saved settings.
+
+```php
+[
+    'id'    => 'restore',
+    'type'  => 'import',
+    'label' => __('Import settings', 'my-plugin'),
+    'args'  => [
+        'button_label' => __('Upload JSON', 'my-plugin'),
+    ],
+],
+```
+
+## `action`
+
+One or more buttons that POST in-flight form values to a server-side hook. Config is pure data — handlers wire in via `add_filter`.
+
+```php
+[
+    'id'      => 'billing_tools',
+    'type'    => 'action',
+    'label'   => __('Billing tools', 'my-plugin'),
+    'args'    => [
+        'buttons' => [
+            ['id' => 'refresh_stats', 'label' => __('Refresh stats', 'my-plugin'), 'variant' => 'primary'],
+            ['id' => 'export_csv',    'label' => __('Export CSV',    'my-plugin')],
+            ['id' => 'wipe',          'label' => __('Wipe',          'my-plugin'),
+             'destructive' => true,
+             'confirm'     => __('Wipe everything? This cannot be undone.', 'my-plugin')],
+        ],
+    ],
+],
+```
+
+<Aside type="tip">
+The action field has its own full feature page — see [Action Field](/features/action-field/) for sugar mode, the response shape (`status` / `message` / `html`), confirm modals, button groups, security boundaries, and example handlers.
+</Aside>

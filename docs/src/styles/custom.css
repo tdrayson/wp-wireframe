@@ -1,0 +1,49 @@
+/* WP Wireframe docs — table polish.
+ *
+ * Starlight's defaults are minimal. These rules give wide reference tables
+ * a header background, alternating row tint, hairline borders, and a
+ * horizontal scroll container so they don't overflow on narrow viewports.
+ */
+
+.sl-markdown-content table {
+	display: block;
+	overflow-x: auto;
+	border-collapse: collapse;
+	width: 100%;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.375rem;
+}
+
+.sl-markdown-content thead {
+	background: var(--sl-color-gray-6);
+}
+
+.sl-markdown-content th {
+	font-weight: 600;
+	text-align: left;
+	letter-spacing: 0.01em;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+	padding: 0.625rem 0.875rem;
+	border-bottom: 1px solid var(--sl-color-gray-5);
+	vertical-align: top;
+	line-height: 1.45;
+}
+
+.sl-markdown-content tbody tr:nth-child(even) {
+	background: var(--sl-color-gray-7, transparent);
+}
+
+.sl-markdown-content tbody tr:last-child td {
+	border-bottom: none;
+}
+
+/* Code spans inside cells keep their own font but pick up a subtler
+ * surrounding chrome so they don't fight with the row tint. */
+.sl-markdown-content td code,
+.sl-markdown-content th code {
+	background: var(--sl-color-gray-6);
+	border-color: transparent;
+}

@@ -1,0 +1,105 @@
+---
+title: Settings API
+description: The Wireframe\Settings facade — type-safe reads, writes, dot notation, subsets, and conditional helpers.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`Wireframe\Settings` is the primary API for reading and writing saved field values from anywhere in your plugin. Every call takes your plugin's `option_key` as the first argument, so multiple plugins sharing the framework can never collide on storage.
+
+```php
+use Wireframe\Settings;
+
+$opt = 'my_plugin_settings';   // matches what you passed to App::boot()
+```
+
+## Reading
+
+```php
+Settings::get($opt, 'field_id');                // any value, with dot notation
+Settings::get($opt, 'field_id', 'fallback');    // with default
+Settings::get($opt, 'repeater.0.subfield');     // dot notation into repeaters
+```
+
+### Type-safe getters
+
+| Method                                | Always returns |
+| ------------------------------------- | -------------- |
+| `Settings::bool($opt, $key, $default = false)`  | `bool`         |
+| `Settings::int($opt, $key, $default = 0)`       | `int`          |
+| `Settings::float($opt, $key, $default = 0.0)`   | `float`        |
+| `Settings::string($opt, $key, $default = '')`   | `string`       |
+| `Settings::array($opt, $key, $default = [])`    | `array`        |
+| `Settings::json($opt, $key, $default = null)`   | decoded JSON   |
+
+Coercion is best-effort: `string '1'` becomes `bool true`, `string '3.14'` becomes `float 3.14`, etc. Use these in business code so you don't have to defensively cast at every call site.
+
+## Writing
+
+```php
+Settings::set($opt, 'site_name', 'New Name');
+Settings::toggle($opt, 'notifications');
+Settings::increment($opt, 'view_count');
+Settings::decrement($opt, 'credits', 5);
+Settings::push($opt, 'allowed_ips', '10.0.0.1');
+Settings::forget($opt, 'api_key');
+```
+
+| Method                                          | Notes                                                      |
+| ----------------------------------------------- | ---------------------------------------------------------- |
+| `set($opt, $key, $value)`                       | Replace the value at `$key`.                               |
+| `toggle($opt, $key)`                            | Flip a boolean.                                            |
+| `increment($opt, $key, $by = 1)`                | Bump a numeric value.                                      |
+| `decrement($opt, $key, $by = 1)`                | Drop a numeric value.                                      |
+| `push($opt, $key, $value)`                      | Append to an array value.                                  |
+| `forget($opt, $key)`                            | Remove a key entirely.                                     |
+
+<Aside type="caution">
+Writes via `Settings::` **bypass** the framework's validation and access pipeline — they go straight to `update_option()`. Use them for internal bookkeeping (counters, cached flags) rather than for accepting user input. For user input use the REST save endpoint.
+</Aside>
+
+## Checking
+
+```php
+Settings::has($opt, 'api_key');                    // key exists and value is not null
+Settings::exists($opt);                            // any settings saved at all
+Settings::filled($opt, 'site_name', 'fallback');   // non-empty value or fallback
+```
+
+## Subsets
+
+```php
+Settings::only($opt, 'site_name', 'email');     // associative array — just these keys
+Settings::except($opt, 'api_key', 'password');  // associative array — everything except
+Settings::all($opt);                            // raw saved values
+Settings::resolved($opt);                       // saved values merged with config defaults
+```
+
+`all()` returns only the keys that have been explicitly saved. `resolved()` is what the React app sees — every declared field, with its default filled in where no saved value exists.
+
+## Conditional helpers
+
+```php
+// Run a callback only if the key has a value, return what the callback returns.
+$result = Settings::when($opt, 'api_key', fn($key) => initService($key));
+
+// Transform a value through a callback before returning.
+$color = Settings::transform($opt, 'color', fn($c) => ltrim($c, '#'));
+
+// Get a value, or set + return a default if missing.
+$counter = Settings::getOrSet($opt, 'counter', 0);
+
+// Get a value then forget the key (one-shot tokens, flash data).
+$token = Settings::pull($opt, 'temp_token');
+```
+
+## Multi-plugin safety
+
+Because every method takes `$opt` first, the facade has no global state to coordinate. Two plugins on the same site can each use `Settings::get()` with their own keys without seeing each other's data:
+
+```php
+$themeOptions  = Settings::get('my_theme',  'palette');
+$pluginOptions = Settings::get('my_plugin', 'features');
+```

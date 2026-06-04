@@ -1,0 +1,65 @@
+---
+title: Text Family
+description: Single- and multi-line text inputs — text, email, url, password, textarea, hidden.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The text family covers everything that takes a string. Format-specific variants (`email`, `url`) add HTML5 validation; `password` masks input; `hidden` round-trips a value without rendering anything.
+
+## Types
+
+| Type       | Description                                  | Stored as |
+| ---------- | -------------------------------------------- | --------- |
+| `text`     | Single-line text input                       | `string`  |
+| `email`    | Email with format validation                 | `string`  |
+| `url`      | URL with format validation                   | `string`  |
+| `password` | Masked input                                 | `string`  |
+| `textarea` | Multi-line text                              | `string`  |
+| `hidden`   | Not rendered, just round-trips a saved value | `string`  |
+
+## Common `args`
+
+| Arg           | Applies to       | Default | Notes                                                          |
+| ------------- | ---------------- | ------- | -------------------------------------------------------------- |
+| `placeholder` | text, textarea   | `''`    | Greyed-out hint text shown when empty.                         |
+| `rows`        | textarea         | `3`     | Number of visible rows.                                        |
+| `readonly`    | text family      | `false` | Render the input disabled. Same effect as RBAC view-only mode. |
+| `copyable`    | text family      | `false` | Show a copy-to-clipboard button at the right of the input.     |
+
+## Example — text + placeholder + copyable
+
+```php
+[
+    'id'          => 'api_key',
+    'type'        => 'text',
+    'label'       => __('API key', 'my-plugin'),
+    'description' => __('Paste into your client app. Treat as a secret.', 'my-plugin'),
+    'columns'     => 12,
+    'args'        => [
+        'readonly' => true,
+        'copyable' => true,
+    ],
+],
+```
+
+## Example — textarea with rows
+
+```php
+[
+    'id'      => 'tagline',
+    'type'    => 'textarea',
+    'label'   => __('Tagline', 'my-plugin'),
+    'default' => 'The friendliest newsletter tool on the internet.',
+    'args'    => [
+        'rows'        => 2,
+        'placeholder' => __('One sentence about your product.', 'my-plugin'),
+    ],
+],
+```
+
+<Aside type="tip">
+For longer rich content, use the [`editor` or `code_editor` field](/field-types/rich-content/) instead of `textarea`.
+</Aside>

@@ -1,0 +1,108 @@
+---
+title: Custom Field Types
+description: Extend the field registry with your own PHP class — and optionally a custom React Edit component.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The framework's field registry is extensible. A custom field type is a PHP class implementing `FieldInterface` (usually via `BaseField`), registered through the `wp-wireframe/field_types` filter.
+
+## Minimum class
+
+```php
+use Wireframe\Framework\Fields\BaseField;
+
+class MyCustomField extends BaseField
+{
+    public static function type(): string
+    {
+        return 'my_custom';
+    }
+
+    public static function sanitize(mixed $value, array $args): mixed
+    {
+        return sanitize_text_field((string) $value);
+    }
+}
+```
+
+Then register:
+
+```php
+add_filter('wp-wireframe/field_types', function (array $types): array {
+    $types['my_custom'] = MyCustomField::class;
+    return $types;
+});
+```
+
+That's enough for the server side — the field accepts and sanitises values. You'll still need to tell the React side how to render it (see below).
+
+## The full surface
+
+`BaseField` provides defaults for everything except `type()` and `sanitize()`. Override the rest to customise behaviour:
+
+| Method                                                     | Returns       | Purpose                                                                 |
+| ---------------------------------------------------------- | ------------- | ----------------------------------------------------------------------- |
+| `static type(): string`                                    | `string`      | The slug used in config (`'my_custom'`). Required.                       |
+| `static sanitize(mixed $value, array $args): mixed`        | sanitised value | Coerce the value into a safe canonical form. Required.                |
+| `static isStateless(): bool`                               | `bool`        | `true` for display-only fields that don't persist a value.               |
+| `static defaultRules(array $args): string`                 | `string`      | Default [Rakit validation rules](/features/validation/) for the field.   |
+| `static validate(mixed $value, array $args): ?string`      | `?string`     | Return an error message, or `null` if valid.                             |
+
+## Rendering on the client
+
+Field types are matched to React components in `js/components/fields/index.js`:
+
+```js
+export const customEditComponents = {
+    text:    TextInputEdit,
+    select:  SelectEdit,
+    toggle:  ToggleEdit,
+    // …
+    my_custom: MyCustomEdit,   // ← your new mapping
+};
+```
+
+For a custom type you have three options, ranked by effort:
+
+1. **Reuse an existing component** — if your field is "a text input that stores something specific", map `my_custom: TextInputEdit` and let the server's `sanitize()` do the work.
+2. **Wrap an existing component** — wrap one of `@wordpress/components`' primitives in a thin React component that reads `field`, `value`, `onChange`, and (if relevant) `errors`.
+3. **Build from scratch** — full control, but you'll need to register the component in the bundle and ship the updated JS.
+
+The simplest custom component shape:
+
+```jsx
+import { BaseControl } from '@wordpress/components';
+
+export default function MyCustomEdit({ field, value, onChange }) {
+    return (
+        <BaseControl
+            __nextHasNoMarginBottom
+            label={field.label}
+            help={field.description}
+            id={`my-custom-${field.id}`}
+        >
+            <input
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                disabled={field.readOnly}
+            />
+        </BaseControl>
+    );
+}
+```
+
+<Aside type="caution">
+The `readOnly` prop on `field` is set by the [Role-Based Access](/features/role-based-access/) pipeline when the current user has view but not edit access. Honour it by disabling your input — the server enforces writes regardless, so it's a UI hint not a security boundary.
+</Aside>
+
+## Sanitising vs validating
+
+Two different responsibilities:
+
+- **`sanitize()`** turns whatever came in into a canonical form. Coerce types, strip dangerous markup, trim whitespace, normalise case. **Always runs** before validation, even on the save endpoint and action-field requests.
+- **`validate()`** decides whether the (already-sanitised) value is acceptable. Return `null` to accept, or an error string to reject. **Only runs at save time**.
+
+Keep `sanitize()` cheap and total — never throw, never return `WP_Error`. Return something useful for any input, even an empty string for invalid input.

@@ -1,0 +1,64 @@
+---
+title: Installation
+description: Add WP Wireframe to your plugin via Composer or a manual download.
+sidebar:
+  order: 1
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+WP Wireframe is a **library**, not a standalone plugin. Bundle a copy inside your own plugin's `vendor/` folder.
+
+## Requirements
+
+- PHP 8.1+
+- WordPress 6.5+
+
+## Install
+
+<Tabs>
+	<TabItem label="Composer (recommended)">
+		Add the GitHub repo to your plugin's `composer.json` — no Packagist needed:
+
+		```json
+		{
+		    "repositories": [
+		        { "type": "vcs", "url": "https://github.com/tdrayson/wp-wireframe" }
+		    ],
+		    "require": {
+		        "tdrayson/wp-wireframe": "^1.0"
+		    }
+		}
+		```
+
+		Then install:
+
+		```bash
+		composer install
+		```
+
+		And require the Composer autoloader from your plugin's main file:
+
+		```php
+		require_once __DIR__ . '/vendor/autoload.php';
+		```
+
+		Composer resolves the latest tagged release. The compiled JS/CSS bundle ships with the package, so there's no build step on your side.
+	</TabItem>
+	<TabItem label="Manual download">
+		1. Download the [latest release zip](https://github.com/tdrayson/wp-wireframe/releases/latest) and extract it so the folder sits at `your-plugin/vendor/wp-wireframe/`.
+		2. Require the autoloader from your plugin's main file:
+
+		```php
+		require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
+		```
+	</TabItem>
+</Tabs>
+
+<Aside type="tip">
+	No separate plugin to install or activate. If multiple plugins each bundle their own copy, they share one class definition at runtime and boot independently under their own prefixes.
+</Aside>
+
+## Next steps
+
+Continue to the [Quick Start](/getting-started/quick-start/) to wire up a settings page in three small files.

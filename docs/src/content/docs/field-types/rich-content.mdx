@@ -1,0 +1,53 @@
+---
+title: Rich Content
+description: WYSIWYG editor and syntax-highlighted code editor.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Types
+
+| Type          | Description                         | Stored as       |
+| ------------- | ----------------------------------- | --------------- |
+| `editor`      | TinyMCE WYSIWYG editor              | `string` (HTML) |
+| `code_editor` | CodeMirror with syntax highlighting | `string`        |
+
+## `editor` (WYSIWYG)
+
+```php
+[
+    'id'    => 'welcome_email',
+    'type'  => 'editor',
+    'label' => __('Welcome email body', 'my-plugin'),
+    'args'  => [
+        'rows' => 12,
+    ],
+],
+```
+
+The saved string is the TinyMCE HTML, sanitised through `wp_kses_post()` on the server. Use `wp_kses_post()` again (or echo as-is for trusted authors) when rendering on the front-end.
+
+## `code_editor`
+
+```php
+[
+    'id'          => 'custom_css',
+    'type'        => 'code_editor',
+    'label'       => __('Custom CSS', 'my-plugin'),
+    'description' => __('Loaded after the theme styles.', 'my-plugin'),
+    'args'        => [
+        'mode' => 'css',
+        'rows' => 10,
+    ],
+],
+```
+
+### Supported modes
+
+`css`, `js`, `html`, `php`, `json`, `xml`, `sql`.
+
+<Aside type="caution">
+`code_editor` stores raw input. Never `eval()` or write to disk based on a `code_editor` value without an explicit allowlist of what's permitted — treat the contents as untrusted user input.
+</Aside>
