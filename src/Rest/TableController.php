@@ -234,7 +234,7 @@ final class TableController
                     $value = implode(', ', array_map('strval', $value));
                 }
 
-                $row[] = (string) $value;
+                $row[] = self::neutralizeCsvValue((string) $value);
             }
 
             fputcsv($handle, $row);
@@ -257,6 +257,24 @@ final class TableController
                 'encoding' => 'text',
             ],
         ]);
+    }
+
+    /**
+     * Neutralise CSV formula injection (CWE-1236).
+     *
+     * A spreadsheet treats a cell beginning with =, +, -, @, tab or CR as a
+     * formula, so attacker-influenced row data could execute on open. Prefix
+     * such values with a single quote so they render as literal text. Purely
+     * numeric values (incl. negatives like "-5") are left intact so real
+     * numbers aren't mangled.
+     */
+    private static function neutralizeCsvValue(string $value): string
+    {
+        if ($value !== '' && !is_numeric($value) && preg_match('/^[=+\-@\t\r]/', $value)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 
     /**
