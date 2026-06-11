@@ -1,9 +1,31 @@
 /**
  * WysiwygEdit — TinyMCE WYSIWYG editor.
  *
- * Uses wp.editor (WordPress's bundled TinyMCE) initialized
- * into a textarea element. Falls back to a plain textarea if
- * wp.editor is not available.
+ * Wraps WordPress's bundled editor via `wp.editor.initialize()`, exposing its
+ * native settings through the field's `args` so authors configure it the same
+ * way they would `wp_editor()`:
+ *
+ *   args: {
+ *     rows: 8,                  // textarea height
+ *     media_buttons: false,     // hide the "Add Media" button
+ *     wpautop: true,            // auto-paragraphs in the Visual tab
+ *     tinymce: {                // Visual tab settings, or `false` to disable it
+ *       toolbar1: 'bold italic | bullist numlist | link',
+ *     },
+ *     quicktags: {              // Text tab settings, or `false` to disable it
+ *       buttons: 'strong,em,link',
+ *     },
+ *   }
+ *
+ * Set `tinymce: false` for a Text-only editor, or `quicktags: false` for a
+ * Visual-only editor. Falls back to a plain textarea if wp.editor is missing.
+ *
+ * These are the only settings `wp.editor.initialize()` consumes; each of
+ * `tinymce`/`quicktags` is merged over `wp.editor.getDefaultSettings()`, so a
+ * partial config inherits WP's defaults (use TinyMCE-native keys like
+ * `toolbar1`/`height` to customise). Note: WP only renders the Visual|Code tab
+ * switcher and the "Add Media" button when BOTH tabs are enabled — disabling
+ * either drops that chrome. (wp-admin/js/editor.js initialize().)
  */
 import { BaseControl } from '@wordpress/components';
 import { useEffect, useRef } from '@wordpress/element';
@@ -33,21 +55,60 @@ export default function WysiwygEdit( { data, field, onChange } ) {
 
 		initializedRef.current = true;
 
+		const {
+			wpautop = true,
+			media_buttons: mediaButtons = true,
+			tinymce: tinymceArg,
+			quicktags: quicktagsArg,
+		} = _args;
+
+		// Visual (TinyMCE) tab. `tinymce: false` disables it for a Text-only
+		// editor; an object is merged over the defaults so authors can set
+		// `toolbar1`, `plugins`, etc. using TinyMCE's native keys.
+		const tinymce =
+			tinymceArg === false
+				? false
+				: {
+						wpautop,
+						...( tinymceArg && typeof tinymceArg === 'object'
+							? tinymceArg
+							: {} ),
+						setup: ( editor ) => {
+							editor.on( 'change keyup', () => {
+								onChangeRef.current( {
+									[ field.id ]: editor.getContent(),
+								} );
+							} );
+						},
+				  };
+
+		// Text (Quicktags) tab. `quicktags: false` disables it for a
+		// Visual-only editor; an object passes through native settings
+		// (e.g. `{ buttons: 'strong,em,link' }`).
+		const quicktags =
+			quicktagsArg === false
+				? false
+				: quicktagsArg && typeof quicktagsArg === 'object'
+				? quicktagsArg
+				: true;
+
 		wp.editor.initialize( editorId, {
-			tinymce: {
-				wpautop: true,
-				setup: ( editor ) => {
-					editor.on( 'change keyup', () => {
-						const content = editor.getContent();
-						onChangeRef.current( { [ field.id ]: content } );
-					} );
-				},
-			},
-			quicktags: true,
-			mediaButtons: true,
+			tinymce,
+			quicktags,
+			mediaButtons,
 		} );
 
+		// Capture edits made in the Text tab (or when the Visual tab is
+		// disabled), where TinyMCE's change event never fires — quicktags
+		// writes straight to the underlying textarea.
+		const textarea = textareaRef.current;
+		const handleTextareaInput = () => {
+			onChangeRef.current( { [ field.id ]: textarea.value } );
+		};
+		textarea?.addEventListener( 'input', handleTextareaInput );
+
 		return () => {
+			textarea?.removeEventListener( 'input', handleTextareaInput );
 			if ( wp.editor?.remove ) {
 				wp.editor.remove( editorId );
 			}
