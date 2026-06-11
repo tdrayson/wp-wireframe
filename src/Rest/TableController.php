@@ -63,6 +63,14 @@ final class TableController
                 ],
             ]);
 
+            register_rest_route($namespace, $base . '/export', [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => fn(WP_REST_Request $r) => self::exportData($r, $internalId),
+                    'permission_callback' => fn() => SettingsController::checkPermission($internalId),
+                ],
+            ]);
+
             register_rest_route($namespace, $base . '/entry/(?P<id>[a-zA-Z0-9_-]+)', [
                 [
                     'methods'             => WP_REST_Server::READABLE,
@@ -127,6 +135,127 @@ final class TableController
         return new WP_REST_Response([
             'items' => array_values($result['items'] ?? []),
             'total' => (int) ($result['total'] ?? 0),
+        ]);
+    }
+
+    /**
+     * Export the full *filtered* dataset as CSV.
+     *
+     * Reuses the table's data hook with `per_page => -1` (and `is_export =>
+     * true`) so the handler returns every matching row rather than one page,
+     * then serialises the configured columns server-side with fputcsv() for
+     * correct quoting. Returns the standard `{ download: {...} }` shape the
+     * client turns into a file download — no separate streaming path.
+     *
+     * Enabled per table via `args.export` (true, or ['filename' => '…']).
+     */
+    private static function exportData(WP_REST_Request $request, string $internalId): WP_REST_Response|WP_Error
+    {
+        $page    = App::page($internalId);
+        $fieldId = (string) $request['field'];
+
+        $field = self::findField($page, $fieldId);
+
+        if ($field instanceof WP_Error) {
+            return $field;
+        }
+
+        if (empty($field['args']['export'])) {
+            return new WP_Error(
+                'wireframe_export_disabled',
+                sprintf('Export is not enabled on table "%s".', $fieldId),
+                ['status' => 403]
+            );
+        }
+
+        $columns = array_values(array_filter(
+            $field['args']['fields'] ?? [],
+            static fn($column): bool => is_array($column) && isset($column['id'])
+        ));
+
+        if ($columns === []) {
+            return new WP_Error(
+                'wireframe_no_columns',
+                sprintf('Table "%s" has no columns to export.', $fieldId),
+                ['status' => 400]
+            );
+        }
+
+        // -1 per_page signals "all rows" to the data handler (export context).
+        $query = [
+            'page'      => 1,
+            'per_page'  => -1,
+            'search'    => (string) ($request->get_param('search') ?? ''),
+            'orderby'   => (string) ($request->get_param('orderby') ?? ''),
+            'order'     => strtolower((string) ($request->get_param('order') ?? 'asc')) === 'desc' ? 'desc' : 'asc',
+            'filters'   => self::decodeFilters($request->get_param('filters')),
+            'is_export' => true,
+        ];
+
+        $hook   = self::tableHook($page, $fieldId, 'data');
+        $result = self::dispatchHook($hook, $field['args']['data_callback'] ?? null, [$query]);
+
+        if ($result instanceof Unhandled) {
+            return new WP_Error(
+                'wireframe_no_handler',
+                sprintf('Table "%s" has no handler for "%s" and no data_callback.', $fieldId, $hook),
+                ['status' => 500]
+            );
+        }
+
+        if ($result instanceof WP_Error) {
+            return $result;
+        }
+
+        if (!is_array($result)) {
+            return new WP_Error(
+                'wireframe_invalid_response',
+                'Table data handler must return an array with items.',
+                ['status' => 500]
+            );
+        }
+
+        $items  = array_values($result['items'] ?? []);
+        $handle = fopen('php://temp', 'r+');
+
+        // Header row from column labels.
+        fputcsv($handle, array_map(
+            static fn(array $column): string => (string) ($column['label'] ?? $column['id']),
+            $columns
+        ));
+
+        foreach ($items as $item) {
+            $row = [];
+
+            foreach ($columns as $column) {
+                $value = is_array($item) ? ($item[$column['id']] ?? '') : '';
+
+                if (is_array($value)) {
+                    $value = implode(', ', array_map('strval', $value));
+                }
+
+                $row[] = (string) $value;
+            }
+
+            fputcsv($handle, $row);
+        }
+
+        rewind($handle);
+        $csv = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        $exportArgs = $field['args']['export'];
+        $filename   = is_array($exportArgs) && !empty($exportArgs['filename'])
+            ? sanitize_file_name((string) $exportArgs['filename'])
+            : sanitize_file_name($fieldId);
+
+        return new WP_REST_Response([
+            'download' => [
+                'filename' => $filename . '.csv',
+                'mime'     => 'text/csv',
+                'content'  => $csv,
+                'encoding' => 'text',
+            ],
         ]);
     }
 

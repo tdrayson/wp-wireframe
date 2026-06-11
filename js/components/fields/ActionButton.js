@@ -16,6 +16,7 @@
  * Response shape (any of):
  *   { status, message?, html? }   // status: success | error | warning | info
  *   { success: bool }             // implicit status
+ *   { download: { filename, mime, content, encoding? } }  // triggers a download
  *
  * Behaviour:
  *  - Always fires a WP `core/notices` snackbar when `status` + `message`
@@ -46,6 +47,7 @@ import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { useSettings } from '../../hooks/useSettings';
+import { downloadFile } from '../../utils/downloadFile';
 
 const VARIANT_CLASSES = {
 	success: 'wireframe-action__result--success',
@@ -180,6 +182,12 @@ export default function ActionButton( { field } ) {
 
 				if ( message ) {
 					createNotice( status, message, { type: 'snackbar' } );
+				}
+
+				// Optional file download — handler returned a `download`
+				// artifact (e.g. a generated CSV or report).
+				if ( response?.download?.filename ) {
+					downloadFile( response.download );
 				}
 
 				// Update only this button's slot. Other buttons' panels are

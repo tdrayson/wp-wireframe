@@ -9,7 +9,7 @@
  * the controller resolves + invokes them server-side.
  */
 import { DataViews } from '@wordpress/dataviews';
-import { BaseControl } from '@wordpress/components';
+import { BaseControl, Button } from '@wordpress/components';
 import { useState, useEffect, useMemo, useCallback } from '@wordpress/element';
 import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
@@ -46,6 +46,7 @@ import {
 } from '@wordpress/icons';
 import { useSettings } from '../../hooks/useSettings';
 import { writeEntryParam } from '../../utils/tableDetailUrl';
+import { downloadFile } from '../../utils/downloadFile';
 
 /**
  * Explicit icon map — entries must be statically imported above, otherwise
@@ -146,6 +147,7 @@ export default function TableField( { field } ) {
 		actions: actionConfigs = [],
 		per_page: initialPerPage = 10,
 		search: enableSearch = false,
+		export: exportConfig = false,
 	} = _args;
 
 	const { restBase } = useSettings();
@@ -305,6 +307,47 @@ export default function TableField( { field } ) {
 		[ tableBase, createSuccessNotice, createErrorNotice, enterDetail ]
 	);
 
+	// Export the full *filtered* dataset (current search/sort/filters, all
+	// pages) as a CSV the server generates. Reuses the shared download helper.
+	const handleExport = useCallback( async () => {
+		const params = new URLSearchParams();
+
+		if ( view.search ) {
+			params.set( 'search', view.search );
+		}
+
+		if ( view.sort?.field ) {
+			params.set( 'orderby', view.sort.field );
+			params.set( 'order', view.sort.direction || 'asc' );
+		}
+
+		if ( Array.isArray( view.filters ) && view.filters.length > 0 ) {
+			params.set( 'filters', JSON.stringify( view.filters ) );
+		}
+
+		try {
+			const response = await apiFetch( {
+				path: `${ tableBase }/export?${ params.toString() }`,
+			} );
+
+			if ( response?.download ) {
+				downloadFile( response.download );
+			}
+		} catch ( error ) {
+			createErrorNotice(
+				error.message || __( 'Export failed.', 'wp-wireframe' ),
+				{ type: 'snackbar' }
+			);
+		}
+	}, [
+		tableBase,
+		view.search,
+		view.sort?.field,
+		view.sort?.direction,
+		view.filters,
+		createErrorNotice,
+	] );
+
 	const dvActions = useMemo(
 		() =>
 			actionConfigs.map( ( action ) => ( {
@@ -331,6 +374,26 @@ export default function TableField( { field } ) {
 			id={ `wireframe-table-${ field.id }` }
 		>
 			<div className="wireframe-table">
+				{ exportConfig && (
+					<div
+						className="wireframe-table__toolbar"
+						style={ {
+							marginBottom: '8px',
+							display: 'flex',
+							justifyContent: 'flex-end',
+						} }
+					>
+						<Button
+							variant="secondary"
+							icon={ download }
+							onClick={ handleExport }
+						>
+							{ ( typeof exportConfig === 'object' &&
+								exportConfig.button_label ) ||
+								__( 'Export CSV', 'wp-wireframe' ) }
+						</Button>
+					</div>
+				) }
 				<DataViews
 					data={ items }
 					fields={ dvFields }
