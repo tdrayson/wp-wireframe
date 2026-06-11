@@ -60,6 +60,18 @@ export default function MediaEdit( { data, field, onChange } ) {
 			library: mimeTypes ? { type: mimeTypes } : {},
 		} );
 
+		// Pre-select the currently-stored attachments so they appear checked
+		// in the modal and can be deselected/extended in place, rather than
+		// forcing a pick-from-scratch on every Replace.
+		frame.on( 'open', () => {
+			const selection = frame.state().get( 'selection' );
+			ids.forEach( ( id ) => {
+				const attachment = wp.media.attachment( id );
+				attachment.fetch();
+				selection.add( attachment ? [ attachment ] : [] );
+			} );
+		} );
+
 		frame.on( 'select', () => {
 			const selection = frame.state().get( 'selection' ).toJSON();
 			const newIds = selection.map( ( att ) => att.id );
