@@ -3,19 +3,18 @@
 .wireframe-action {
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-md);
 }
 
-// Reserves the same vertical space a BaseControl label row would occupy,
-// so an unlabelled action stays aligned with labelled siblings sharing
-// the same row. `aria-hidden` on the element keeps it out of the a11y
-// tree — accessibility comes from the button text itself.
+// Opt-in (`args.label_spacer => true`) on unlabelled actions: reserves the
+// same vertical space a BaseControl label row would occupy, so the action
+// stays aligned with labelled siblings sharing the same row. `aria-hidden`
+// keeps it out of the a11y tree — accessibility comes from the button text.
 //
 // The wrapping flex `gap` already accounts for the row below; this only
 // needs to match the label's own text height.
 .wireframe-action__label-spacer {
   display: block;
-  height: calc(var(--wpds-typography-font-size-xs) * 1.4);
+  height: calc(var(--wpds-typography-font-size-xs) * 1.4 + 8px);
 }
 
 .wireframe-action__buttons {
@@ -32,8 +31,12 @@
   background: var(--wpds-color-bg-surface-neutral-weak);
   color: var(--wpds-color-fg-content-neutral);
 
-  > :first-child { margin-top: 0; }
-  > :last-child  { margin-bottom: 0; }
+  > :first-child {
+    margin-top: 0;
+  }
+  > :last-child {
+    margin-bottom: 0;
+  }
 
   &--success {
     border-color: var(--wpds-color-stroke-surface-success);

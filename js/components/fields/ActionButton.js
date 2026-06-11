@@ -235,9 +235,15 @@ export default function ActionButton( { field } ) {
 	// Each button's text IS the accessible name of its action, so when
 	// `field.label` is empty we deliberately omit BaseControl's <label>
 	// element entirely (rather than passing an NBSP, which would render
-	// an empty-but-present label in the a11y tree). A CSS spacer with
-	// aria-hidden keeps the visual alignment with sibling labelled fields.
+	// an empty-but-present label in the a11y tree).
 	const hasLabel = typeof field.label === 'string' && field.label !== '';
+
+	// Opt-in spacer: reserves a label row's height so an *unlabelled* action
+	// lines up with labelled siblings sharing the same row (e.g. a button next
+	// to an input). Off by default — a standalone action shouldn't carry the
+	// blank gap. Enable with `args.label_spacer => true`. `aria-hidden` keeps
+	// it out of the a11y tree.
+	const showLabelSpacer = ! hasLabel && !! args.label_spacer;
 
 	return (
 		<BaseControl
@@ -247,7 +253,7 @@ export default function ActionButton( { field } ) {
 			id={ `wireframe-action-${ field.id }` }
 		>
 			<div className="wireframe-action">
-				{ ! hasLabel && (
+				{ showLabelSpacer && (
 					<div
 						className="wireframe-action__label-spacer"
 						aria-hidden="true"
