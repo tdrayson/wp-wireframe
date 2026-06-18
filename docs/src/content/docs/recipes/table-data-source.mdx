@@ -1,0 +1,196 @@
+---
+title: Table data source
+description: Wire a $wpdb-backed table to the table field's data hook — with search, pagination, sorting, and filters.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The [`table` field](/field-types/complex/#table) is stateless — rows come from a server handler each time the user paginates, searches, or filters. The framework dispatches via the `{prefix}/table/{pageId}/{fieldId}/data` filter; you return `['items', 'total']`.
+
+This recipe wires a `$wpdb` query to that hook.
+
+## Field config
+
+```php
+[
+    'id'    => 'orders',
+    'type'  => 'table',
+    'label' => __('Orders', 'my-plugin'),
+    'args'  => [
+        'columns' => [
+            ['id' => 'id',       'label' => __('ID',     'my-plugin'), 'type' => 'text', 'sortable' => true],
+            ['id' => 'customer', 'label' => __('Customer', 'my-plugin'), 'type' => 'text'],
+            ['id' => 'total',    'label' => __('Total',  'my-plugin'), 'type' => 'text', 'sortable' => true],
+            ['id' => 'status',   'label' => __('Status', 'my-plugin'), 'type' => 'text',
+                'filter' => [
+                    'options' => [
+                        'pending'   => __('Pending',   'my-plugin'),
+                        'completed' => __('Completed', 'my-plugin'),
+                        'refunded'  => __('Refunded',  'my-plugin'),
+                    ],
+                ],
+            ],
+            ['id' => 'created',  'label' => __('Created', 'my-plugin'), 'type' => 'datetime', 'sortable' => true],
+        ],
+    ],
+],
+```
+
+No `callback` keys, no PHP references in the config — pure data.
+
+## The data handler
+
+```php
+/**
+ * Fetch orders for the table field. Reads the framework's query array and
+ * returns `{ items, total }`.
+ *
+ * Hook: my-plugin/table/default/orders/data
+ *
+ * @param mixed $unhandled Sentinel.
+ * @param array $query     {
+ *     @type int    $page     1-indexed.
+ *     @type int    $per_page Page size.
+ *     @type string $search   Free-text search.
+ *     @type string $orderby  Column id.
+ *     @type string $order    'asc' | 'desc'.
+ *     @type array  $filters  Map of column id → filter value.
+ * }
+ * @return array{items: array, total: int}|WP_Error
+ */
+function my_plugin_table_orders(mixed $unhandled, array $query): array|WP_Error
+{
+    global $wpdb;
+
+    $table = $wpdb->prefix . 'my_orders';
+
+    // ── Filters ────────────────────────────────────
+    $where  = ['1 = 1'];
+    $params = [];
+
+    if ($query['search'] !== '') {
+        $where[]  = '(id LIKE %s OR customer LIKE %s)';
+        $like     = '%' . $wpdb->esc_like($query['search']) . '%';
+        $params[] = $like;
+        $params[] = $like;
+    }
+
+    if (! empty($query['filters']['status'])) {
+        $where[]  = 'status = %s';
+        $params[] = (string) $query['filters']['status'];
+    }
+
+    $whereSql = implode(' AND ', $where);
+
+    // ── Sort ───────────────────────────────────────
+    $allowedSort = ['id', 'total', 'created'];
+    $orderby = in_array($query['orderby'], $allowedSort, true) ? $query['orderby'] : 'created';
+    $order   = $query['order'] === 'desc' ? 'DESC' : 'ASC';
+
+    // ── Total (for pagination) ─────────────────────
+    $total = (int) $wpdb->get_var(
+        $wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$whereSql}", $params)
+    );
+
+    // ── Page of rows ───────────────────────────────
+    $offset = max(0, ($query['page'] - 1) * $query['per_page']);
+
+    $rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT id, customer, total, status, created
+             FROM {$table}
+             WHERE {$whereSql}
+             ORDER BY {$orderby} {$order}
+             LIMIT %d OFFSET %d",
+            array_merge($params, [(int) $query['per_page'], $offset])
+        ),
+        ARRAY_A
+    );
+
+    return [
+        'items' => $rows ?: [],
+        'total' => $total,
+    ];
+}
+add_filter('my-plugin/table/default/orders/data', 'my_plugin_table_orders', 10, 2);
+```
+
+<Aside type="caution">
+The `orderby` column name **must** be allowlisted (`$allowedSort`). Never interpolate the column name from user input directly into SQL — `$wpdb->prepare()` won't help you there, it only escapes values.
+</Aside>
+
+## Row actions
+
+Add `actions` to the config, then wire each one to its filter:
+
+```php
+'actions' => [
+    ['id' => 'mark_completed', 'label' => __('Mark completed', 'my-plugin'), 'supports_bulk' => true],
+    ['id' => 'refund',         'label' => __('Refund',          'my-plugin'), 'destructive'    => true,
+        'confirm' => __('Refund the selected orders?', 'my-plugin')],
+],
+```
+
+```php
+add_filter(
+    'my-plugin/table/default/orders/mark_completed',
+    function ($unhandled, array $ids, WP_REST_Request $request): array {
+        global $wpdb;
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$wpdb->prefix}my_orders SET status = 'completed' WHERE id IN ({$placeholders})",
+                array_map('intval', $ids)
+            )
+        );
+
+        return ['success' => true, 'updated' => count($ids)];
+    },
+    10, 3
+);
+```
+
+The action filter receives the array of selected row IDs plus the request. Returning an array merges into the JSON response that the client surfaces in its snackbar.
+
+## Detail view
+
+To make a row openable in a chrome-less detail view, declare the action with `opens_detail => true` and wire the detail filters:
+
+```php
+'actions' => [
+    ['id' => 'view', 'label' => __('View', 'my-plugin'), 'opens_detail' => true],
+],
+'detail_view' => [
+    'back_label' => __('Back to all orders', 'my-plugin'),
+],
+```
+
+```php
+// Load the entry.
+add_filter('my-plugin/table/default/orders/detail/fetch', function ($_, $id, $request) {
+    global $wpdb;
+    return $wpdb->get_row(
+        $wpdb->prepare("SELECT * FROM {$wpdb->prefix}my_orders WHERE id = %d", (int) $id),
+        ARRAY_A
+    );
+}, 10, 3);
+
+// Render the HTML.
+add_filter('my-plugin/table/default/orders/detail/render', function ($_, array $entry, $request): string {
+    ob_start();
+    ?>
+    <h2><?php echo esc_html($entry['customer']); ?></h2>
+    <p><strong><?php esc_html_e('Total:', 'my-plugin'); ?></strong> <?php echo esc_html($entry['total']); ?></p>
+    <p><strong><?php esc_html_e('Status:', 'my-plugin'); ?></strong> <?php echo esc_html($entry['status']); ?></p>
+    <?php
+    return (string) ob_get_clean();
+}, 10, 3);
+
+// Title shown in the detail header.
+add_filter('my-plugin/table/default/orders/detail/title', function ($_, array $entry, $request): string {
+    return sprintf(__('Order #%d', 'my-plugin'), (int) $entry['id']);
+}, 10, 3);
+```

@@ -1,0 +1,118 @@
+---
+title: Hooks & Filters
+description: Every hook the framework fires or applies, in one place.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Hooks split into two namespaces:
+
+- **`wp-wireframe/…`** — package-level. Shared across every plugin using the framework. Use these to extend the framework itself (registering field types, mutating access decisions globally).
+- **`{prefix}/…`** — per-plugin. Each consuming plugin's prefix scopes its own hooks. Handlers wire to one plugin's events without affecting the others.
+
+## Package-level hooks
+
+| Hook                                  | Type     | Purpose                                                                          |
+| ------------------------------------- | -------- | -------------------------------------------------------------------------------- |
+| `wp-wireframe/field_types`            | filter   | Add or replace registered field type classes.                                    |
+| `wp-wireframe/config/for_user`        | filter   | Mutate the config after access filtering, before localize.                       |
+| `wp-wireframe/access/resolve`         | filter   | Override yes/no for a single (verb, level, id, user) check.                      |
+| `wp-wireframe/access/can_reset`       | filter   | Override whether a user may reset on a given page.                                |
+| `wp-wireframe/save/editable_fields`   | filter   | Final list of writable field IDs for a save request.                              |
+| `wp-wireframe/save/payload`           | filter   | Transform the sanitised payload before merge.                                     |
+
+### Signatures
+
+```php
+// Register a custom field type.
+add_filter('wp-wireframe/field_types', function (array $types): array {
+    $types['my_custom'] = MyCustomField::class;
+    return $types;
+});
+
+// Mutate the config after access filtering, before localize.
+add_filter('wp-wireframe/config/for_user',
+    function (array $config, string $pageId, ConfigAccessMap $map): array {
+        return $config;
+    },
+    10, 3
+);
+
+// Override a single access decision.
+add_filter('wp-wireframe/access/resolve',
+    function (bool $allowed, array $ctx): bool {
+        // $ctx: ['verb' => 'view'|'edit', 'level' => 'tab'|'section'|'field', 'id' => string, 'user' => WP_User, ...]
+        return $allowed;
+    },
+    10, 2
+);
+
+// Reset eligibility.
+add_filter('wp-wireframe/access/can_reset',
+    function (bool $can, WP_User $user, array $viewable, array $editable): bool {
+        return $can;
+    },
+    10, 4
+);
+
+// Editable field list for a save.
+add_filter('wp-wireframe/save/editable_fields',
+    function (array $ids, string $pageId, ConfigAccessMap $map): array {
+        return $ids;
+    },
+    10, 3
+);
+
+// Transform payload before merge.
+add_filter('wp-wireframe/save/payload',
+    function (array $values, string $pageId, array $payload): array {
+        return $values;
+    },
+    10, 3
+);
+```
+
+## Per-plugin action / event hooks
+
+Fire under the consuming plugin's prefix:
+
+| Hook                          | Type   | Purpose                                                                    |
+| ----------------------------- | ------ | -------------------------------------------------------------------------- |
+| `{prefix}/settings_saved`     | action | After a successful save. Args: `$values`, `$pageId`.                       |
+| `{prefix}/settings_reset`     | action | After a successful reset. Args: `$pageId`.                                  |
+
+```php
+add_action('my-plugin/settings_saved', function (array $values, string $pageId) {
+    wp_cache_delete('my-plugin-config', 'options');
+}, 10, 2);
+```
+
+## Action field dispatch
+
+The `action` field type dispatches each button press through a per-button filter. Default value is the private `Unhandled` sentinel; a `404 wireframe_action_unhandled` is returned if no listener attaches.
+
+| Hook                                                  | Type   | Purpose                                                                        |
+| ----------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
+| `{prefix}/action/{pageId}/{fieldId}/{actionId}`       | filter | Handle a button press. Args: `$default`, `$values`, `$request`.                 |
+
+In sugar mode (no `args.buttons[]`), the `{actionId}` is the literal string `run`.
+
+See [Action Field](/features/action-field/) for the full handler contract.
+
+## Table dispatch
+
+The `table` field type uses hooks-first dispatch with legacy callback fallback. If a filter has no listener, the controller falls back to the corresponding `args.*_callback` keys (`data_callback`, `actions[].callback`, `detail_view.fetch_callback`, etc.).
+
+| Hook                                                       | Type   | Args                                            |
+| ---------------------------------------------------------- | ------ | ----------------------------------------------- |
+| `{prefix}/table/{pageId}/{fieldId}/data`                   | filter | `$default`, `$query` → `['items', 'total']`     |
+| `{prefix}/table/{pageId}/{fieldId}/{actionId}`             | filter | `$default`, `$ids`, `$request`                  |
+| `{prefix}/table/{pageId}/{fieldId}/detail/fetch`           | filter | `$default`, `$entryId`, `$request`              |
+| `{prefix}/table/{pageId}/{fieldId}/detail/render`          | filter | `$default`, `$entry`, `$request`                |
+| `{prefix}/table/{pageId}/{fieldId}/detail/title`           | filter | `$default`, `$entry`, `$request` *(optional)*    |
+
+<Aside type="tip">
+The `Unhandled` sentinel as default lets the dispatcher tell *"nobody attached"* from *"a handler returned `null` / `false` / `[]`"*. Identity-check the result against `Unhandled::get()` when wrapping a dispatch.
+</Aside>

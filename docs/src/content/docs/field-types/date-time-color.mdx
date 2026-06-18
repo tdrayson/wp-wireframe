@@ -1,0 +1,52 @@
+---
+title: Date, Time & Color
+description: Date pickers, time inputs, and the colour swatch picker.
+sidebar:
+  order: 4
+---
+
+## Types
+
+| Type    | Description                            | Stored as              |
+| ------- | -------------------------------------- | ---------------------- |
+| `date`  | Date picker (dropdown calendar)        | `string` (`YYYY-MM-DD`) |
+| `time`  | Time input (24h)                       | `string` (`HH:MM`)      |
+| `color` | Colour swatch button + picker dropdown | `string` (`#hex`)       |
+
+## Example — `date`
+
+```php
+[
+    'id'      => 'launch_date',
+    'type'    => 'date',
+    'label'   => __('Launch date', 'my-plugin'),
+    'columns' => 6,
+],
+```
+
+## Example — `time`
+
+```php
+[
+    'id'      => 'send_at',
+    'type'    => 'time',
+    'label'   => __('Send digest at', 'my-plugin'),
+    'default' => '09:00',
+    'columns' => 6,
+],
+```
+
+## Example — `color`
+
+```php
+[
+    'id'          => 'brand_color',
+    'type'        => 'color',
+    'label'       => __('Brand colour', 'my-plugin'),
+    'description' => __('Primary accent in buttons and links.', 'my-plugin'),
+    'default'     => '#3858e9',
+    'columns'     => 6,
+],
+```
+
+The `color` field stores a `#hex` string and includes alpha support if the saved value carries it (`#RRGGBBAA`). The picker UI is WordPress's `ColorPicker` from `@wordpress/components`.

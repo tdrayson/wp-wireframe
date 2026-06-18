@@ -1,0 +1,90 @@
+---
+title: Complex
+description: Repeater rows and the paginated DataViews-powered table field.
+sidebar:
+  order: 7
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Types
+
+| Type       | Description                                | Stored as           |
+| ---------- | ------------------------------------------ | ------------------- |
+| `repeater` | Add / remove / reorder rows of subfields   | `array` of objects  |
+| `table`    | Paginated DataViews-powered table          | — (stateless)       |
+
+## `repeater`
+
+Subfields are declared inline in `args.subfields` and follow the same shape as any other field config.
+
+```php
+[
+    'id'    => 'redirects',
+    'type'  => 'repeater',
+    'label' => __('Redirects', 'my-plugin'),
+    'args'  => [
+        'sortable'       => true,
+        'collapsible'    => true,
+        'duplicate_row'  => true,
+        'max_rows'       => 50,
+        'add_label'      => __('Add redirect', 'my-plugin'),
+        'empty_message'  => __('No redirects configured.', 'my-plugin'),
+        'title_template' => '{from} → {status}',
+        'subfields'      => [
+            ['id' => 'from',   'type' => 'text',   'label' => __('From path', 'my-plugin'), 'required' => true, 'columns' => 4],
+            ['id' => 'to',     'type' => 'text',   'label' => __('To URL',    'my-plugin'), 'required' => true, 'columns' => 4],
+            ['id' => 'status', 'type' => 'select', 'label' => __('Status',    'my-plugin'), 'default' => '301', 'columns' => 4,
+                'args' => [
+                    'options' => [
+                        '301' => __('301 Permanent', 'my-plugin'),
+                        '302' => __('302 Temporary', 'my-plugin'),
+                    ],
+                ],
+            ],
+        ],
+    ],
+],
+```
+
+### Repeater `args`
+
+| Arg              | Default        | Notes                                                                                 |
+| ---------------- | -------------- | ------------------------------------------------------------------------------------- |
+| `subfields`      | `[]`           | Array of field configs that compose each row.                                          |
+| `sortable`       | `true`         | Allow drag-to-reorder.                                                                 |
+| `collapsible`    | `true`         | Show a per-row collapse / expand toggle.                                               |
+| `duplicate_row`  | `false`        | Show a duplicate button alongside delete.                                              |
+| `max_rows`       | `null`         | Hide the **Add** button once the count is reached.                                     |
+| `add_label`      | `'Add row'`    | Label of the add button.                                                               |
+| `empty_message`  | `''`           | Shown when the repeater has zero rows.                                                 |
+| `title_template` | `''`           | Template for the per-row collapsed title. Supports `{subfield_id}` token interpolation. |
+
+<Aside type="note">
+Subfields don't get their own `access` keys — the whole repeater is one editable unit; subfields inherit the parent's editability.
+</Aside>
+
+## `table`
+
+The `table` field is stateless — it doesn't persist a value. It renders a paginated, sortable, filterable DataViews-style table whose rows come from a server-side handler.
+
+```php
+[
+    'id'    => 'entries',
+    'type'  => 'table',
+    'label' => __('Entries', 'my-plugin'),
+    'args'  => [
+        'columns' => [
+            ['id' => 'name',    'label' => __('Name',    'my-plugin'), 'type' => 'text',     'sortable' => true],
+            ['id' => 'email',   'label' => __('Email',   'my-plugin'), 'type' => 'text'],
+            ['id' => 'created', 'label' => __('Created', 'my-plugin'), 'type' => 'datetime', 'sortable' => true],
+        ],
+        'actions' => [
+            ['id' => 'view',    'label' => __('View',    'my-plugin'), 'opens_detail' => true],
+            ['id' => 'archive', 'label' => __('Archive', 'my-plugin'), 'supports_bulk' => true],
+        ],
+    ],
+],
+```
+
+Behaviour (row fetch, action dispatch, detail view) wires in via filters — see [Table Hooks](/reference/hooks-and-filters/#table-hooks) for the full list. Legacy callback keys (`args.data_callback`, `args.actions[].callback`, `args.detail_view.fetch_callback`, etc.) remain supported as a fallback.

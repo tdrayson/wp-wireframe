@@ -1,0 +1,57 @@
+---
+title: Media
+description: WordPress Media Library picker for one or more attachments.
+sidebar:
+  order: 6
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Type
+
+| Type   | Description                                                       | Stored as                 |
+| ------ | ----------------------------------------------------------------- | ------------------------- |
+| `file` | Media Library picker. `args.multiple: true` for multi-attachment. | `array` of attachment IDs |
+
+## `args`
+
+| Arg            | Default                | Notes                                                                            |
+| -------------- | ---------------------- | -------------------------------------------------------------------------------- |
+| `multiple`     | `false`                | Allow picking multiple attachments.                                              |
+| `mime_types`   | `''`                   | Filter to a MIME type — `'image'`, `'video'`, `'application/pdf'`, etc.          |
+| `media_title`  | `'Select media'`       | Title of the media-library modal.                                                |
+| `media_button` | `'Use selection'`      | Label of the confirm button inside the modal.                                    |
+
+## Example — single image
+
+```php
+[
+    'id'      => 'logo',
+    'type'    => 'file',
+    'label'   => __('Logo', 'my-plugin'),
+    'columns' => 6,
+    'args'    => [
+        'mime_types'   => 'image',
+        'media_title'  => __('Choose a logo', 'my-plugin'),
+        'media_button' => __('Use image', 'my-plugin'),
+    ],
+],
+```
+
+## Example — multiple files
+
+```php
+[
+    'id'    => 'gallery',
+    'type'  => 'file',
+    'label' => __('Gallery', 'my-plugin'),
+    'args'  => [
+        'multiple'   => true,
+        'mime_types' => 'image',
+    ],
+],
+```
+
+<Aside type="tip">
+The field stores **attachment IDs** (not URLs). Resolve to a URL with `wp_get_attachment_image_url($id, 'full')` at render time so size changes and CDN URLs work correctly.
+</Aside>

@@ -1,0 +1,106 @@
+---
+title: Choice
+description: Dropdowns, radios, checkboxes, toggles — including image-based variants.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Pick one or many from a set of options. Single-select fields store a `string`, multi-select fields store an `array`, boolean toggles store `true`/`false`.
+
+## Types
+
+| Type               | Description                                              | Stored as           |
+| ------------------ | -------------------------------------------------------- | ------------------- |
+| `select`           | Dropdown. `args.multiple: true` for searchable tag input | `string` or `array` |
+| `radio`            | Radio button group                                       | `string`            |
+| `image_radio`      | Single-select with image swatches per option             | `string`            |
+| `checkboxes`       | Multiple checkboxes                                      | `array`             |
+| `image_checkboxes` | Multi-select with image swatches                         | `array`             |
+| `toggle`           | On/off switch                                            | `bool`              |
+| `checkbox`         | Single checkbox                                          | `bool`              |
+
+## Options shape
+
+All choice fields accept an `options` map in `args` — value as the key, label as the value:
+
+```php
+'args' => [
+    'options' => [
+        'draft'     => 'Draft',
+        'published' => 'Published',
+        'archived'  => 'Archived',
+    ],
+],
+```
+
+Image variants take a slightly richer shape — `image` key per option:
+
+```php
+'args' => [
+    'options' => [
+        'card' => ['label' => 'Card', 'image' => 'https://…/card.png'],
+        'list' => ['label' => 'List', 'image' => 'https://…/list.png'],
+    ],
+],
+```
+
+## Example — `select` with multi-select
+
+```php
+[
+    'id'      => 'categories',
+    'type'    => 'select',
+    'label'   => __('Categories', 'my-plugin'),
+    'default' => ['news'],
+    'columns' => 6,
+    'args'    => [
+        'multiple' => true,
+        'options'  => [
+            'news'    => 'News',
+            'blog'    => 'Blog',
+            'reviews' => 'Reviews',
+        ],
+    ],
+],
+```
+
+## Example — `toggle`
+
+```php
+[
+    'id'          => 'notifications',
+    'type'        => 'toggle',
+    'label'       => __('Enable notifications', 'my-plugin'),
+    'description' => __('Send alerts when settings change.', 'my-plugin'),
+    'default'     => true,
+],
+```
+
+## Example — `image_radio`
+
+```php
+[
+    'id'      => 'layout',
+    'type'    => 'image_radio',
+    'label'   => __('Layout', 'my-plugin'),
+    'default' => 'card',
+    'args'    => [
+        'options' => [
+            'card' => [
+                'label' => __('Card', 'my-plugin'),
+                'image' => plugins_url('img/layout-card.png', __FILE__),
+            ],
+            'list' => [
+                'label' => __('List', 'my-plugin'),
+                'image' => plugins_url('img/layout-list.png', __FILE__),
+            ],
+        ],
+    ],
+],
+```
+
+<Aside type="tip">
+Use `toggle` for a single boolean preference and `checkbox` when you want the more traditional WordPress-admin look. Behaviour is identical; UX differs.
+</Aside>

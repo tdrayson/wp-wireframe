@@ -1,0 +1,73 @@
+---
+title: Boot Options
+description: Every option you can pass to App::boot() and what each one controls.
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`App::boot()` accepts a single config array. Only `prefix` is required — everything else has a sensible default.
+
+```php
+Wireframe\App::boot([
+    'prefix'        => 'my-plugin',                         // Required. Derives slugs, hooks, handles.
+    'page_title'    => 'My Plugin',                         // Admin menu label.
+    'option_key'    => 'my_plugin_settings',                // wp_options key for storage.
+    'config'        => __DIR__ . '/config/settings.php',    // Path to a config file — OR an inline array.
+    'version'       => '1.0.0',                             // Plugin version.
+    'menu_icon'     => 'dashicons-admin-generic',
+    'menu_position' => 80,
+    'parent'        => 'tools',                             // Optional. Register as a submenu.
+    'capability'    => 'manage_options',
+]);
+```
+
+## Reference
+
+| Option          | Type            | Default                   | Description                                                                        |
+| --------------- | --------------- | ------------------------- | ---------------------------------------------------------------------------------- |
+| `prefix`        | `string`        | **Required**              | Used to derive slugs, hook names, JS handles, REST namespaces, and option keys.    |
+| `page_title`    | `string`        | `ucfirst($prefix)`        | Title shown in the admin menu and at the top of the page.                          |
+| `menu_title`    | `string`        | `page_title`              | Alternate menu label (page header still uses `page_title`).                        |
+| `option_key`    | `string`        | `{prefix}_settings`       | The single `wp_options` row that stores all field values.                          |
+| `config`        | `string\|array` | `[]`                      | Path to a PHP file that returns the config array, **or** the config array inline.  |
+| `version`       | `string`        | `'1.0.0'`                 | Plugin version. Used for cache-busting and surfaced in some hooks.                 |
+| `capability`    | `string`        | `'manage_options'`        | Capability required to view, save, and reset the page.                             |
+| `menu_icon`     | `string`        | `'dashicons-admin-generic'` | Any Dashicon class or data-URI icon. Ignored when `parent` is set.               |
+| `menu_position` | `int`           | `80`                      | Position in the WP admin menu.                                                     |
+| `parent`        | `string`        | `''`                      | Register as a submenu of the given parent. See [Submenu Pages](/configuration/submenu-pages/). |
+| `pages`         | `array`         | —                         | Register multiple pages under one prefix. See [Multi-Page](/configuration/multi-page/). |
+| `assets_url`    | `string`        | derived                   | Override the URL base for admin assets. Useful for symlinked vendor directories.   |
+
+<Aside type="tip">
+Anything you pass that isn't listed here is silently ignored — safe to add your own keys for downstream consumption.
+</Aside>
+
+## `config` accepts a path **or** an inline array
+
+```php
+// File path
+'config' => __DIR__ . '/config/settings.php',
+
+// Inline
+'config' => [
+    'tabs' => [ /* … */ ],
+],
+```
+
+A file lets you keep large configs out of the boot call. Inline is convenient for small pages and one-off scripts. Either way, the resulting array shape is the same — see [Config Structure](/configuration/config-structure/).
+
+## Multiple plugins, one framework
+
+Every consuming plugin calls `App::boot()` with its own prefix. The framework boots once; each plugin registers its pages independently under its prefix. There's no global state to coordinate.
+
+```php
+// Plugin A
+Wireframe\App::boot(['prefix' => 'plugin-a', 'config' => /* … */]);
+
+// Plugin B
+Wireframe\App::boot(['prefix' => 'plugin-b', 'config' => /* … */]);
+```
+
+Each plugin gets its own admin page, REST namespace (`/plugin-a/v1/…`), hooks (`plugin-a/settings_saved`), and option key — no collisions.

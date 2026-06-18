@@ -12,5 +12,18 @@
             "Wireframe\\": "src/"
         }
     },
-    "keywords": ["wordpress", "settings", "admin", "framework", "react"]
+    "keywords": ["wordpress", "settings", "admin", "framework", "react"],
+    "archive": {
+        "exclude": [
+            "/docs",
+            "/examples",
+            "/js",
+            "/node_modules",
+            "/.github",
+            "/.gitignore",
+            "/CHANGELOG.md",
+            "/package.json",
+            "/package-lock.json"
+        ]
+    }
 }

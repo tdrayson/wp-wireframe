@@ -1,0 +1,65 @@
+---
+title: Submenu Pages
+description: Register your page as a submenu under any WordPress parent menu.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Set `parent` to register the page as a submenu item instead of a top-level menu.
+
+```php
+Wireframe\App::boot([
+    'prefix'     => 'my-plugin',
+    'page_title' => __('My Plugin', 'my-plugin'),
+    'parent'     => 'tools',          // → Tools › My Plugin
+    'config'     => __DIR__ . '/config/settings.php',
+]);
+```
+
+## Aliases
+
+For the WordPress core menus, pass a short alias. The framework maps it to the canonical parent slug for you:
+
+| Alias                | Maps to                  | Where it lives                 |
+| -------------------- | ------------------------ | ------------------------------ |
+| `dashboard`          | `index.php`              | Dashboard                      |
+| `posts`              | `edit.php`               | Posts                          |
+| `media`              | `upload.php`             | Media                          |
+| `pages`              | `edit.php?post_type=page`| Pages                          |
+| `comments`           | `edit-comments.php`      | Comments                       |
+| `appearance`         | `themes.php`             | Appearance                     |
+| `plugins`            | `plugins.php`            | Plugins                        |
+| `users`              | `users.php`              | Users                          |
+| `tools`              | `tools.php`              | Tools                          |
+| `settings`/`options` | `options-general.php`    | Settings                       |
+
+## Raw slugs
+
+For anything not in the alias map — including custom post types and other plugins' menus — pass the parent slug directly:
+
+```php
+'parent' => 'options-general.php',          // Settings (long form)
+'parent' => 'edit.php?post_type=product',   // WooCommerce › Products
+'parent' => 'woocommerce',                  // WooCommerce top-level
+```
+
+<Aside type="note">
+When `parent` is set, `menu_icon` is ignored — WordPress submenus don't display icons.
+</Aside>
+
+## Per-page parents in multi-page configs
+
+In [multi-page boots](/configuration/multi-page/), each page can set its own `parent`, or inherit the boot-level value:
+
+```php
+Wireframe\App::boot([
+    'prefix' => 'my-plugin',
+    'parent' => 'tools',           // Default for every page below
+    'pages'  => [
+        ['page_title' => 'General',  'config' => /* … */],
+        ['page_title' => 'Reports',  'config' => /* … */, 'parent' => 'edit.php'],   // Overrides
+    ],
+]);
+```

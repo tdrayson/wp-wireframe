@@ -1,0 +1,100 @@
+---
+title: Validation
+description: Server-side validation rules using rakit/validation syntax — automatic per-type plus custom rules.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The framework runs **two** validation passes on save: automatic per-type checks (email format, URL format, numeric bounds, hex colour, date / time format) and any custom rules you declare under the `validation` key on a field.
+
+## Built-in per-type validation
+
+These run for free, no configuration:
+
+| Field type     | Built-in check                                       |
+| -------------- | ---------------------------------------------------- |
+| `email`        | RFC-compliant email format                           |
+| `url`          | URL format                                           |
+| `number`       | Numeric, respects `args.min` / `args.max` / `args.step` |
+| `range`        | Same as `number`                                     |
+| `color`        | Hex format (`#RRGGBB` or `#RRGGBBAA`)                |
+| `date`         | `YYYY-MM-DD` format                                  |
+| `time`         | `HH:MM` (24h)                                        |
+| `select` (single) | Value must be in declared `options` keys          |
+| `radio`        | Value must be in declared `options` keys             |
+
+## Custom rules via the `validation` key
+
+```php
+[
+    'id'         => 'username',
+    'type'       => 'text',
+    'label'      => __('Username', 'my-plugin'),
+    'required'   => true,
+    'validation' => 'min:3|max:20|regex:/^[a-z0-9_]+$/',
+],
+```
+
+Rules use [rakit/validation](https://github.com/rakit/validation) syntax — pipe-separated, with parameters after a colon. All of Rakit's built-in rules are available, including:
+
+| Rule                    | Notes                                                      |
+| ----------------------- | ---------------------------------------------------------- |
+| `required`              | Use the promoted `required` key instead                    |
+| `min:N` / `max:N`       | String length for strings, value for numbers                |
+| `between:min,max`       | Numeric range                                              |
+| `email`                 | Email format (`email` field already has this)              |
+| `url`                   | URL format (`url` field already has this)                  |
+| `regex:/.../`           | Regular expression match                                   |
+| `alpha`                 | Letters only                                               |
+| `alpha_num`             | Letters and digits only                                    |
+| `alpha_dash`            | Letters, digits, dashes, underscores                       |
+| `in:a,b,c`              | Value must be in the list                                  |
+| `not_in:a,b,c`          | Value must NOT be in the list                              |
+| `same:other_field`      | Must equal another field's value                            |
+| `different:other_field` | Must differ from another field's value                     |
+| `before:DATE`           | Date must be before                                        |
+| `after:DATE`            | Date must be after                                         |
+
+## Error response shape
+
+Validation failures return `400` from the REST save endpoint with an error map:
+
+```json
+{
+    "code": "wireframe_validation_failed",
+    "message": "Please fix the highlighted fields.",
+    "data": {
+        "status": 400,
+        "errors": {
+            "username": "Username must be at least 3 characters.",
+            "email":    "Please enter a valid email address."
+        }
+    }
+}
+```
+
+The React client maps each `errors[field_id]` entry to the matching field and surfaces an inline error message plus a snackbar summary listing the affected fields by label.
+
+<Aside type="tip">
+Use the promoted `required` key (rather than the Rakit `required` rule) so the framework can render a visual required marker on the label and skip server work when the field is empty.
+</Aside>
+
+## Failing validation server-side from a custom handler
+
+Custom handlers (action field, table actions, etc.) can short-circuit with a `WP_Error` that the client will surface the same way:
+
+```php
+add_filter('my-plugin/action/default/billing_tools/wipe', function ($unhandled, array $values, $request) {
+    if (empty($values['confirm_token'])) {
+        return new WP_Error(
+            'wireframe_validation_failed',
+            __('Missing confirmation token.', 'my-plugin'),
+            ['status' => 400]
+        );
+    }
+
+    // …
+}, 10, 3);
+```
