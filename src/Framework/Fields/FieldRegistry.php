@@ -103,6 +103,7 @@ final class FieldRegistry
             'editor'            => EditorField::class,
             'code_editor'       => CodeEditorField::class,
             'file'              => FileField::class,
+            'upload'            => UploadField::class,
             'repeater'          => RepeaterField::class,
             'html'              => HtmlField::class,
             'export'            => ExportField::class,
