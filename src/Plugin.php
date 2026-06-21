@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe;
 
 use Wireframe\Admin\AdminPage;
+use Wireframe\Framework\ConfigValidator;
 use Wireframe\Rest\ActionController;
 use Wireframe\Rest\SettingsController;
 use Wireframe\Rest\TableController;
@@ -48,6 +49,11 @@ final class Plugin
         add_action('rest_api_init', [ActionController::class, 'register']);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
         add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
+
+        // Surface config authoring mistakes during development only.
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            add_action('admin_notices', [ConfigValidator::class, 'adminNotice']);
+        }
     }
 
     /**
