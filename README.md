@@ -227,6 +227,20 @@ Wireframe\App::boot([
 
 Everything except `prefix` has a sensible default. `config` accepts either a PHP file path or an inline array — see [Config Structure](#config-structure).
 
+### Menu Icon
+
+`menu_icon` accepts anything [`add_menu_page()`](https://developer.wordpress.org/reference/functions/add_menu_page/) does — a dashicon slug, an image URL, a `data:` URI, or `'none'` — plus two custom-SVG conveniences:
+
+```php
+// Inline SVG markup.
+'menu_icon' => '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="..."/></svg>',
+
+// Path to an .svg file shipped with your plugin.
+'menu_icon' => __DIR__ . '/assets/icon.svg',
+```
+
+Both are base64-encoded into a `data:image/svg+xml` URI for you. Use `fill="currentColor"` (or no `fill` at all) so the icon inherits the admin colour scheme and highlight states, exactly like a dashicon. File paths must resolve to a readable `.svg` under the WordPress content/plugin/theme tree (or the wp-wireframe package); anything else falls back to being passed through unchanged.
+
 ### Submenu Pages
 
 Set `parent` to register the page as a submenu item instead of a top-level menu. Accepts a short alias or any explicit WordPress parent slug:
