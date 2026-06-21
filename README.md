@@ -364,6 +364,27 @@ return [
 
 No tabs = no tab bar. No sections = fields render in a single card.
 
+### Schema & validation
+
+A JSON Schema for the config structure ships at [`schema/config.schema.json`](./schema/config.schema.json). It covers all three input formats, the common field keys, the conditions DSL, the `access` shapes, and per-type `args` constraints (e.g. choice fields require `args.options`, repeaters require `args.subfields`). Point your editor at it to get autocomplete and inline validation while authoring JSON configs.
+
+In VS Code, map it in `.vscode/settings.json`:
+
+```jsonc
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["**/config/*.json", "**/wireframe.config.json"],
+      "url": "./vendor/wp-wireframe/schema/config.schema.json"
+    }
+  ]
+}
+```
+
+Or reference it inline from a JSON config with `"$schema": "./vendor/wp-wireframe/schema/config.schema.json"`.
+
+**Runtime check (opt-in).** When `WP_DEBUG` is enabled, every booted config is linted on admin screens and a warning notice lists any structural problems — unknown field types, choice fields missing `options`, duplicate IDs, out-of-range `columns`, and so on (also written to the PHP error log). It's a focused sanity check against the live field registry; the JSON Schema above remains the full contract. Nothing runs when `WP_DEBUG` is off, so production is unaffected.
+
 ---
 
 ## Field Types
