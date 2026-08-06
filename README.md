@@ -53,6 +53,12 @@ WP Wireframe is a library, not a standalone plugin. Bundle a copy inside your ow
 
 Add the GitHub repo to your plugin's `composer.json` — no Packagist needed:
 
+```bash
+composer config repositories.tdrayson/wp-wireframe git https://github.com/tdrayson/wp-wireframe
+```
+
+\- or -
+
 ```json
 {
     "repositories": [
@@ -60,17 +66,16 @@ Add the GitHub repo to your plugin's `composer.json` — no Packagist needed:
             "type": "vcs",
             "url": "https://github.com/tdrayson/wp-wireframe"
         }
-    ],
-    "require": {
-        "tdrayson/wp-wireframe": "^1.0"
-    }
+    ]
 }
 ```
 
-Then install:
+\- then -
+
+Install:
 
 ```bash
-composer install
+composer require tdrayson/wp-wireframe
 ```
 
 And require Composer's autoloader from your plugin's main file:
