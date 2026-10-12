@@ -907,6 +907,15 @@ return [
                         ['id' => 'ref_import', 'type' => 'import', 'label' => __('Import', 'field-reference'), 'description' => __('Upload JSON to replace settings.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Upload JSON', 'field-reference')]],
                     ],
                 ],
+                [
+                    'id'          => 'csv_preview',
+                    'title'       => __('CSV preview', 'field-reference'),
+                    'description' => __('Pick a CSV and preview it on the server. The file is sent with the action request only; it is never saved.', 'field-reference'),
+                    'fields'      => [
+                        ['id' => 'ref_csv_file', 'type' => 'upload', 'label' => __('CSV file', 'field-reference'), 'columns' => 6, 'args' => ['accept' => '.csv,text/csv', 'max_size' => 1048576, 'button_label' => __('Choose CSV', 'field-reference')]],
+                        ['id' => 'ref_csv_preview', 'type' => 'action', 'label' => __('Preview', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Preview rows', 'field-reference'), 'variant' => 'primary']],
+                    ],
+                ],
             ],
         ],
 
