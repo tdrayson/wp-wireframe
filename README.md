@@ -1118,6 +1118,7 @@ composer install
 npm install
 npm run start    # watch mode
 npm run build    # production build → src/assets/
+composer test    # PHPUnit suite
 ```
 
 ---
