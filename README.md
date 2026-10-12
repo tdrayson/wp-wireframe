@@ -6,7 +6,7 @@
 
 A fast, standardised way to build WordPress settings pages. List your fields in a PHP array and WP Wireframe builds the whole admin page using WordPress React components. Same clean UI, same field behaviour, same patterns across every plugin you ship.
 
-📖 **[Read the docs →](https://tdrayson.github.io/wp-wireframe/)**
+📖 **[Read the docs →](https://tdrayson.github.io/wp-wireframe/docs/)**
 
 ---
 
@@ -20,12 +20,6 @@ A fast, standardised way to build WordPress settings pages. List your fields in 
 - **Role-based access** — per-field view/edit gating using role slugs or capabilities
 - **Multi-page, repeaters, import/export, action buttons, i18n** — included out of the box
 - **Zero JS build** — pre-built React app ships with the package
-
----
-
-## Demo Settings UI
-
-<img width="1558" height="3191" alt="plugin-settings-demo" src="https://github.com/user-attachments/assets/c8f062bd-ca9d-4054-b6f0-54b50ee91a62" />
 
 ---
 
@@ -83,7 +77,7 @@ Download the [latest release zip](https://github.com/tdrayson/wp-wireframe/relea
 require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
 ```
 
-See [Installation](https://tdrayson.github.io/wp-wireframe/getting-started/installation/) for the full walkthrough.
+See [Installation](https://tdrayson.github.io/wp-wireframe/docs/getting-started/installation/) for the full walkthrough.
 
 ---
 
@@ -155,53 +149,11 @@ Activate the plugin and the settings page appears in the admin menu.
 
 ## Documentation
 
-Full docs at **[tdrayson.github.io/wp-wireframe](https://tdrayson.github.io/wp-wireframe/)**:
+Everything else lives at **[tdrayson.github.io/wp-wireframe/docs](https://tdrayson.github.io/wp-wireframe/docs/)**:
 
-- [Configuration](https://tdrayson.github.io/wp-wireframe/configuration/boot-options/) — boot options, multi-page, submenu pages, config structure
-- [Field Types](https://tdrayson.github.io/wp-wireframe/field-types/text-family/) — every field type, args reference, examples
-- [Features](https://tdrayson.github.io/wp-wireframe/features/conditional-visibility/) — conditional visibility, role-based access, validation, save/reset, action field
-- [Reference](https://tdrayson.github.io/wp-wireframe/reference/settings-api/) — Settings API, REST API, hooks & filters, custom field types
-- [Recipes](https://tdrayson.github.io/wp-wireframe/recipes/action-handlers/) — worked patterns for action handlers, table data sources, multi-plugin setups
-
----
-
-## Example plugins
-
-- [Field Reference](./examples/field-reference) — kitchen-sink demo of every field type
-- [Newsletter Signup](./examples/newsletter-signup) — config loaded from `config/settings.php`
-- [QuickChat](./examples/quickchat) — SaaS-style plugin with its entire config inline
-
----
-
-## Development
-
-To work on the package itself:
-
-```bash
-git clone https://github.com/tdrayson/wp-wireframe.git
-cd wp-wireframe
-composer install
-npm install
-npm run start    # watch mode
-npm run build    # production build → src/assets/
-```
-
-To work on the docs site:
-
-```bash
-cd docs
-npm install
-npm run dev      # serves at http://localhost:4321
-```
-
----
-
-## License
-
-GPL-2.0-or-later. See [LICENSE](./LICENSE).
-
----
-
-## Credits
-
-Built on `@wordpress/components`, `@wordpress/admin-ui`, `@wordpress/dataviews`, and [rakit/validation](https://github.com/rakit/validation).
+- [Field types](https://tdrayson.github.io/wp-wireframe/docs/field-types/text-family/) — every field type, its `args`, and examples
+- [Settings API](https://tdrayson.github.io/wp-wireframe/docs/reference/settings-api/) — reading, writing, and checking values
+- [Hooks & filters](https://tdrayson.github.io/wp-wireframe/docs/reference/hooks-and-filters/) — every hook the framework fires or applies
+- [Configuration](https://tdrayson.github.io/wp-wireframe/docs/configuration/boot-options/) — boot options, config structure, multi-page and submenu pages
+- [Features](https://tdrayson.github.io/wp-wireframe/docs/features/conditional-visibility/) — conditional visibility, role-based access, validation, save/reset, action field
+- [Contributing](https://tdrayson.github.io/wp-wireframe/docs/contributing/) — working on the package and docs, Playground previews
