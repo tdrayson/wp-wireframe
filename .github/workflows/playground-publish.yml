@@ -12,6 +12,13 @@ on:
     workflows: [Playground]
     types: [completed]
   workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+      sha:
+        type: string
+        required: true
 
 permissions:
   contents: write
@@ -21,7 +28,7 @@ permissions:
 jobs:
   publish:
     if: >-
-      github.event_name == 'release' ||
+      inputs.tag ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
 
@@ -33,7 +40,7 @@ jobs:
       queue: max
 
     env:
-      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SHA: ${{ inputs.sha || github.event.workflow_run.head_sha }}
       GH_TOKEN: ${{ github.token }}
 
     outputs:
@@ -194,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SHA: ${{ inputs.sha || github.event.workflow_run.head_sha }}
       BASE: ${{ needs.publish.outputs.base }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -249,9 +256,9 @@ jobs:
           path: summary.md
 
       - name: Update release notes
-        if: github.event_name == 'release'
+        if: inputs.tag
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           block="$(printf '<!-- playground -->\n%s\n<!-- /playground -->' "$(cat summary.md)")"

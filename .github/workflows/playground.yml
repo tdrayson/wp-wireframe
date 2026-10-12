@@ -49,20 +49,33 @@
 #    playground-publish.yml take effect once merged.
 #  - Each run adds a `<sha>/` directory to gh-pages and never removes old
 #    ones. Prune the branch manually if it grows too large.
+#  - release.yml calls this workflow for every tag. To publish (or re-publish)
+#    the preview for an existing release:
+#
+#        gh workflow run playground.yml -f tag=v1.2.3
 
 name: Playground
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish a preview for, e.g. v1.2.3
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: playground-${{ github.event.pull_request.head.sha || github.sha }}
+  group: playground-${{ inputs.tag || github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -70,13 +83,23 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      REF: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.event.pull_request.head.sha || github.sha }}
+
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.SHA }}
+          ref: ${{ env.REF }}
           persist-credentials: false
+
+      - name: Resolve commit
+        id: commit
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "SHA=$sha" >> "$GITHUB_ENV"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -200,13 +223,16 @@ jobs:
           path: dist/examples
           if-no-files-found: error
 
-  # A release event already has a write token and runs trusted code, so it
-  # publishes from this run instead of waiting for `workflow_run`.
+  # A release build runs trusted code, so it publishes from this run instead
+  # of waiting for `workflow_run`.
   release:
     needs: build
-    if: github.event_name == 'release'
+    if: inputs.tag
     permissions:
       contents: write
       pull-requests: write
       actions: read
     uses: ./.github/workflows/playground-publish.yml
+    with:
+      tag: ${{ inputs.tag }}
+      sha: ${{ needs.build.outputs.sha }}

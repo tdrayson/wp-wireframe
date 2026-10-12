@@ -96,3 +96,14 @@ jobs:
           files: wp-wireframe.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
+
+  # Releases created with GITHUB_TOKEN don't trigger other workflows, so call it directly.
+  playground:
+    needs: release
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    uses: ./.github/workflows/playground.yml
+    with:
+      tag: ${{ github.ref_name }}
