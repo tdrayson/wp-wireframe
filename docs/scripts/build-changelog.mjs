@@ -18,7 +18,7 @@ const targetPath = path.join(docsRoot, 'src', 'content', 'docs', 'changelog.md')
 const frontmatter = `---
 title: Changelog
 description: Every release of WP Wireframe — features, fixes, and notes.
-editUrl: https://github.com/tdrayson/wp-wireframe/blob/develop/CHANGELOG.md
+editUrl: https://github.com/tdrayson/wp-wireframe/blob/main/CHANGELOG.md
 ---
 
 `;

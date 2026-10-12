@@ -5,11 +5,9 @@ import remarkGfm from 'remark-gfm';
 
 // https://astro.build/config
 export default defineConfig({
-	// GitHub Pages deploys this site at `tdrayson.github.io/wp-wireframe/`.
-	// `site` + `base` ensure internal links and asset URLs resolve correctly
-	// under the project-page subpath. For a custom domain, drop the `base`.
+	// Published to `docs/` on the gh-pages branch, alongside the Playground previews.
 	site: 'https://tdrayson.github.io',
-	base: '/wp-wireframe',
+	base: '/wp-wireframe/docs',
 	markdown: {
 		// GFM is applied to `.md` files by default, but `.mdx` files don't
 		// get it automatically — register it here so pipe-tables, task
@@ -29,7 +27,7 @@ export default defineConfig({
 				},
 			],
 			editLink: {
-				baseUrl: 'https://github.com/tdrayson/wp-wireframe/edit/develop/docs/',
+				baseUrl: 'https://github.com/tdrayson/wp-wireframe/edit/main/docs/',
 			},
 			sidebar: [
 				{

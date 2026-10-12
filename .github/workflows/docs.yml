@@ -1,9 +1,9 @@
 name: Deploy docs
 
-# Build the Starlight site in `docs/` and publish it to GitHub Pages.
-# Triggered by:
-#   - pushes to `main` (production deploy)
-#   - workflow_dispatch (manual rebuild)
+# Build the Starlight site in `docs/` and publish it to `docs/` on the
+# `gh-pages` branch, served at https://tdrayson.github.io/wp-wireframe/docs/.
+# Pages is configured to serve `gh-pages` (legacy source), which the Playground
+# workflows share for their `<sha>/examples/` previews.
 on:
   push:
     branches: [main]
@@ -13,24 +13,23 @@ on:
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
-# Allow only one concurrent deploy. Skip queued runs that are superseded
-# by a fresher commit.
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
-
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
-  build:
-    name: Build
+  deploy:
     runs-on: ubuntu-latest
+
+    # Shared with playground-publish.yml: concurrent pushes to gh-pages get rejected.
+    concurrency:
+      group: gh-pages-publish
+      cancel-in-progress: false
+      queue: max
+
     defaults:
       run:
         working-directory: docs
+
     steps:
       - uses: actions/checkout@v4
 
@@ -44,17 +43,15 @@ jobs:
 
       - run: npm run build
 
-      - uses: actions/upload-pages-artifact@v3
+      # keep_files: false only clears `docs/`; the preview directories are untouched.
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: docs/dist
-
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: docs/dist
+          destination_dir: docs
+          keep_files: false
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_message: 'Publish docs for ${{ github.sha }}'
