@@ -11,7 +11,7 @@
 - Conditions DSL now works at the tab level.
 - Repeater subfields support the conditions DSL (#13).
 - Suppress third-party admin notices on Wireframe-managed pages — filterable via `wp-wireframe/suppress_admin_notices`.
-- `{prefix}/can_save` / `{prefix}/can_reset` filters, enforced by the REST endpoints; Save hides on stateless-only pages (#36).
+- `{prefix}/can_save` / `{prefix}/can_reset` filters, enforced by the REST endpoints; Save and Reset hide on stateless-only pages (#36).
 
 ### Fixes
 - Resolve admin assets correctly on Windows (#1).

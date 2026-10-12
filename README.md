@@ -938,7 +938,7 @@ add_action('my-plugin/settings_reset', function (string $pageId) {
 });
 ```
 
-`{prefix}/can_save` and `{prefix}/can_reset` receive `(bool $value, string $pageId, ConfigAccessMap $map)` and decide whether the Save / Reset buttons show. They are enforced server-side too: when either resolves `false`, the matching REST endpoint returns a 403. `can_save` defaults to `false` when every editable field is stateless (`html`, `table`, `action`, ...).
+`{prefix}/can_save` and `{prefix}/can_reset` receive `(bool $value, string $pageId, ConfigAccessMap $map)` and decide whether the Save / Reset buttons show. They are enforced server-side too: when either resolves `false`, the matching REST endpoint returns a 403. Both default to `false` when every editable field is stateless (`html`, `table`, `action`, ...).
 
 ```php
 // Hide Save on a read-only status page

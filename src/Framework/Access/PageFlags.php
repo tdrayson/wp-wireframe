@@ -42,12 +42,12 @@ final class PageFlags
      */
     public static function canReset(array $page, ConfigAccessMap $map): bool
     {
-        $canReset = $map->canReset && !empty($map->editable);
+        $canReset = $map->canReset && self::hasPersistableField($page['config'], $map->editable);
 
         /**
          * Filter whether the Reset button shows and the reset endpoint is allowed.
          *
-         * @param bool            $canReset Default from the access map.
+         * @param bool            $canReset False by default when the access map denies reset or no editable field persists a value.
          * @param string          $pageId   Page identifier.
          * @param ConfigAccessMap $map      The user's access map for the page.
          */
