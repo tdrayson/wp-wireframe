@@ -4,16 +4,21 @@
  * Loads several bundled copies of WP Wireframe into one PHP process and checks
  * which copy serves the framework classes. Exits 1 on any failed check.
  *
- * Usage: php scenario.php <label> <mode> <expected-winner-dir> <autoload.php>...
+ * Usage: php scenario.php <label> <mode> <expected-winner-dir> [flags] <autoload.php>...
  *   mode `normal`: require every copy, then fire plugins_loaded.
  *   mode `early`:  require the first copy, use a class, require the rest, use another, then fire.
  *   mode `during`: require every copy from a plugins_loaded callback at the default priority.
  *   mode `after`:  require the first copy, fire plugins_loaded, then require the rest.
+ *   --class=<FQCN>           also expect this class to load from the winner.
+ *   --major-warning=<text>   expect one major-version warning containing each given text.
+ *
+ * WF_PLUGIN_DIR is the fake plugins directory the copies live under.
  */
 
 declare(strict_types=1);
 
 const WP_DEBUG = true;
+define('WP_PLUGIN_DIR', realpath((string) getenv('WF_PLUGIN_DIR')));
 
 $hooks = [];
 $didActions = [];
@@ -43,12 +48,26 @@ function do_action(string $hook): void
 
 function _doing_it_wrong(string $function, string $message, string $version): void
 {
-    $GLOBALS['doingItWrong'][] = $function;
+    $GLOBALS['doingItWrong'][] = [$function, $message];
+}
+
+function plugin_basename(string $file): string
+{
+    return trim((string) preg_replace('#^' . preg_quote(WP_PLUGIN_DIR, '#') . '/#', '', $file), '/');
 }
 
 [, $label, $mode, $expected] = $argv;
-$autoloaders = array_slice($argv, 4);
 $expected = realpath($expected);
+$autoloaders = $extraClasses = $majorWarning = [];
+foreach (array_slice($argv, 4) as $arg) {
+    if (str_starts_with($arg, '--class=')) {
+        $extraClasses[] = substr($arg, 8);
+    } elseif (str_starts_with($arg, '--major-warning=')) {
+        $majorWarning[] = substr($arg, 16);
+    } else {
+        $autoloaders[] = $arg;
+    }
+}
 $failures = [];
 
 /**
@@ -116,7 +135,27 @@ check($active !== null && $active['dir'] === $expected, sprintf('active copy is 
 foreach ($early as $class => $dir) {
     check(str_starts_with(fileOf($class), realpath($dir) . '/'), "$class should have loaded early from $dir, got " . fileOf($class));
 }
-check($doingItWrong === ($mode === 'early' ? ['Wireframe\Config'] : []), '_doing_it_wrong calls: ' . json_encode($doingItWrong));
+$earlyNotices = array_column(array_filter($doingItWrong, static fn ($call) => $call[0] !== 'Wireframe\Versions'), 0);
+check($earlyNotices === ($mode === 'early' ? ['Wireframe\Config'] : []), 'early-use notices: ' . json_encode($earlyNotices));
+
+$majorNotices = array_column(array_filter($doingItWrong, static fn ($call) => $call[0] === 'Wireframe\Versions'), 1);
+if ($majorWarning === []) {
+    check($majorNotices === [], 'unexpected major-version warning: ' . json_encode($majorNotices));
+} else {
+    check(count($majorNotices) === 1, 'expected one major-version warning, got ' . json_encode($majorNotices));
+    foreach ($majorWarning as $text) {
+        check(str_contains($majorNotices[0] ?? '', $text), "major-version warning lacks \"$text\": " . json_encode($majorNotices));
+    }
+}
+
+foreach (Wireframe\Versions::registered() as $copy) {
+    $plugin = explode('/', plugin_basename($copy['dir']))[0];
+    check($copy['source'] === $plugin, "source for {$copy['dir']} is {$copy['source']}, expected $plugin");
+}
+
+foreach ($extraClasses as $class) {
+    check(class_exists($class) && str_starts_with(fileOf($class), "$expected/"), "$class not served by the winner");
+}
 
 $src = $expected . '/src';
 $classes = 0;
@@ -152,5 +191,8 @@ if ($failures !== []) {
     exit(1);
 }
 
-$versions = implode(', ', array_column(Wireframe\Versions::registered(), 'version'));
+$versions = implode(', ', array_map(static fn ($copy) => "{$copy['source']} {$copy['version']}", Wireframe\Versions::registered()));
+if ($majorNotices !== []) {
+    $versions .= '] warning ["' . $majorNotices[0] . '"';
+}
 printf("PASS  %-52s registered [%s], active %s, %d classes\n", $label, $versions, $active['version'], $classes);

@@ -21,7 +21,7 @@ set_version() { # <bootstrap.php> <version>
 echo "Building the release zip in $work/repo"
 rsync -a --exclude=.git --exclude=vendor --exclude=node_modules --exclude=build --exclude=wp-wireframe.zip "$root"/ "$work/repo/"
 ruby -ryaml -e '
-    wanted = ["Check bootstrap version matches tag", "Install PHP dependencies", "Stage release files", "Create zip"]
+    wanted = ["Check bootstrap version matches tag", "Install PHP dependencies", "Stage release files", "Check autoload map", "Create zip"]
     steps = YAML.load_file(ARGV[0])["jobs"]["release"]["steps"].select { |s| wanted.include?(s["name"]) }
     abort "release.yml steps renamed; update tests/multi-copy/run.sh" if steps.size != wanted.size
     steps.each { |s| puts s["run"] }
@@ -39,7 +39,17 @@ if unzip -Z1 "$zip" | grep -q '^wp-wireframe/vendor/composer/'; then
 fi
 echo "PASS  zip has no Composer autoloader; vendor/autoload.php is: $(unzip -p "$zip" wp-wireframe/vendor/autoload.php | tail -1)"
 
-for copy in zip-a:1.0.7 zip-b:1.1.0 zip-c:1.1.0; do
+unmapped="$work/unmapped"
+cp -R "$work/repo/build/wp-wireframe" "$unmapped"
+php -r '$f = $argv[1]; $map = require $f; unset($map["Rakit\\Validation\\"]);
+    file_put_contents($f, "<?php\n\nreturn " . var_export($map, true) . ";\n");' "$unmapped/autoload-map.php"
+if php "$root/.github/scripts/check-autoload-map.php" "$unmapped" > "$work/unmapped.log"; then
+    echo "FAIL  release map check passed with Rakit\\Validation\\ unmapped"
+    exit 1
+fi
+echo "PASS  release map check fails when a bundled namespace is unmapped: $(head -1 "$work/unmapped.log")"
+
+for copy in zip-a:1.0.7 zip-b:1.1.0 zip-c:1.1.0 zip-new-dep:1.1.0 zip-1.4:1.4.0 zip-1.5:1.5.0 zip-2.1:2.1.0; do
     name="${copy%%:*}"
     mkdir -p "$work/plugins/$name/vendor"
     unzip -q "$zip" -d "$work/plugins/$name/vendor"
@@ -64,6 +74,13 @@ for v in 1.0.7 1.1.0; do
     composer install --working-dir "$plugin" --no-interaction --quiet --optimize-autoloader
 done
 
+# A dependency namespace only the newer copy bundles; the older copy's registry runs.
+new_dep="$work/plugins/zip-new-dep/vendor/wp-wireframe"
+mkdir -p "$new_dep/vendor/acme/new-dep/src"
+printf '<?php\n\nnamespace NewDep;\n\nfinal class Thing\n{\n}\n' > "$new_dep/vendor/acme/new-dep/src/Thing.php"
+php -r '$f = $argv[1]; $map = require $f; $map["NewDep\\"] = ["vendor/acme/new-dep/src/"];
+    file_put_contents($f, "<?php\n\nreturn " . var_export($map, true) . ";\n");' "$new_dep/autoload-map.php"
+
 zip_a="$work/plugins/zip-a/vendor/wp-wireframe/vendor/autoload.php"
 zip_b="$work/plugins/zip-b/vendor/wp-wireframe/vendor/autoload.php"
 zip_c="$work/plugins/zip-c/vendor/wp-wireframe/vendor/autoload.php"
@@ -74,8 +91,11 @@ zip_c_dir="$work/plugins/zip-c/vendor/wp-wireframe"
 zip_a_dir="$work/plugins/zip-a/vendor/wp-wireframe"
 composer_b_dir="$work/plugins/composer-1.1.0/vendor/tdrayson/wp-wireframe"
 
+autoload() { echo "$work/plugins/$1/vendor/wp-wireframe/vendor/autoload.php"; }
+copy_dir() { echo "$work/plugins/$1/vendor/wp-wireframe"; }
+
 status=0
-run() { php "$here/scenario.php" "$@" || status=1; }
+run() { WF_PLUGIN_DIR="$work/plugins" php "$here/scenario.php" "$@" || status=1; }
 
 run "zip 1.0.7 then zip 1.1.0"                normal "$zip_b_dir" "$zip_a" "$zip_b"
 run "zip 1.1.0 then zip 1.0.7"                normal "$zip_b_dir" "$zip_b" "$zip_a"
@@ -89,5 +109,16 @@ run "composer 1.0.7 then composer 1.1.0"      normal "$composer_b_dir" "$compose
 run "composer 1.1.0 then composer 1.0.7"      normal "$composer_b_dir" "$composer_b" "$composer_a"
 run "all copies required during plugins_loaded" during "$zip_b_dir" "$zip_a" "$zip_b"
 run "1.1.0 required after plugins_loaded"     after  "$zip_a_dir" "$zip_a" "$zip_b"
+run "new namespace only in newer copy"        normal "$new_dep" --class='NewDep\Thing' "$zip_a" "$(autoload zip-new-dep)"
+run "1.4.0 + 2.1.0 (major mismatch)"          normal "$(copy_dir zip-2.1)" \
+    --major-warning='zip-1.4 bundles wp-wireframe 1.4.0 but 2.1.0 is running.' --major-warning='comes from zip-2.1' \
+    "$(autoload zip-1.4)" "$(autoload zip-2.1)"
+run "2.1.0 + 1.4.0 (major mismatch)"          normal "$(copy_dir zip-2.1)" \
+    --major-warning='zip-1.4 bundles wp-wireframe 1.4.0 but 2.1.0 is running.' \
+    "$(autoload zip-2.1)" "$(autoload zip-1.4)"
+run "2.1.0 required after 1.4.0 locked"       after  "$(copy_dir zip-1.4)" \
+    --major-warning='zip-2.1 bundles wp-wireframe 2.1.0 but 1.4.0 is running.' \
+    "$(autoload zip-1.4)" "$(autoload zip-2.1)"
+run "1.4.0 + 1.5.0 (same major)"              normal "$(copy_dir zip-1.5)" "$(autoload zip-1.4)" "$(autoload zip-1.5)"
 
 exit $status
