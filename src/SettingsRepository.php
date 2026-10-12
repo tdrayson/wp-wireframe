@@ -7,8 +7,8 @@ namespace Wireframe;
 /**
  * Settings bound to one wp_options key.
  *
- * Immutable wrapper over the static Settings facade, so callers don't repeat
- * the option key on every call:
+ * Wraps the static Settings facade with the key fixed for the object's
+ * lifetime, so callers don't repeat it on every call:
  *
  *   $settings = Settings::for('my_plugin_settings');
  *   $settings->get('site_name');

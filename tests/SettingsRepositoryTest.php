@@ -15,6 +15,8 @@ class SettingsRepositoryTest extends \WP_Mock\Tools\TestCase
     private const KEY   = 'bound_settings';
     private const OTHER = 'other_settings';
 
+    private const INTERNAL = ['for', 'resolvedFor', 'existsFor', 'allFor', 'updateFor', 'resetFor'];
+
     private const SEED = [
         'site_name'     => 'Acme',
         'notifications' => '1',
@@ -73,7 +75,7 @@ class SettingsRepositoryTest extends \WP_Mock\Tools\TestCase
 
         $this->assertSame($expected, $actual);
         $this->assertSame($expectedStore, $this->options);
-        $this->assertSame(self::SEED, $this->options[self::OTHER]);
+        $this->assertSame(['site_name' => 'Other'], $this->options[self::OTHER]);
     }
 
     public static function forwardedCalls(): array
@@ -131,16 +133,15 @@ class SettingsRepositoryTest extends \WP_Mock\Tools\TestCase
     {
         $facade = [];
         foreach ((new ReflectionClass(Settings::class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-            $name = $method->getName();
-            if ($name !== 'for' && !str_ends_with($name, 'For')) {
-                $facade[$name] = array_map([$this, 'describe'], array_slice($method->getParameters(), 1));
+            if (!in_array($method->getName(), self::INTERNAL, true)) {
+                $facade[$method->getName()] = $this->signature($method, 1);
             }
         }
 
         $bound = [];
         foreach ((new ReflectionClass(SettingsRepository::class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             if (!in_array($method->getName(), ['__construct', 'optionKey'], true)) {
-                $bound[$method->getName()] = array_map([$this, 'describe'], $method->getParameters());
+                $bound[$method->getName()] = $this->signature($method, 0);
             }
         }
 
@@ -153,7 +154,7 @@ class SettingsRepositoryTest extends \WP_Mock\Tools\TestCase
 
     public function test_internal_for_methods_are_not_exposed(): void
     {
-        foreach (['resolvedFor', 'existsFor', 'allFor', 'updateFor', 'resetFor'] as $method) {
+        foreach (array_diff(self::INTERNAL, ['for']) as $method) {
             $this->assertFalse(method_exists(SettingsRepository::class, $method), $method);
         }
     }
@@ -202,16 +203,18 @@ class SettingsRepositoryTest extends \WP_Mock\Tools\TestCase
 
     private function seed(): void
     {
-        $this->options = [self::KEY => self::SEED, self::OTHER => self::SEED];
+        $this->options = [self::KEY => self::SEED, self::OTHER => ['site_name' => 'Other']];
     }
 
-    private function describe(\ReflectionParameter $parameter): array
+    private function signature(ReflectionMethod $method, int $skip): array
     {
-        return [
+        $params = array_map(static fn (\ReflectionParameter $parameter) => [
             $parameter->getName(),
             (string) $parameter->getType(),
             $parameter->isVariadic(),
             $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : '(required)',
-        ];
+        ], array_slice($method->getParameters(), $skip));
+
+        return [(string) $method->getReturnType(), $params];
     }
 }
