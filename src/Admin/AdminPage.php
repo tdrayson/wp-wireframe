@@ -6,6 +6,7 @@ namespace Wireframe\Admin;
 
 use Wireframe\App;
 use Wireframe\Framework\Access\AccessResolver;
+use Wireframe\Framework\Access\PageFlags;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Settings;
 
@@ -360,8 +361,8 @@ final class AdminPage
             'config'   => $config,
             'values'   => Settings::resolvedFor($optionKey, $configSlug),
             'hasSaved' => Settings::existsFor($optionKey),
-            'canSave'  => !empty($map->editable),
-            'canReset' => $map->canReset && !empty($map->editable),
+            'canSave'  => PageFlags::canSave($page, $map),
+            'canReset' => PageFlags::canReset($page, $map),
             'restUrl'  => rest_url(App::restNamespace($prefix) . '/'),
             'nonce'    => wp_create_nonce('wp_rest'),
             'version'  => $page['version'],
