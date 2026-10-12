@@ -52,11 +52,11 @@ Subfields are declared inline in `args.subfields` and follow the same shape as a
 | Arg              | Default        | Notes                                                                                 |
 | ---------------- | -------------- | ------------------------------------------------------------------------------------- |
 | `subfields`      | `[]`           | Array of field configs that compose each row.                                          |
-| `sortable`       | `true`         | Allow drag-to-reorder.                                                                 |
-| `collapsible`    | `true`         | Show a per-row collapse / expand toggle.                                               |
+| `sortable`       | `false`        | Allow drag-to-reorder.                                                                 |
+| `collapsible`    | `false`        | Show a per-row collapse / expand toggle.                                               |
 | `duplicate_row`  | `false`        | Show a duplicate button alongside delete.                                              |
-| `max_rows`       | `null`         | Hide the **Add** button once the count is reached.                                     |
-| `add_label`      | `'Add row'`    | Label of the add button.                                                               |
+| `max_rows`       | unlimited      | Hide the **Add** button once the count is reached. The server caps rows at 200 unless set. |
+| `add_label`      | `'Add Row'`    | Label of the add button.                                                               |
 | `empty_message`  | `''`           | Shown when the repeater has zero rows.                                                 |
 | `title_template` | `''`           | Template for the per-row collapsed title. Supports `{subfield_id}` token interpolation. |
 

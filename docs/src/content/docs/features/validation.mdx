@@ -17,9 +17,9 @@ These run for free, no configuration:
 | -------------- | ---------------------------------------------------- |
 | `email`        | RFC-compliant email format                           |
 | `url`          | URL format                                           |
-| `number`       | Numeric, respects `args.min` / `args.max` / `args.step` |
+| `number`       | Numeric, respects `args.min` / `args.max` / `args.integer` |
 | `range`        | Same as `number`                                     |
-| `color`        | Hex format (`#RRGGBB` or `#RRGGBBAA`)                |
+| `color`        | Hex format (`#RGB` or `#RRGGBB`)                     |
 | `date`         | `YYYY-MM-DD` format                                  |
 | `time`         | `HH:MM` (24h)                                        |
 | `select` (single) | Value must be in declared `options` keys          |
@@ -63,8 +63,8 @@ Validation failures return `400` from the REST save endpoint with an error map:
 
 ```json
 {
-    "code": "wireframe_validation_failed",
-    "message": "Please fix the highlighted fields.",
+    "code": "validation_failed",
+    "message": "Validation failed.",
     "data": {
         "status": 400,
         "errors": {
@@ -89,7 +89,7 @@ Custom handlers (action field, table actions, etc.) can short-circuit with a `WP
 add_filter('my-plugin/action/default/billing_tools/wipe', function ($unhandled, array $values, $request) {
     if (empty($values['confirm_token'])) {
         return new WP_Error(
-            'wireframe_validation_failed',
+            'validation_failed',
             __('Missing confirmation token.', 'my-plugin'),
             ['status' => 400]
         );

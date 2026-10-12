@@ -56,4 +56,4 @@ sidebar:
 ],
 ```
 
-Stored value is an `int` when `step` is a whole number, `float` when it isn't.
+Stored value is an `int` when `args.integer` is truthy, otherwise a `float`. Values are clamped to `min` / `max` on save.

@@ -154,7 +154,7 @@ The filter default is a private `Unhandled` sentinel — if no listener attaches
 
 ## Security boundaries
 
-- **Same auth as Save / Reset** — the route is gated by the page's `capability` (default `manage_options`) and a WP REST nonce.
+- **View-level auth** — the route requires a WP REST nonce and the page's `capability` (default `manage_options`). With [role-based access](/wp-wireframe/docs/features/role-based-access/) on, any user who can *view* something on the page can call it, so check `current_user_can()` in handlers that change data.
 - **Declared fields only** — unknown payload keys are dropped before sanitisation. Each declared value runs through its type's `sanitize()` (so a `number` is an `int`, a `url` has been through `esc_url_raw`, etc.).
 - **Sanitisers enforce format, not semantics** — your handler must still authorise what's being asked for (e.g. "can this user modify *that* order?") and use `$wpdb->prepare()` for anything it interpolates into SQL.
 - **Raw HTML output is on you** — any `html` you return is rendered as `<RawHTML>` on the client. Escape anything user-derived with `esc_html()`, `wp_kses_post()`, or build the HTML server-side from trusted strings.
@@ -166,7 +166,7 @@ Because the request carries the in-flight values, your handler can read other fi
 
 ```php
 add_filter(
-    'my-plugin/action/default/billing/recalculate',
+    'my-plugin/action/default/billing_tools/refresh_stats',
     function ($unhandled, array $values, $request) {
         $userId = absint($values['target_user'] ?? 0);   // sibling 'select' field
 

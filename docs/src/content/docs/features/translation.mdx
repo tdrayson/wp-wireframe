@@ -1,0 +1,18 @@
+---
+title: Translation
+description: Which text domains WP Wireframe uses and what you need to load yourself.
+sidebar:
+  order: 6
+---
+
+WP Wireframe ships its own translations for UI strings (Save, Reset, Cancel, etc.) under the `wp-wireframe` text domain. These load automatically.
+
+Your config strings use your own text domain:
+
+```php
+'label' => __('Site Name', 'my-plugin'),
+```
+
+Load your plugin's text domain the usual WordPress way, or rely on WordPress's auto-loading if your `.mo` files follow the `languages/{domain}-{locale}.mo` convention. WP Wireframe does not do this for you.
+
+Server-side messages returned by the REST endpoints (e.g. "Validation failed.") are translated with your plugin's `prefix` as the text domain, so keep the prefix and text domain the same if you want those translated too.

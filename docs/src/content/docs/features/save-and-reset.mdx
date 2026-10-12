@@ -30,12 +30,10 @@ This means a `wp_options` row can hold values from multiple authors with differe
 
 Hitting **Reset** in the header opens an inline confirm. Confirming sends `DELETE /settings/{pageId}`. The server:
 
-1. Looks up the user's editable field list.
-2. Computes the **defaults** for those fields only.
-3. Merges the defaults into the existing saved state.
-4. Persists, fires `{prefix}/settings_reset`, returns the new value set.
+- **Without role-based access** — deletes the page's `option_key` row, so every field falls back to its default. If pages [share an `option_key`](/wp-wireframe/docs/configuration/multi-page/), that includes the other pages' values.
+- **With role-based access** — removes only the user's editable fields from the saved row; they fall back to their defaults and everything else keeps its saved value.
 
-For an admin with full access, this is the same as resetting everything on the page. For a partial-access user, it resets only their slice — fields they can't edit stay at their current saved values.
+Either way it then fires `{prefix}/settings_reset` and returns the resolved value set.
 
 The Reset button itself is hidden when the user has no editable fields, or when `wp-wireframe/access/can_reset` returns false.
 

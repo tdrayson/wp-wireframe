@@ -72,7 +72,7 @@ Once **at least one** `access` key is declared anywhere on the page, RBAC mode e
 | Save endpoint                                   | Merges editable fields into existing values — fields outside scope are never touched           | `wp-wireframe/save/editable_fields`, `wp-wireframe/save/payload`    |
 | Reset endpoint                                  | Resets only the user's editable fields                                                         | `wp-wireframe/access/can_reset` filter                              |
 | Save / Reset buttons                            | Hidden when the user has no editable fields                                                    | n/a                                                                 |
-| REST permission callback                        | `current_user_can('read')` AND has at least one editable field                                | `wp-wireframe/access/resolve` filter                                |
+| REST permission callback                        | `read` AND: GET — any viewable element; POST — an editable field; DELETE — an editable field and `can_reset`. Action and table routes use the GET rule | `wp-wireframe/access/resolve` filter |
 
 ## Developer filters
 

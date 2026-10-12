@@ -30,7 +30,7 @@ Wireframe\App::boot([
 | `prefix`        | `string`        | **Required**              | Used to derive slugs, hook names, JS handles, REST namespaces, and option keys.    |
 | `page_title`    | `string`        | `ucfirst($prefix)`        | Title shown in the admin menu and at the top of the page.                          |
 | `menu_title`    | `string`        | `page_title`              | Alternate menu label (page header still uses `page_title`).                        |
-| `option_key`    | `string`        | `{prefix}_settings`       | The single `wp_options` row that stores all field values.                          |
+| `option_key`    | `string`        | `{prefix}_settings` (hyphens → underscores) | The single `wp_options` row that stores all field values.                          |
 | `config`        | `string\|array` | `[]`                      | Path to a PHP file that returns the config array, **or** the config array inline.  |
 | `version`       | `string`        | `'1.0.0'`                 | Plugin version. Used for cache-busting and surfaced in some hooks.                 |
 | `capability`    | `string`        | `'manage_options'`        | Capability required to view, save, and reset the page.                             |

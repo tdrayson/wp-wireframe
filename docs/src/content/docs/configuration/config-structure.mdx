@@ -60,7 +60,7 @@ These are common to every field type:
 | `id`          | `string`       | Required | Unique field identifier within the page.                                                                   |
 | `type`        | `string`       | `'text'` | One of the [registered field types](/wp-wireframe/docs/field-types/text-family/).                                            |
 | `label`       | `string`       | `''`     | Display label. Pass `''` explicitly to render no label (the field will still align with labelled siblings).|
-| `description` | `string`       | `''`     | Help text below the field. Supports `{field_id}` token interpolation against live form values.             |
+| `description` | `string`       | `''`     | Help text below the field. Supports `{field_id}` tokens that interpolate live form values, e.g. `'URL: https://example.com/{slug}'`. |
 | `default`     | `mixed`        | `null`   | Default value, used when no saved value exists.                                                            |
 | `required`    | `bool`         | `false`  | Whether the field must have a value at save time.                                                          |
 | `validation`  | `string`       | `''`     | Pipe-separated [Rakit validation rules](/wp-wireframe/docs/features/validation/) — e.g. `'min:3\|max:100'`.                  |
@@ -84,7 +84,7 @@ Everything that varies between field types lives under `args`. Some examples:
 ['type' => 'select', 'args' => ['options' => ['draft' => 'Draft', 'published' => 'Published']]]
 
 // Repeater
-['type' => 'repeater', 'args' => ['subfields' => [ /* … */ ], 'add_button_label' => 'Add row']]
+['type' => 'repeater', 'args' => ['subfields' => [ /* … */ ], 'add_label' => 'Add row']]
 ```
 
 See each field type's page in [Field Types](/wp-wireframe/docs/field-types/text-family/) for the full set.
