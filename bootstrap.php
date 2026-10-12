@@ -284,4 +284,4 @@ if (! class_exists(Versions::class, false)) {
 }
 
 // The release version. Bump it with every release; release.yml checks it against the tag.
-Versions::register('1.0.6', __DIR__);
+Versions::register('1.1.0', __DIR__);
