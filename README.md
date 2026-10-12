@@ -798,6 +798,70 @@ Fields use a 12-column grid. Set `columns` to control width:
 
 ---
 
+## Fluent Builder
+
+Prefer objects to nested arrays? Build the same config fluently. The builder compiles to exactly the array shape described above (`->toArray()`), so it's accepted anywhere a config array is: `App::boot()`'s `config`, each `pages[].config`, or as the return value of a config file.
+
+```php
+use Wireframe\Builder\Fields\SelectField;
+use Wireframe\Builder\Fields\TextField;
+use Wireframe\Builder\Page;
+use Wireframe\Builder\Section;
+use Wireframe\Builder\Tab;
+
+return Page::make()
+    ->title(__('My Plugin', 'my-plugin'))
+    ->tab('general', __('General', 'my-plugin'), fn (Tab $tab) => $tab
+        ->section('main', __('Main Settings', 'my-plugin'), fn (Section $section) => $section
+            ->fields(
+                TextField::make('api_key')->label(__('API key', 'my-plugin'))->placeholder('sk-...')->required()->columns(6),
+                SelectField::make('mode')->label(__('Mode', 'my-plugin'))->options(['live' => 'Live', 'test' => 'Test'])->default('test')->columns(6),
+            )));
+```
+
+- Every built-in type has a class in `Wireframe\Builder\Fields` (`TextField`, `RepeaterField`, `TableField`, …) whose methods mirror its `args` (`->rows(3)`, `->allowCustom()`, `->subfields(...)`).
+- Common keys live on every field: `label`, `description`, `default`, `columns`, `required`, `readonly`, `validation`, `access`, `conditions`.
+- `->args([...])` merges raw `args` for anything without a method; `->set('key', $value)` sets any raw key.
+- Custom field types: `Field::of('my_custom', 'my_field')->args([...])`.
+- `section()` / `fields()` directly on `Page` give the sections-only and fields-only formats.
+
+See [examples/newsletter-signup](./examples/newsletter-signup) for a full page built this way.
+
+---
+
+## Extending Another Plugin's Settings (Free/Pro)
+
+Every page's config passes through a `{prefix}/config` filter when it's first loaded. A second plugin — say, a Pro add-on — can add, move, replace or remove tabs, sections and fields. Because this runs before the config is cached, injected fields render, sanitize, validate and save like the page's own.
+
+```php
+use Wireframe\Builder\Editor;
+use Wireframe\Builder\Fields\ToggleField;
+
+add_filter('my-plugin/config', function (Editor $config, string $pageId) {
+    $config->after('api_key', ToggleField::make('pro_sync')->label(__('Sync in real time', 'my-plugin-pro')));
+    $config->field('mode')->description(__('Pro unlocks live mode.', 'my-plugin-pro'));
+    $config->remove('upgrade_notice');
+
+    return $config;
+}, 10, 2);
+```
+
+| Method | Does |
+| --- | --- |
+| `tab($id)`, `section($id)`, `field($id)` | Return the element to modify in place |
+| `addTab(...$tabs)`, `addSection($tabId, ...$sections)`, `addField($sectionId, ...$fields)` | Append |
+| `before($id, ...$items)`, `after($id, ...$items)` | Insert next to a sibling |
+| `replace($id, $item)` | Swap an element |
+| `remove($id)` | Remove (matches fields, then sections, then tabs) |
+| `has($id)` | Check before editing |
+
+- The level is taken from what you pass: a `Tab`, `Section` or `Field` targets the tab, section or field with that `id`. Build items with the [fluent builder](#fluent-builder), or wrap arrays with `Field::fromArray()` / `Section::fromArray()` / `Tab::fromArray()`.
+- `$pageId` is `default` for single-page plugins, or the page's `id` in multi-page setups. Single-page configs written fields-only or sections-only live in a tab (and section) with the id `default`.
+- A missing target triggers `_doing_it_wrong()` under `WP_DEBUG` and is otherwise ignored, so a Pro add-on doesn't fatal against an older free version.
+- Add the filter before the page's config is first read — at plugin load or on `plugins_loaded` is safe.
+
+---
+
 ## Config Helpers
 
 Programmatically manipulate a config array before passing it to `App::boot()`:
@@ -931,6 +995,11 @@ add_action('my-plugin/settings_saved', function (array $values, string $pageId) 
 add_action('my-plugin/settings_reset', function (string $pageId) {
     // clear caches, etc.
 });
+
+// Edit the page config before it's cached — see Extending Another Plugin's Settings.
+add_filter('my-plugin/config', function (Wireframe\Builder\Editor $config, string $pageId) {
+    return $config;
+}, 10, 2);
 ```
 
 The field type registry is shared across every plugin, so its filter is global:
