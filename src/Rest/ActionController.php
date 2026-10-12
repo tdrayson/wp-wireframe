@@ -50,8 +50,9 @@ use WP_REST_Server;
  *    user fails the action's `access` rule.
  *  - `Sanitizer::sanitize()` only iterates configured fields, so unknown
  *    keys in the payload are dropped (no mass assignment).
- *  - Handlers never receive fields the user can't view, nor a client-supplied
- *    value for a field the user can only view.
+ *  - `$values` never holds fields the user can't view, nor a client-supplied
+ *    value for a field the user can only view. `$request` still carries the
+ *    raw body, so handlers must read `$values`.
  *  - Config carries no callable references, so there is no callable target
  *    name to leak into the page source.
  */

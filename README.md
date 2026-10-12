@@ -680,7 +680,7 @@ Custom field types receive a `field.readOnly` prop on their Edit component when 
 
 ### Action Field
 
-Run a server-side handler from a button. The current (in-flight) form values are sent along, so the handler can read sibling fields. On a page using [role-based access](#role-based-access), `$values` holds only the fields the user can view, and view-only fields carry their stored value rather than whatever was posted. Config is **pure data** — no PHP callables — and the handler is wired via `add_filter` anywhere in your plugin.
+Run a server-side handler from a button. The current (in-flight) form values are sent along, so the handler can read sibling fields. On a page using [role-based access](#role-based-access), `$values` holds only the fields the user can view, and view-only fields carry their stored value rather than whatever was posted. Read `$values`, not the raw request body. Config is **pure data** — no PHP callables — and the handler is wired via `add_filter` anywhere in your plugin.
 
 #### Single-button (sugar)
 
