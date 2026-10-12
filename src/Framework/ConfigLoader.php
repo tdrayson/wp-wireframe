@@ -112,8 +112,9 @@ final class ConfigLoader
          *
          * @param Editor $editor Mutable view of the normalized config.
          * @param string $pageId Page identifier (`default` for single-page plugins).
+         * @param string $slug   Config slug, e.g. `my-plugin` or `my-plugin-general`.
          */
-        $result = apply_filters($hook, $editor, self::$owners[$slug]['page_id']);
+        $result = apply_filters($hook, $editor, self::$owners[$slug]['page_id'], $slug);
 
         return ($result instanceof Editor ? $result : $editor)->toArray();
     }

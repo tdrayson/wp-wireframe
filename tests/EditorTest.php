@@ -99,8 +99,9 @@ class EditorTest extends \WP_Mock\Tools\TestCase
 
     public function test_injected_fields_reach_flat_fields(): void
     {
-        $this->onConfigFilter(function (Editor $config, string $pageId) {
+        $this->onConfigFilter('editor-inject', function (Editor $config, string $pageId, string $slug) {
             $this->assertSame('default', $pageId);
+            $this->assertSame('editor-inject', $slug);
 
             return $config
                 ->after('api_key', PasswordField::make('api_secret')->label('API secret'))
@@ -118,7 +119,7 @@ class EditorTest extends \WP_Mock\Tools\TestCase
 
     public function test_callback_that_forgets_to_return_still_applies(): void
     {
-        $this->onConfigFilter(function (Editor $config) {
+        $this->onConfigFilter('editor-no-return', function (Editor $config) {
             $config->remove('list_id');
         });
 
@@ -179,10 +180,10 @@ class EditorTest extends \WP_Mock\Tools\TestCase
         $this->assertSame($this->normalized(), $config->toArray());
     }
 
-    private function onConfigFilter(callable $callback): void
+    private function onConfigFilter(string $slug, callable $callback): void
     {
         \WP_Mock::onFilter('editor-test/config')
-            ->with(Functions::type(Editor::class), 'default')
+            ->with(Functions::type(Editor::class), 'default', $slug)
             ->reply(new InvokedFilterValue($callback));
     }
 

@@ -856,7 +856,7 @@ add_filter('my-plugin/config', function (Editor $config, string $pageId) {
 | `has($id)` | Check before editing |
 
 - The level is taken from what you pass: a `Tab`, `Section` or `Field` targets the tab, section or field with that `id`. Build items with the [fluent builder](#fluent-builder), or wrap arrays with `Field::fromArray()` / `Section::fromArray()` / `Tab::fromArray()`.
-- `$pageId` is `default` for single-page plugins, or the page's `id` in multi-page setups. Single-page configs written fields-only or sections-only live in a tab (and section) with the id `default`.
+- `$pageId` is `default` for single-page plugins, or the page's `id` in multi-page setups. The config slug (e.g. `my-plugin-general`) is passed as an optional third argument; register with `10, 3` to receive it. Single-page configs written fields-only or sections-only live in a tab (and section) with the id `default`.
 - A missing target triggers `_doing_it_wrong()` under `WP_DEBUG` and is otherwise ignored, so a Pro add-on doesn't fatal against an older free version.
 - Add the filter before the page's config is first read — at plugin load or on `plugins_loaded` is safe.
 
