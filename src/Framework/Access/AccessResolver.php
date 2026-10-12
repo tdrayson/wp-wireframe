@@ -125,6 +125,29 @@ final class AccessResolver
     }
 
     /**
+     * View check for a tab or section with no `access` key of its own.
+     *
+     * Allowed by default (its children decide), but still passed through `wp-wireframe/access/resolve`.
+     *
+     * @param WP_User|null                     $user    User being checked; defaults to the current user.
+     * @param array{level: string, id: string} $context Container level and id.
+     * @return bool
+     */
+    private function implicitContainerAllowed(?WP_User $user, array $context): bool
+    {
+        if (!function_exists('apply_filters')) {
+            return true;
+        }
+
+        $context = array_merge(
+            ['verb' => 'view', 'spec' => [], 'user' => $user ?? self::currentUser()],
+            $context,
+        );
+
+        return (bool) apply_filters('wp-wireframe/access/resolve', true, $context);
+    }
+
+    /**
      * Build a per-user access map for a normalized config.
      *
      * Walks tabs → sections → fields once, resolving inherited specs and
@@ -171,10 +194,14 @@ final class AccessResolver
             // skip the gate here. Without this skip an unspecified spec would
             // fall back to the page capability and hide the container — and
             // every field under it — from a lower-privileged user who was
-            // explicitly granted one of those fields.
-            if ($tabHasOwnAccess
-                && !$this->userCan('view', $tabSpec, $user, ['level' => 'tab', 'id' => $tabId])
-            ) {
+            // explicitly granted one of those fields. The resolve filter still
+            // runs for implicit containers so integrators can deny them.
+            $tabContext = ['level' => 'tab', 'id' => $tabId];
+            $tabAllowed = $tabHasOwnAccess
+                ? $this->userCan('view', $tabSpec, $user, $tabContext)
+                : $this->implicitContainerAllowed($user, $tabContext);
+
+            if (!$tabAllowed) {
                 continue;
             }
 
@@ -198,9 +225,12 @@ final class AccessResolver
                 // top-down only when the section declares its own `access` key;
                 // otherwise its visibility is derived from its fields and the
                 // post-loop emptiness check decides whether it survives.
-                if ($sectionHasOwnAccess
-                    && !$this->userCan('view', $sectionSpec, $user, ['level' => 'section', 'id' => $sectionId])
-                ) {
+                $sectionContext = ['level' => 'section', 'id' => $sectionId];
+                $sectionAllowed = $sectionHasOwnAccess
+                    ? $this->userCan('view', $sectionSpec, $user, $sectionContext)
+                    : $this->implicitContainerAllowed($user, $sectionContext);
+
+                if (!$sectionAllowed) {
                     continue;
                 }
 
