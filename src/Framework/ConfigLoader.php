@@ -137,8 +137,9 @@ final class ConfigLoader
     {
         // Preserve top-level metadata.
         $normalized = [
-            'title'    => $raw['title'] ?? '',
-            'subtitle' => $raw['subtitle'] ?? '',
+            'title'          => $raw['title'] ?? '',
+            'subtitle'       => $raw['subtitle'] ?? '',
+            'header_actions' => array_values(array_filter((array) ($raw['header_actions'] ?? []), 'is_array')),
         ];
 
         // Format 1: Fields only — wrap in default section + default tab.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\Rest;
 
 use Wireframe\App;
+use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Sanitizer;
 use Wireframe\Framework\Unhandled;
@@ -14,7 +15,7 @@ use WP_REST_Response;
 use WP_REST_Server;
 
 /**
- * REST controller for `action` fields.
+ * REST controller for `action` fields and page `header_actions`.
  *
  * One generic route per page dispatches each button press to a per-button
  * WordPress filter:
@@ -26,6 +27,9 @@ use WP_REST_Server;
  *            $values,
  *            $request
  *        )
+ *
+ *   POST /{prefix}/v1/header_action/{pageId}/{actionId}
+ *      → apply_filters("{$prefix}/header_action/{$pageId}/{$actionId}", …same args)
  *
  * The handler receives the page's in-flight form values, sanitized through
  * the same per-type handlers the save flow uses — so it can read sibling
@@ -39,6 +43,8 @@ use WP_REST_Server;
  *    the target is actually an `action` field.
  *  - The requested `actionId` must be declared in `args.buttons[]` (or be
  *    the sugar single-button case where it equals the field id).
+ *  - Header actions must be declared without an `href`, and 403 when the
+ *    user fails the action's `access` rule.
  *  - `Sanitizer::sanitize()` only iterates configured fields, so unknown
  *    keys in the payload are dropped (no mass assignment).
  *  - Config carries no callable references, so there is no callable target
@@ -58,6 +64,14 @@ final class ActionController
                 [
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => fn(WP_REST_Request $r) => self::run($r, $internalId),
+                    'permission_callback' => fn() => SettingsController::checkPermission($internalId),
+                ],
+            ]);
+
+            register_rest_route($namespace, '/header_action/' . $page['page_id'] . '/(?P<action>[a-zA-Z0-9_.-]+)', [
+                [
+                    'methods'             => WP_REST_Server::CREATABLE,
+                    'callback'            => fn(WP_REST_Request $r) => self::runHeaderAction($r, $internalId),
                     'permission_callback' => fn() => SettingsController::checkPermission($internalId),
                 ],
             ]);
@@ -90,6 +104,49 @@ final class ActionController
             'action/' . $page['page_id'] . '/' . $fieldId . '/' . $actionId
         );
 
+        return self::dispatch($hook, $values, $request);
+    }
+
+    private static function runHeaderAction(WP_REST_Request $request, string $internalId): WP_REST_Response|WP_Error
+    {
+        $page     = App::page($internalId);
+        $actionId = (string) $request['action'];
+        $action   = self::findHeaderAction($page, $actionId);
+
+        if ($action === null || !empty($action['href'])) {
+            return new WP_Error(
+                'wireframe_unknown_action',
+                sprintf('Header action "%s" is not declared.', $actionId),
+                ['status' => 404]
+            );
+        }
+
+        $resolver = new AccessResolver($page['capability']);
+
+        if ($resolver->visibleHeaderActions([$action]) === []) {
+            return new WP_Error(
+                'rest_forbidden',
+                sprintf('You are not allowed to run header action "%s".', $actionId),
+                ['status' => 403]
+            );
+        }
+
+        $values = self::sanitizeIncomingValues($request, $page);
+        $hook   = App::hookName($page['prefix'], 'header_action/' . $page['page_id'] . '/' . $actionId);
+
+        return self::dispatch($hook, $values, $request);
+    }
+
+    /**
+     * Fire a dispatch filter and turn its result into a REST response.
+     *
+     * @param string          $hook    Filter name.
+     * @param array           $values  Sanitized in-flight form values.
+     * @param WP_REST_Request $request The originating request.
+     * @return WP_REST_Response|WP_Error
+     */
+    private static function dispatch(string $hook, array $values, WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
         $result = apply_filters($hook, Unhandled::get(), $values, $request);
 
         if ($result instanceof Unhandled) {
@@ -187,5 +244,16 @@ final class ActionController
         }
 
         return $field;
+    }
+
+    private static function findHeaderAction(array $page, string $actionId): ?array
+    {
+        foreach (ConfigLoader::load($page['config'])['header_actions'] ?? [] as $action) {
+            if (($action['id'] ?? null) === $actionId) {
+                return $action;
+            }
+        }
+
+        return null;
     }
 }

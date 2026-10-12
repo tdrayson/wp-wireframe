@@ -38,6 +38,12 @@ final class ConfigValidator
         $seenIds    = [];
         $prefix     = $slug !== '' ? $slug . ' · ' : '';
 
+        foreach ($config['header_actions'] ?? [] as $index => $action) {
+            if (empty($action['id']) || empty($action['label'])) {
+                $issues[] = sprintf('%sheader_actions[%d]: requires "id" and "label".', $prefix, $index);
+            }
+        }
+
         foreach ($config['tabs'] ?? [] as $tab) {
             $tabId = (string) ($tab['id'] ?? '(no id)');
 

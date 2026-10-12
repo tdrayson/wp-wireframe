@@ -13,6 +13,11 @@
       "type": "string",
       "description": "Optional page subtitle rendered under the title."
     },
+    "header_actions": {
+      "type": "array",
+      "description": "Buttons rendered in the page header next to Save/Reset. With `href` a button is a link; without, it POSTs the form values to the `{prefix}/header_action/{pageId}/{id}` filter.",
+      "items": { "$ref": "#/$defs/headerAction" }
+    },
     "tabs": {
       "type": "array",
       "description": "Full-tabs format: top-level tabs, each containing sections of fields.",
@@ -123,6 +128,36 @@
         { "$ref": "#/$defs/argsByType/range" },
         { "$ref": "#/$defs/argsByType/color" }
       ]
+    },
+    "headerAction": {
+      "type": "object",
+      "required": ["id", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_.-]+$", "description": "Action identifier; the last segment of the hook name." },
+        "label": { "type": "string" },
+        "variant": { "type": "string", "enum": ["primary", "secondary", "tertiary", "link"] },
+        "destructive": { "type": "boolean" },
+        "href": { "type": "string", "description": "Render as a link to this URL instead of dispatching." },
+        "target": { "type": "string", "description": "Link target, e.g. `_blank`. Only used with `href`." },
+        "confirm": {
+          "description": "Confirm step before dispatching: a message string, or an object overriding the dialog copy.",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "message": { "type": "string" },
+                "title": { "type": "string" },
+                "button_label": { "type": "string" },
+                "cancel_label": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "access": { "$ref": "#/$defs/access" }
+      }
     },
     "access": {
       "description": "Role/capability access rule. A string or list applies to both view and edit; an object splits them. Strings match a role slug first, then a capability. Arrays are OR.",

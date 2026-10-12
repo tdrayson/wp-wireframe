@@ -308,11 +308,13 @@ final class AccessResolver
      * end up empty are dropped. Visible-but-not-editable fields gain a
      * `readonly: true` top-level flag so the frontend can disable them.
      *
-     * In legacy mode (no access keys anywhere), the config is returned as-is
-     * since there's nothing to filter — RBAC behavior is strictly opt-in.
+     * In legacy mode (no access keys anywhere), only `header_actions` are
+     * filtered — RBAC behavior for tabs, sections and fields is strictly opt-in.
      */
     public function filterConfig(array $config, ConfigAccessMap $map): array
     {
+        $config['header_actions'] = $this->visibleHeaderActions($config['header_actions'] ?? []);
+
         if ($map->isLegacy()) {
             return $config;
         }
@@ -374,6 +376,34 @@ final class AccessResolver
         $config['tabs'] = $filteredTabs;
 
         return $config;
+    }
+
+    /**
+     * Keep the header actions the user can view, with their `access` keys stripped.
+     *
+     * An action without `access` falls back to the page capability, like a field does.
+     *
+     * @param list<array>  $actions Normalized `header_actions` entries.
+     * @param WP_User|null $user    User being checked; defaults to the current user.
+     * @return list<array>
+     */
+    public function visibleHeaderActions(array $actions, ?WP_User $user = null): array
+    {
+        $visible = [];
+
+        foreach ($actions as $action) {
+            $id   = (string) ($action['id'] ?? '');
+            $spec = self::normalizeSpec($action['access'] ?? null);
+
+            if ($id === '' || !$this->userCan('view', $spec, $user, ['level' => 'header_action', 'id' => $id])) {
+                continue;
+            }
+
+            unset($action['access']);
+            $visible[] = $action;
+        }
+
+        return $visible;
     }
 
     /**
