@@ -324,7 +324,7 @@ final class AdminPage
     }
 
     /**
-     * Localize config + saved values for the matched page.
+     * Print config + saved values for the matched page as a JS global.
      *
      * The config is filtered through the user's AccessMap before being sent
      * to the React frontend so the browser never sees fields the user
@@ -357,7 +357,7 @@ final class AdminPage
          */
         $config = apply_filters('wp-wireframe/config/for_user', $config, $pageId, $map);
 
-        wp_localize_script(App::assetHandle(), App::jsObjectName($prefix, $pageId), [
+        $data = [
             'config'   => $config,
             'values'   => Settings::resolvedFor($optionKey, $configSlug),
             'hasSaved' => Settings::existsFor($optionKey),
@@ -368,6 +368,13 @@ final class AdminPage
             'version'  => $page['version'],
             'prefix'   => $prefix,
             'pageId'   => $pageId,
-        ]);
+        ];
+
+        // Not wp_localize_script(): it stringifies top-level scalars, so `false` arrives as "".
+        wp_add_inline_script(
+            App::assetHandle(),
+            sprintf('window.%s = %s;', App::jsObjectName($prefix, $pageId), wp_json_encode($data)),
+            'before'
+        );
     }
 }
