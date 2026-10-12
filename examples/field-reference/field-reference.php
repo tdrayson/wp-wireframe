@@ -33,6 +33,16 @@ add_action('init', function () {
     ]);
 });
 
+// Demo handler for the "Count filled fields" header action.
+add_filter('field-reference/header_action/default/count', function ($unhandled, array $values) {
+    $filled = count(array_filter($values, static fn ($value) => $value !== '' && $value !== null && $value !== []));
+
+    return [
+        'status'  => 'info',
+        'message' => sprintf(__('%d fields have a value.', 'field-reference'), $filled),
+    ];
+}, 10, 2);
+
 // Demo handler for the action download button on the Tools tab.
 add_filter('field-reference/action/default/ref_download/run', function () {
     return [

@@ -12,6 +12,7 @@
 - Repeater subfields support the conditions DSL (#13).
 - Suppress third-party admin notices on Wireframe-managed pages — filterable via `wp-wireframe/suppress_admin_notices`.
 - `{prefix}/can_save` / `{prefix}/can_reset` filters, enforced by the REST endpoints; Save and Reset hide on stateless-only pages (#36).
+- `header_actions` page config key: link or dispatched buttons beside Save/Reset, via `{prefix}/header_action/{pageId}/{id}` (#37).
 
 ### Fixes
 - Resolve admin assets correctly on Windows (#1).
