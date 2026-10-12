@@ -45,10 +45,6 @@ if (! class_exists(Versions::class, false)) {
          */
         public static function register(string $version, string $dir): void
         {
-            if (self::pluginsLoaded()) {
-                self::lock();
-            }
-
             $dir = rtrim($dir, '/\\');
             foreach (self::$copies as $copy) {
                 if ($copy['dir'] === $dir) {
