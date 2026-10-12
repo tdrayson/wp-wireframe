@@ -2,7 +2,7 @@
  * RepeaterEdit — repeatable field group with add/remove/reorder.
  */
 import { Button, BaseControl } from '@wordpress/components';
-import { useState, useCallback, useRef } from '@wordpress/element';
+import { useState, useCallback, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { mapField } from '../../utils/mapConfig';
 import { interpolate } from '../../utils/interpolate';
@@ -32,6 +32,22 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 		rowKeys.current.push( nextRowKey.current++ );
 	}
 	rowKeys.current.length = rows.length;
+
+	const listRef = useRef( null );
+	const focusAfterMove = useRef( null );
+
+	// Moved rows remount, so hand focus back to the moved row's arrow (or the other one if now disabled).
+	useEffect( () => {
+		if ( ! focusAfterMove.current ) {
+			return;
+		}
+		const { rowKey, direction } = focusAfterMove.current;
+		focusAfterMove.current = null;
+		const buttons = [ ...( listRef.current?.querySelectorAll( `[data-row-key="${ rowKey }"] [data-move]` ) ?? [] ) ];
+		const target = buttons.find( ( b ) => b.dataset.move === direction && ! b.disabled )
+			?? buttons.find( ( b ) => ! b.disabled );
+		target?.focus();
+	} );
 
 	const [ collapsedRows, setCollapsedRows ] = useState(
 		() => startCollapsed ? [ ...rowKeys.current ] : []
@@ -84,6 +100,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 		newRows.splice( to, 0, moved );
 		const [ movedKey ] = rowKeys.current.splice( from, 1 );
 		rowKeys.current.splice( to, 0, movedKey );
+		focusAfterMove.current = { rowKey: movedKey, direction: to < from ? 'up' : 'down' };
 		updateRows( newRows );
 	};
 
@@ -101,7 +118,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 			help={ getFieldHelp( field.description, undefined, data ) }
 			id={ `wireframe-repeater-${ field.id }` }
 		>
-			<div className="wireframe-repeater">
+			<div className="wireframe-repeater" ref={ listRef }>
 				{ rows.length === 0 && _args.empty_message && (
 					<p className="wireframe-repeater__empty">{ _args.empty_message }</p>
 				) }
@@ -112,7 +129,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 
 					return (
 						// Index in the key remounts moved rows rather than moving their DOM: a moved TinyMCE iframe reloads blank.
-						<div key={ `${ rowKey }-${ index }` } className={ `wireframe-repeater__row ${ isCollapsed ? 'is-collapsed' : '' }` }>
+						<div key={ `${ rowKey }-${ index }` } data-row-key={ rowKey } className={ `wireframe-repeater__row ${ isCollapsed ? 'is-collapsed' : '' }` }>
 							<div className="wireframe-repeater__row-header">
 								{ collapsible && (
 									<button
@@ -133,6 +150,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 												size="small"
 												variant="tertiary"
 												disabled={ index === 0 }
+												data-move="up"
 												onClick={ () => moveRow( index, index - 1 ) }
 												aria-label={ __( 'Move up', 'wp-wireframe' ) }
 											>
@@ -142,6 +160,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 												size="small"
 												variant="tertiary"
 												disabled={ index === rows.length - 1 }
+												data-move="down"
 												onClick={ () => moveRow( index, index + 1 ) }
 												aria-label={ __( 'Move down', 'wp-wireframe' ) }
 											>
