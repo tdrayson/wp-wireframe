@@ -1,0 +1,54 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/wp-admin/plugins.php",
+  "login": true,
+  "preferredVersions": {
+    "php": "8.2",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/7a7a21ebac580ff7316222926c99133a0347f8d7/examples/field-reference.zip"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/7a7a21ebac580ff7316222926c99133a0347f8d7/examples/newsletter-signup.zip"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/7a7a21ebac580ff7316222926c99133a0347f8d7/examples/quickchat.zip"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "options-view"
+      },
+      "options": {
+        "activate": true
+      }
+    }
+  ]
+}
