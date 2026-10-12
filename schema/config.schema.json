@@ -53,6 +53,7 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "access": { "$ref": "#/$defs/access" },
+        "conditions": { "$ref": "#/$defs/conditionNode" },
         "sections": {
           "type": "array",
           "items": { "$ref": "#/$defs/section" }
@@ -68,6 +69,7 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "access": { "$ref": "#/$defs/access" },
+        "conditions": { "$ref": "#/$defs/conditionNode" },
         "fields": {
           "type": "array",
           "items": { "$ref": "#/$defs/field" }
