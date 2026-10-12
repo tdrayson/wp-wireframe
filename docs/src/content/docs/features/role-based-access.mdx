@@ -54,6 +54,12 @@ Arrays mean **any of these grants access**:
 'access' => ['view' => ['editor', 'author', 'edit_others_posts']],
 ```
 
+## Section and tab access bubbles up from fields
+
+A tab or section with **no** `access` key of its own takes its visibility from its children: it shows for anyone who can view at least one field inside it, and hides when they can view none. Annotate the fields and the containers follow — no need to repeat the rule on the section to stop it rendering as an empty card.
+
+Give a tab or section its own `access` key only when you want to gate it top-down regardless of its fields. `wp-wireframe/access/resolve` still runs for containers without an `access` key, so a filter can deny them.
+
 ## Behaviour when RBAC is active
 
 Once **at least one** `access` key is declared anywhere on the page, RBAC mode engages.
@@ -65,7 +71,8 @@ Once **at least one** `access` key is declared anywhere on the page, RBAC mode e
 | `access` shorthand `'editor'`                   | Applied to both `view` and `edit`                                                             | Use long form `['view' => …, 'edit' => …]` to split                 |
 | `access` arrays                                 | Logical OR — any match grants access                                                          | n/a                                                                 |
 | `edit` without `view`                           | Implicitly denied                                                                             | `edit` always requires `view`                                       |
-| Tab / section / field with no `access` key      | Inherits from parent (ultimately the page capability)                                          | Add an `access` key                                                 |
+| Field with no `access` key                      | Inherits from its section / tab (ultimately the page capability)                               | Add an `access` key                                                 |
+| Tab / section with no `access` key              | Visibility bubbles up — shown if the user can view at least one descendant field               | Add an explicit `access` key to gate it top-down                    |
 | Non-viewable elements                           | Stripped from the config sent to the browser entirely                                          | `wp-wireframe/config/for_user` filter                               |
 | Non-editable but viewable fields                | Rendered with the input disabled; server rejects any writes                                    | n/a                                                                 |
 | Empty tab/section after filtering               | Auto-hidden                                                                                    | n/a                                                                 |

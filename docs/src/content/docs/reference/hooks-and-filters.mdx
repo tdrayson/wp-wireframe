@@ -91,6 +91,8 @@ Fire under the consuming plugin's prefix:
 | ----------------------------- | ------ | -------------------------------------------------------------------------- |
 | `{prefix}/settings_saved`     | action | After a successful save. Args: `$values`, `$pageId`.                       |
 | `{prefix}/settings_reset`     | action | After a successful reset. Args: `$pageId`.                                  |
+| `{prefix}/can_save`           | filter | Whether Save shows and the save endpoint accepts writes. Args: `$canSave`, `$pageId`, `$map`. See [Save & Reset](/wp-wireframe/docs/features/save-and-reset/#turning-save-and-reset-off). |
+| `{prefix}/can_reset`          | filter | Whether Reset shows and the reset endpoint is allowed. Args: `$canReset`, `$pageId`, `$map`. |
 
 ```php
 add_action('my-plugin/settings_saved', function (array $values, string $pageId) {

@@ -110,6 +110,7 @@ Return any of:
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `array{status, message?, html?}`    | `status` ∈ `success` / `error` / `warning` / `info`. `message` drives the snackbar. `html` renders an inline result panel.        |
 | `WP_Error`                          | REST error — surfaces in the client error snackbar.                                                                              |
+| `array{download: array}`            | Triggers a browser download — see [Downloads](#downloads). Combine with `status` / `message`.                                     |
 | `bool`                              | `true` → generic success, `false` → generic error.                                                                                |
 
 The handler's return drives both UIs at once:
@@ -118,6 +119,25 @@ The handler's return drives both UIs at once:
 - **Inline panel** — shown only when `html` is non-empty. Persistent, good for rich detail.
 
 Short responses get just the snackbar; rich responses get both. No extra config switch — the dev picks the experience by what they return.
+
+### Downloads
+
+Return a `download` key to have the browser save a file:
+
+```php
+return [
+    'status'   => 'success',
+    'message'  => __('Report generated.', 'my-plugin'),
+    'download' => [
+        'filename' => 'report.csv',
+        'mime'     => 'text/csv',
+        'content'  => $csv,
+        'encoding' => 'text',   // or 'base64' for binary content
+    ],
+];
+```
+
+`mime` defaults to `application/octet-stream` and `encoding` to `text`.
 
 ### Per-button result slots
 

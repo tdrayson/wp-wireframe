@@ -63,7 +63,7 @@ These are common to every field type:
 | `description` | `string`       | `''`     | Help text below the field. Supports `{field_id}` tokens that interpolate live form values, e.g. `'URL: https://example.com/{slug}'`. |
 | `default`     | `mixed`        | `null`   | Default value, used when no saved value exists.                                                            |
 | `required`    | `bool`         | `false`  | Whether the field must have a value at save time.                                                          |
-| `validation`  | `string`       | `''`     | Pipe-separated [Rakit validation rules](/wp-wireframe/docs/features/validation/) — e.g. `'min:3\|max:100'`.                  |
+| `validation`  | `string`       | `''`     | Pipe-separated [validation rules](/wp-wireframe/docs/features/validation/) — e.g. `'min:3\|max:100'`.                  |
 | `columns`     | `int (1..12)`  | `12`     | Grid width. 12 = full row; 6 = half; 4 = third; etc.                                                       |
 | `conditions`  | `array`        | `null`   | [Conditional visibility](/wp-wireframe/docs/features/conditional-visibility/) rules evaluated against current values.        |
 | `access`      | `string\|array`| `null`   | [Role / capability gating](/wp-wireframe/docs/features/role-based-access/). Strictly opt-in.                                 |

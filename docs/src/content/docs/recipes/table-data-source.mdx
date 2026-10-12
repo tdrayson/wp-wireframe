@@ -19,7 +19,7 @@ This recipe wires a `$wpdb` query to that hook.
     'type'  => 'table',
     'label' => __('Orders', 'my-plugin'),
     'args'  => [
-        'columns' => [
+        'fields' => [
             ['id' => 'id',       'label' => __('ID',     'my-plugin'), 'type' => 'text', 'sortable' => true],
             ['id' => 'customer', 'label' => __('Customer', 'my-plugin'), 'type' => 'text'],
             ['id' => 'total',    'label' => __('Total',  'my-plugin'), 'type' => 'text', 'sortable' => true],
@@ -52,7 +52,8 @@ No `callback` keys, no PHP references in the config — pure data.
  * @param mixed $unhandled Sentinel.
  * @param array $query     {
  *     @type int    $page     1-indexed.
- *     @type int    $per_page Page size.
+ *     @type int    $per_page Page size; negative means all rows (CSV export).
+ *     @type bool   $is_export True when called for CSV export.
  *     @type string $search   Free-text search.
  *     @type string $orderby  Column id.
  *     @type string $order    'asc' | 'desc'.
@@ -94,20 +95,19 @@ function my_plugin_table_orders(mixed $unhandled, array $query): array|WP_Error
         $wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$whereSql}", $params)
     );
 
-    // ── Page of rows ───────────────────────────────
-    $offset = max(0, ($query['page'] - 1) * $query['per_page']);
+    // ── Page of rows (all rows when exporting) ─────
+    $sql = "SELECT id, customer, total, status, created
+            FROM {$table}
+            WHERE {$whereSql}
+            ORDER BY {$orderby} {$order}";
 
-    $rows = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT id, customer, total, status, created
-             FROM {$table}
-             WHERE {$whereSql}
-             ORDER BY {$orderby} {$order}
-             LIMIT %d OFFSET %d",
-            array_merge($params, [(int) $query['per_page'], $offset])
-        ),
-        ARRAY_A
-    );
+    if ($query['per_page'] >= 0) {
+        $offset = max(0, ($query['page'] - 1) * $query['per_page']);
+        $sql   .= ' LIMIT %d OFFSET %d';
+        $params = array_merge($params, [(int) $query['per_page'], $offset]);
+    }
+
+    $rows = $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
 
     return [
         'items' => $rows ?: [],

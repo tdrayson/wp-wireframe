@@ -1,6 +1,6 @@
 ---
 title: Validation
-description: Server-side validation rules using rakit/validation syntax — automatic per-type plus custom rules.
+description: Server-side validation rules (magewirephp/validation syntax) — automatic per-type plus custom rules.
 sidebar:
   order: 3
 ---
@@ -37,7 +37,7 @@ These run for free, no configuration:
 ],
 ```
 
-Rules use [rakit/validation](https://github.com/rakit/validation) syntax — pipe-separated, with parameters after a colon. All of Rakit's built-in rules are available, including:
+Rules use [magewirephp/validation](https://github.com/magewirephp/validation) syntax (a maintained fork of rakit/validation) — pipe-separated, with parameters after a colon. All of its built-in rules are available, including:
 
 | Rule                    | Notes                                                      |
 | ----------------------- | ---------------------------------------------------------- |
@@ -78,7 +78,7 @@ Validation failures return `400` from the REST save endpoint with an error map:
 The React client maps each `errors[field_id]` entry to the matching field and surfaces an inline error message plus a snackbar summary listing the affected fields by label.
 
 <Aside type="tip">
-Use the promoted `required` key (rather than the Rakit `required` rule) so the framework can render a visual required marker on the label and skip server work when the field is empty.
+Use the promoted `required` key (rather than the `required` validation rule) so the framework can render a visual required marker on the label and skip server work when the field is empty.
 </Aside>
 
 ## Failing validation server-side from a custom handler

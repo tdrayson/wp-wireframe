@@ -48,7 +48,7 @@ That's enough for the server side — the field accepts and sanitises values. Yo
 | `static type(): string`                                    | `string`      | The slug used in config (`'my_custom'`). Required.                       |
 | `static sanitize(mixed $value, array $args): mixed`        | sanitised value | Coerce the value into a safe canonical form. Required.                |
 | `static isStateless(): bool`                               | `bool`        | `true` for display-only fields that don't persist a value.               |
-| `static defaultRules(array $args): string`                 | `string`      | Default [Rakit validation rules](/wp-wireframe/docs/features/validation/) for the field.   |
+| `static defaultRules(array $args): string`                 | `string`      | Default [validation rules](/wp-wireframe/docs/features/validation/) for the field.   |
 | `static validate(mixed $value, array $args): ?string`      | `?string`     | Return an error message, or `null` if valid.                             |
 
 ## Rendering on the client

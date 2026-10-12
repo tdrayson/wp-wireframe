@@ -52,6 +52,8 @@ import { Aside } from '@astrojs/starlight/components';
 ],
 ```
 
+Opening the picker pre-selects the attachments already stored on the field, so you can deselect or add to them without re-picking from scratch.
+
 <Aside type="tip">
 The field stores **attachment IDs** (not URLs). Resolve to a URL with `wp_get_attachment_image_url($id, 'full')` at render time so size changes and CDN URLs work correctly.
 </Aside>

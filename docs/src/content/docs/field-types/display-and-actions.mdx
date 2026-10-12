@@ -1,13 +1,13 @@
 ---
 title: Display & Actions
-description: Stateless field types — html display blocks, JSON export/import, and action buttons.
+description: Stateless field types — html display blocks, JSON export/import, temporary uploads, and action buttons.
 sidebar:
   order: 8
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-These types are **stateless** — they don't persist a value. They render UI and (for export / import / action) wire into server-side flows.
+These types are **stateless** — they don't persist a value. They render UI and (for export / import / upload / action) wire into server-side flows.
 
 ## Types
 
@@ -16,6 +16,7 @@ These types are **stateless** — they don't persist a value. They render UI and
 | `html`   | Read-only display block (info, success, warning, error variants) | —         |
 | `export` | Download settings as JSON                                        | —         |
 | `import` | Upload JSON to restore settings                                  | —         |
+| `upload` | Pick a local file to send with an action request                 | —         |
 | `action` | One or more buttons that dispatch to a server-side hook          | —         |
 
 ## `html`
@@ -67,6 +68,42 @@ Pairs with `export` — file picker + button that uploads a JSON file and replac
     ],
 ],
 ```
+
+## `upload`
+
+Picks a file in the browser and sends it with [action](/wp-wireframe/docs/features/action-field/) requests. The file is never uploaded to the Media Library and never saved — pair it with an `action` field whose handler processes it, e.g. a CSV import.
+
+```php
+['id' => 'csv_file', 'type' => 'upload', 'label' => __('CSV file', 'my-plugin'), 'columns' => 6,
+    'args' => ['accept' => '.csv,text/csv', 'max_size' => MB_IN_BYTES, 'button_label' => __('Choose CSV', 'my-plugin')],
+],
+['id' => 'import_csv', 'type' => 'action', 'label' => __('Import', 'my-plugin'), 'columns' => 6,
+    'args' => ['button_label' => __('Import rows', 'my-plugin'), 'variant' => 'primary'],
+],
+```
+
+| Arg            | Default | Notes                                                              |
+| -------------- | ------- | ------------------------------------------------------------------ |
+| `accept`       | `''`    | `<input>` accept filter, e.g. `'.csv,text/csv'`.                   |
+| `max_size`     | 5 MB    | Maximum size in bytes, checked in the browser and on the server.   |
+| `button_label` | —       | Picker button text.                                                |
+
+The handler receives the file in `$values` as `['name', 'type', 'size', 'content']`, where `content` is a base64 data URL:
+
+```php
+add_filter('my-plugin/action/default/import_csv/run', function ($unhandled, array $values) {
+    $file = $values['csv_file'] ?? null;
+    if (!is_array($file)) {
+        return ['status' => 'error', 'message' => __('Choose a CSV file first.', 'my-plugin')];
+    }
+
+    [, $base64] = explode(',', $file['content'], 2);
+    $csv = base64_decode($base64);
+    // … parse and import
+}, 10, 2);
+```
+
+The server only accepts base64 data URLs and checks `max_size` against the decoded length, not the size the browser reports; anything invalid arrives as `null`.
 
 ## `action`
 

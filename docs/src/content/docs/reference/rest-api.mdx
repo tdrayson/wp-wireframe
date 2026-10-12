@@ -21,17 +21,20 @@ Used by the page's save / reset / load flow.
 
 `pageId` is `default` in single-page mode, or the page's `id` in multi-page mode.
 
+`POST` returns `403 rest_cannot_save` and `DELETE` returns `403 rest_cannot_reset` when [`{prefix}/can_save` / `{prefix}/can_reset`](/wp-wireframe/docs/features/save-and-reset/#turning-save-and-reset-off) resolve to `false`.
+
 See [Save & Reset](/wp-wireframe/docs/features/save-and-reset/) for the merge semantics that distinguish a full overwrite from a per-user scoped save.
 
 ## Table endpoints
 
-The `table` field type registers three routes per table per page:
+The `table` field type registers these routes per table per page:
 
 | Method   | Endpoint                                                              | Purpose                                                              |
 | -------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `GET`    | `/{prefix}/v1/table/{pageId}/{fieldId}`                               | Paginated row fetch. Dispatches via `…/table/{...}/data` filter.     |
 | `POST`   | `/{prefix}/v1/table/{pageId}/{fieldId}/action/{actionId}`             | Run a row / bulk action. Dispatches via per-action filter.            |
 | `GET`    | `/{prefix}/v1/table/{pageId}/{fieldId}/entry/{id}`                    | Load + render a single entry for the detail view.                     |
+| `GET`    | `/{prefix}/v1/table/{pageId}/{fieldId}/export`                        | Full filtered dataset as CSV, returned as `{ download }`. 403 unless `args.export` is set. |
 
 Each dispatch slot is hooks-first with a legacy callback fallback for back-compat — see [Hooks & Filters](/wp-wireframe/docs/reference/hooks-and-filters/#table-dispatch).
 

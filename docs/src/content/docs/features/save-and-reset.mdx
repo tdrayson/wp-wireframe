@@ -35,7 +35,25 @@ Hitting **Reset** in the header opens an inline confirm. Confirming sends `DELET
 
 Either way it then fires `{prefix}/settings_reset` and returns the resolved value set.
 
-The Reset button itself is hidden when the user has no editable fields, or when `wp-wireframe/access/can_reset` returns false.
+## Turning Save and Reset off
+
+`{prefix}/can_save` and `{prefix}/can_reset` decide whether the Save / Reset buttons show. They're enforced server-side too: when either resolves `false`, the matching endpoint returns a 403.
+
+Both default to `false` when none of the user's editable fields stores a value — a page of only stateless fields (`html`, `table`, `action`, `upload`, …) shows no Save or Reset. `can_reset` is also `false` when `wp-wireframe/access/can_reset` denies it.
+
+```php
+// Hide Save on a read-only status page
+add_filter('my-plugin/can_save', function (bool $canSave, string $pageId, $map) {
+    return $pageId === 'status' ? false : $canSave;
+}, 10, 3);
+
+// Only administrators may reset
+add_filter('my-plugin/can_reset', function (bool $canReset, string $pageId, $map) {
+    return $canReset && current_user_can('manage_options');
+}, 10, 3);
+```
+
+Both receive `(bool $value, string $pageId, ConfigAccessMap $map)`.
 
 ## Dirty tracking
 

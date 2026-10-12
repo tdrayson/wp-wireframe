@@ -91,7 +91,7 @@ The `table` field is stateless — it doesn't persist a value. It renders a pagi
     'type'  => 'table',
     'label' => __('Entries', 'my-plugin'),
     'args'  => [
-        'columns' => [
+        'fields' => [
             ['id' => 'name',    'label' => __('Name',    'my-plugin'), 'type' => 'text',     'sortable' => true],
             ['id' => 'email',   'label' => __('Email',   'my-plugin'), 'type' => 'text'],
             ['id' => 'created', 'label' => __('Created', 'my-plugin'), 'type' => 'datetime', 'sortable' => true],
@@ -103,5 +103,19 @@ The `table` field is stateless — it doesn't persist a value. It renders a pagi
     ],
 ],
 ```
+
+Columns go in `args.fields` (not `columns`, which is the layout-grid key).
+
+### CSV export
+
+Set `args.export` to add an **Export CSV** button to the table toolbar:
+
+```php
+'export' => true,
+// or
+'export' => ['filename' => 'orders', 'button_label' => __('Download CSV', 'my-plugin')],
+```
+
+Export re-runs your data handler with the current search, sort and filters, but with `per_page => -1` and `is_export => true`. Your handler must return **every** matching row when `per_page` is negative. The CSV header comes from the column labels; array values are joined with `, `, and cells starting with `=`, `+`, `-`, `@`, tab or CR are prefixed with `'` so spreadsheets don't run them as formulas. The filename defaults to the field id.
 
 Behaviour (row fetch, action dispatch, detail view) wires in via filters — see [Table dispatch](/wp-wireframe/docs/reference/hooks-and-filters/#table-dispatch) for the full list. Legacy callback keys (`args.data_callback`, `args.actions[].callback`, `args.detail_view.fetch_callback`, etc.) remain supported as a fallback.
