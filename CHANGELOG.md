@@ -19,6 +19,7 @@
 - Anchor admin-screen matching on `_page_{menu_slug}` suffix instead of substring (#6, reported by @davidofchatham).
 - `DateField` falls back to a sensible format when WP's date format setting is empty (#3, thanks to @drkskwlkr).
 - Swap abandoned `rakit/validation` for its maintained fork `magewirephp/validation`, silencing PHP 8.4 deprecation notices (#33).
+- `editor` subfields initialise in every repeater row and survive collapse, reorder and removal (#38).
 
 ## [1.0.5] - 2026-04-23
 

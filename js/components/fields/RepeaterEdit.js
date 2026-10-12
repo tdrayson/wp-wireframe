@@ -2,7 +2,7 @@
  * RepeaterEdit — repeatable field group with add/remove/reorder.
  */
 import { Button, BaseControl } from '@wordpress/components';
-import { useState, useCallback } from '@wordpress/element';
+import { useState, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { mapField } from '../../utils/mapConfig';
 import { interpolate } from '../../utils/interpolate';
@@ -25,8 +25,16 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 	const startCollapsed = _args.collapsed || false;
 	const titleTemplate = _args.title_template || '';
 
+	// Rows carry no id, so keep a parallel list of keys; also absorbs external changes to the row count.
+	const nextRowKey = useRef( 0 );
+	const rowKeys = useRef( [] );
+	while ( rowKeys.current.length < rows.length ) {
+		rowKeys.current.push( nextRowKey.current++ );
+	}
+	rowKeys.current.length = rows.length;
+
 	const [ collapsedRows, setCollapsedRows ] = useState(
-		() => startCollapsed ? rows.map( ( _, i ) => i ) : []
+		() => startCollapsed ? [ ...rowKeys.current ] : []
 	);
 
 	const updateRows = useCallback(
@@ -43,14 +51,14 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 	};
 
 	const removeRow = ( index ) => {
-		const newRows = rows.filter( ( _, i ) => i !== index );
-		updateRows( newRows );
-		setCollapsedRows( ( prev ) => prev.filter( ( i ) => i !== index ).map( ( i ) => i > index ? i - 1 : i ) );
+		rowKeys.current.splice( index, 1 );
+		updateRows( rows.filter( ( _, i ) => i !== index ) );
 	};
 
 	const duplicateRow = ( index ) => {
 		const newRows = [ ...rows ];
 		newRows.splice( index + 1, 0, { ...rows[ index ] } );
+		rowKeys.current.splice( index + 1, 0, nextRowKey.current++ );
 		updateRows( newRows );
 	};
 
@@ -61,11 +69,11 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 		updateRows( newRows );
 	};
 
-	const toggleCollapse = ( index ) => {
+	const toggleCollapse = ( rowKey ) => {
 		setCollapsedRows( ( prev ) =>
-			prev.includes( index )
-				? prev.filter( ( i ) => i !== index )
-				: [ ...prev, index ]
+			prev.includes( rowKey )
+				? prev.filter( ( k ) => k !== rowKey )
+				: [ ...prev, rowKey ]
 		);
 	};
 
@@ -74,6 +82,8 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 		const newRows = [ ...rows ];
 		const [ moved ] = newRows.splice( from, 1 );
 		newRows.splice( to, 0, moved );
+		const [ movedKey ] = rowKeys.current.splice( from, 1 );
+		rowKeys.current.splice( to, 0, movedKey );
 		updateRows( newRows );
 	};
 
@@ -97,15 +107,17 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 				) }
 
 				{ rows.map( ( row, index ) => {
-					const isCollapsed = collapsedRows.includes( index );
+					const rowKey = rowKeys.current[ index ];
+					const isCollapsed = collapsedRows.includes( rowKey );
 
 					return (
-						<div key={ index } className={ `wireframe-repeater__row ${ isCollapsed ? 'is-collapsed' : '' }` }>
+						// Index in the key remounts moved rows rather than moving their DOM: a moved TinyMCE iframe reloads blank.
+						<div key={ `${ rowKey }-${ index }` } className={ `wireframe-repeater__row ${ isCollapsed ? 'is-collapsed' : '' }` }>
 							<div className="wireframe-repeater__row-header">
 								{ collapsible && (
 									<button
 										className="wireframe-repeater__toggle"
-										onClick={ () => toggleCollapse( index ) }
+										onClick={ () => toggleCollapse( rowKey ) }
 										aria-label={ isCollapsed ? __( 'Expand', 'wp-wireframe' ) : __( 'Collapse', 'wp-wireframe' ) }
 									>
 										{ isCollapsed ? '\u25B6' : '\u25BC' }

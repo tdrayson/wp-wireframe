@@ -741,6 +741,23 @@ return [
                                 ],
                             ],
                         ],
+                        [
+                            'id'    => 'ref_repeater_faqs',
+                            'type'  => 'repeater',
+                            'label' => __('FAQs (rich text per row)', 'field-reference'),
+                            'args'  => [
+                                'sortable'       => true,
+                                'collapsible'    => true,
+                                'duplicate_row'  => true,
+                                'add_label'      => __('Add FAQ', 'field-reference'),
+                                'empty_message'  => __('No FAQs added yet.', 'field-reference'),
+                                'title_template' => '{question}',
+                                'subfields'      => [
+                                    ['id' => 'question', 'type' => 'text',   'label' => __('Question', 'field-reference')],
+                                    ['id' => 'answer',   'type' => 'editor', 'label' => __('Answer', 'field-reference'), 'args' => ['rows' => 5, 'media_buttons' => false]],
+                                ],
+                            ],
+                        ],
                     ],
                 ],
                 [

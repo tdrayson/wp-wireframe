@@ -28,12 +28,14 @@
  * either drops that chrome. (wp-admin/js/editor.js initialize().)
  */
 import { BaseControl } from '@wordpress/components';
-import { useEffect, useRef } from '@wordpress/element';
+import { useEffect, useId, useRef } from '@wordpress/element';
 
 export default function WysiwygEdit( { data, field, onChange } ) {
 	const { _args = {} } = field;
 	const value = data[ field.id ] ?? field.defaultValue ?? '';
-	const editorId = `wireframe-editor-${ field.id }`;
+	// Unique per mount: wp.editor binds by DOM id, and repeater rows share field.id.
+	const instanceId = useId().replace( /[^\w-]/g, '' );
+	const editorId = `wireframe-editor-${ field.id }-${ instanceId }`;
 	const textareaRef = useRef( null );
 	const initializedRef = useRef( false );
 	const onChangeRef = useRef( onChange );
