@@ -59,6 +59,7 @@ jobs:
             --exclude='build' \
             --exclude='docs' \
             --exclude='examples' \
+            --exclude='tests' \
             --exclude='js' \
             --exclude='node_modules' \
             --exclude='package.json' \
