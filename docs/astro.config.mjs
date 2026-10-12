@@ -60,6 +60,11 @@ export default defineConfig({
 					items: [{ autogenerate: { directory: 'recipes' } }],
 				},
 				{
+					label: 'Try it in Playground',
+					link: 'https://playground.wordpress.net/?blueprint-url=https://tdrayson.github.io/wp-wireframe/latest/blueprint.json',
+					attrs: { target: '_blank', rel: 'noopener' },
+				},
+				{
 					label: 'Contributing',
 					link: '/contributing/',
 				},
