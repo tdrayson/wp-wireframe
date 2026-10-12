@@ -1,7 +1,9 @@
 # Build every example plugin in `examples/` into a zip. A second workflow,
 # playground-publish.yml, publishes the zips to the `gh-pages` branch under
-# `<commit-sha>/examples/` and posts a WordPress Playground link that boots a
-# site with all of them (plus the Options View plugin) installed.
+# `pr/<number>/` (overwritten on each push) or `<tag>/` for releases, and posts
+# a WordPress Playground link that boots a site with all of them (plus the
+# Options View plugin) installed. The newest release is also linked from
+# `latest/blueprint.json`.
 #
 # This workflow runs the pull request's code, so it only ever gets a read-only
 # token and hands the zips over as an artifact. playground-publish.yml runs on
@@ -47,8 +49,6 @@
 # Notes:
 #  - `workflow_run` workflows only run from the default branch, so changes to
 #    playground-publish.yml take effect once merged.
-#  - Each run adds a `<sha>/` directory to gh-pages and never removes old
-#    ones. Prune the branch manually if it grows too large.
 #  - release.yml calls this workflow for every tag. To publish (or re-publish)
 #    the preview for an existing release:
 #
@@ -75,7 +75,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: playground-${{ inputs.tag || github.event.pull_request.head.sha || github.sha }}
+  group: playground-${{ inputs.tag || github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:

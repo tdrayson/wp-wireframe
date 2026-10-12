@@ -3,7 +3,7 @@ name: Deploy docs
 # Build the Starlight site in `docs/` and publish it to `docs/` on the
 # `gh-pages` branch, served at https://tdrayson.github.io/wp-wireframe/docs/.
 # Pages is configured to serve `gh-pages` (legacy source), which the Playground
-# workflows share for their `<sha>/examples/` previews.
+# workflows share for their `pr/<number>/`, `<tag>/` and `latest/` previews.
 on:
   push:
     branches: [main]

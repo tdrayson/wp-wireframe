@@ -41,6 +41,7 @@ jobs:
 
     env:
       SHA: ${{ inputs.sha || github.event.workflow_run.head_sha }}
+      TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}
 
     outputs:
@@ -122,23 +123,33 @@ jobs:
           fi
           echo "names=${names[*]}" >> "$GITHUB_OUTPUT"
 
-          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
-            pr="$(jq -r '.pr' "$meta")"
-            if [[ ! "$pr" =~ ^[0-9]+$ ]]; then
-              echo "::error::Artifact metadata contains an invalid PR number"
+          if [ -n "$TAG" ]; then
+            if [[ ! "$TAG" =~ ^v[0-9A-Za-z._-]+$ ]]; then
+              echo "::error::Tag is not a release tag"
               exit 1
             fi
-            # Stops a run from pointing its comment at someone else's PR.
-            head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/$pr" --jq .head.sha)"
-            if [ "$head" != "$SHA" ]; then
-              echo "::error::PR #$pr is at $head, not $SHA"
-              exit 1
-            fi
-            echo "pr=$pr" >> "$GITHUB_OUTPUT"
+            echo "dest=$TAG" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          pr="$(jq -r '.pr' "$meta")"
+          if [[ ! "$pr" =~ ^[0-9]+$ ]]; then
+            echo "::error::Artifact metadata contains an invalid PR number"
+            exit 1
+          fi
+          # Stops a run from pointing its comment at someone else's PR.
+          head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/$pr" --jq .head.sha)"
+          if [ "$head" != "$SHA" ]; then
+            echo "::error::PR #$pr is at $head, not $SHA"
+            exit 1
+          fi
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "dest=pr/$pr" >> "$GITHUB_OUTPUT"
 
       - name: Resolve GitHub Pages URL
         id: pages
+        env:
+          DEST: ${{ steps.meta.outputs.dest }}
         run: |
           # Prefer the URL GitHub reports (handles custom domains); fall back
           # to the conventional one if Pages hasn't been enabled yet.
@@ -149,12 +160,13 @@ jobs:
             url="https://${owner}.github.io/${repo}/"
             echo "::warning::Could not read Pages settings; assuming $url"
           fi
-          url="${url%/}/${SHA}/examples"
+          url="${url%/}/${DEST}"
           echo "base=$url" >> "$GITHUB_OUTPUT"
 
       # The blueprint is published next to the zips and referenced by URL.
       # GitHub Pages sends `Access-Control-Allow-Origin: *`, which Playground
-      # needs to fetch both the blueprint and the plugin zips.
+      # needs to fetch both the blueprint and the plugin zips. `?v=<sha>` stops
+      # the Pages CDN serving the previous push's files from a reused folder.
       - name: Write Playground blueprint
         id: blueprint
         env:
@@ -164,7 +176,7 @@ jobs:
           set -euo pipefail
           steps='[]'
           for name in $NAMES; do
-            steps="$(jq -c --arg url "$BASE/$name.zip" \
+            steps="$(jq -c --arg url "$BASE/$name.zip?v=$SHA" \
               '. + [{step:"installPlugin", pluginData:{resource:"url", url:$url}, options:{activate:true}}]' <<<"$steps")"
           done
           steps="$(jq -c \
@@ -181,27 +193,26 @@ jobs:
 
           cat site/blueprint.json
 
-          link="https://playground.wordpress.net/?blueprint-url=${BASE}/blueprint.json"
+          link="https://playground.wordpress.net/?blueprint-url=${BASE}/blueprint.json?v=${SHA}"
           echo "link=$link" >> "$GITHUB_OUTPUT"
 
+      # keep_files: false only clears this preview's folder, so removed examples don't linger.
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: site
-          destination_dir: ${{ env.SHA }}/examples
-          keep_files: true
+          destination_dir: ${{ steps.meta.outputs.dest }}
+          keep_files: false
           user_name: github-actions[bot]
           user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          commit_message: 'Publish example plugins for ${{ env.SHA }}'
+          commit_message: 'Publish example plugins to ${{ steps.meta.outputs.dest }} for ${{ env.SHA }}'
 
       # Republishing an older tag must not move `latest/` backwards.
       - name: Check for latest release
         id: latest
         if: inputs.tag
-        env:
-          TAG: ${{ inputs.tag }}
         run: |
           latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
           if [ "$latest" != "$TAG" ]; then
@@ -236,13 +247,13 @@ jobs:
       GH_REPO: ${{ github.repository }}
 
     steps:
-      # The query string keeps our own early 404s out of the Pages CDN cache
-      # for the URL we are about to share.
+      # The folder may still hold the previous push's blueprint, so wait for one
+      # that references this commit. `ready=` keeps the polls out of the CDN cache.
       - name: Wait for GitHub Pages
         id: live
         run: |
           for _ in $(seq 30); do
-            if curl -sfo /dev/null "$BASE/blueprint.json?ready=$(date +%s)"; then
+            if curl -sf "$BASE/blueprint.json?ready=$(date +%s)" | grep -q "$SHA"; then
               echo "live=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
