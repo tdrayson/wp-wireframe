@@ -27,18 +27,24 @@ final class ConfigLoader
     /** @var array<string, array> Configs registered as inline arrays at boot time. */
     private static array $inlineConfigs = [];
 
+    /** @var array<string, array{prefix: string, page_id: string}> Owning plugin prefix + page ID per slug. */
+    private static array $owners = [];
+
     /**
      * Register a config array under a slug.
      *
      * Called from App::boot() once per page, after resolving the `config`
-     * option (either an inline array or a path to a config file).
+     * option (an inline array, a Page builder, or a path to a config file).
      *
      * @param string $slug   Config slug.
      * @param array  $config Raw config array (same shape as a config file return).
+     * @param string $prefix Owning plugin prefix; enables the `{prefix}/config` filter.
+     * @param string $pageId Page ID passed to that filter.
      */
-    public static function register(string $slug, array $config): void
+    public static function register(string $slug, array $config, string $prefix = '', string $pageId = 'default'): void
     {
         self::$inlineConfigs[$slug] = $config;
+        self::$owners[$slug] = ['prefix' => $prefix, 'page_id' => $pageId];
         unset(self::$configs[$slug], self::$flatFieldsCache[$slug]);
     }
 

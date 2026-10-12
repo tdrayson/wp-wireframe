@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Wireframe;
 
+use Wireframe\Builder\Page;
 use Wireframe\Framework\ConfigLoader;
 
 /**
@@ -34,6 +35,8 @@ use Wireframe\Framework\ConfigLoader;
  *           ['page_title' => 'Advanced', 'config' => ['fields' => [...]]],
  *       ],
  *   ]);
+ *
+ * Anywhere a config array is accepted, a `Wireframe\Builder\Page` works too.
  */
 final class App
 {
@@ -99,8 +102,8 @@ final class App
                 $rawConfig = $pageConfig['config'] ?? [];
                 $fallbackSlug = $pageConfig['id']
                     ?? (is_string($rawConfig) && $rawConfig !== '' ? basename($rawConfig, '.php') : "page-{$index}");
-                $configSlug = self::resolveConfigSlug($rawConfig, $prefix . '-' . $fallbackSlug);
                 $pageId     = $pageConfig['id'] ?? $fallbackSlug;
+                $configSlug = self::resolveConfigSlug($rawConfig, $prefix . '-' . $fallbackSlug, $prefix, $pageId);
                 $internalId = self::internalId($prefix, $pageId);
 
                 $optionKey = $pageConfig['option_key'] ?? $perBoot['option_key'] . '_' . str_replace('-', '_', $pageId);
@@ -122,8 +125,8 @@ final class App
             }
         } else {
             $rawConfig  = $config['config'] ?? [];
-            $configSlug = self::resolveConfigSlug($rawConfig, $prefix);
             $pageId     = 'default';
+            $configSlug = self::resolveConfigSlug($rawConfig, $prefix, $prefix, $pageId);
             $internalId = self::internalId($prefix, $pageId);
 
             self::$pages[$internalId] = $perBoot + [
@@ -164,23 +167,27 @@ final class App
 
     /**
      * Resolve a page's `config` option to a slug, registering the config
-     * array with the ConfigLoader. Accepts an inline array or a file path.
+     * array with the ConfigLoader. Accepts an inline array, a Page builder,
+     * or a path to a file returning either.
      */
-    private static function resolveConfigSlug(array|string $rawConfig, string $fallbackSlug): string
-    {
+    private static function resolveConfigSlug(
+        array|string|Page $rawConfig,
+        string $fallbackSlug,
+        string $prefix,
+        string $pageId
+    ): string {
         $slug = preg_replace('/[^a-z0-9_-]/i', '-', $fallbackSlug) ?: 'settings';
 
-        if (is_array($rawConfig)) {
-            ConfigLoader::register($slug, $rawConfig);
-            return $slug;
+        if (is_string($rawConfig)) {
+            $rawConfig = is_file($rawConfig) ? require $rawConfig : null;
         }
 
-        if (is_file($rawConfig)) {
-            $loaded = require $rawConfig;
+        if ($rawConfig instanceof Page) {
+            $rawConfig = $rawConfig->toArray();
+        }
 
-            if (is_array($loaded)) {
-                ConfigLoader::register($slug, $loaded);
-            }
+        if (is_array($rawConfig)) {
+            ConfigLoader::register($slug, $rawConfig, $prefix, $pageId);
         }
 
         return $slug;
