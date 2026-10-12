@@ -27,8 +27,18 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Check bootstrap version matches tag
+        run: |
+          version="$(sed -nE "s/^Versions::register\('([^']+)'.*/\1/p" bootstrap.php)"
+          if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "::error file=bootstrap.php::Version is '$version' but the tag is $GITHUB_REF_NAME. Bump it in bootstrap.php."
+            exit 1
+          fi
+
+      # No Composer autoloader in the zip: its class name is fixed per build, so two
+      # plugins bundling the same zip would fatal (#35). bootstrap.php autoloads instead.
       - name: Install PHP dependencies
-        run: composer install --no-dev --optimize-autoloader --no-interaction
+        run: composer install --no-dev --no-autoloader --no-interaction
 
       - name: Install JS dependencies
         run: npm ci
@@ -49,11 +59,28 @@ jobs:
             --exclude='build' \
             --exclude='docs' \
             --exclude='examples' \
+            --exclude='tests' \
             --exclude='js' \
             --exclude='node_modules' \
             --exclude='package.json' \
             --exclude='package-lock.json' \
             ./ build/wp-wireframe/
+
+          # Manual installs require vendor/autoload.php, so keep that path as a shim.
+          rm -rf build/wp-wireframe/vendor/composer build/wp-wireframe/vendor/autoload.php
+          cat > build/wp-wireframe/vendor/autoload.php <<'PHP'
+          <?php
+
+          require_once dirname(__DIR__) . '/bootstrap.php';
+          PHP
+
+          if grep -rl 'ComposerAutoloaderInit' build/wp-wireframe; then
+            echo "::error::The zip must not declare a Composer autoloader class."
+            exit 1
+          fi
+
+      - name: Check autoload map
+        run: php .github/scripts/check-autoload-map.php build/wp-wireframe
 
       - name: Create zip
         run: |

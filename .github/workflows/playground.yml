@@ -141,7 +141,7 @@ jobs:
               ./ "$work/"
 
             jq --arg t "examples/$name/vendor" --arg p "$prefix\\" \
-              '.extra.strauss = { target_directory: $t, namespace_prefix: $p, update_call_sites: true }' \
+              '.extra.strauss = { target_directory: $t, namespace_prefix: $p, update_call_sites: ["src"] }' \
               "$work/composer.json" > "$work/composer.json.tmp"
             mv "$work/composer.json.tmp" "$work/composer.json"
 

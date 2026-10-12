@@ -21,6 +21,7 @@
 - `DateField` falls back to a sensible format when WP's date format setting is empty (#3, thanks to @drkskwlkr).
 - Swap abandoned `rakit/validation` for its maintained fork `magewirephp/validation`, silencing PHP 8.4 deprecation notices (#33).
 - `editor` subfields initialise in every repeater row and survive collapse, reorder and removal (#38).
+- Plugins bundling the release zip no longer fatal on a shared Composer autoloader class; every copy registers and the newest one's classes load (#35, reported by @christianvanthof).
 
 ## [1.0.5] - 2026-04-23
 
