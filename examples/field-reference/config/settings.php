@@ -743,6 +743,72 @@ return [
                         ],
                     ],
                 ],
+                [
+                    'id'          => 'repeater_conditional',
+                    'title'       => __('Repeater with conditional subfields', 'field-reference'),
+                    'description' => __('Subfields can use the same `conditions` DSL as top-level fields. Rules evaluate against the row, not page settings.', 'field-reference'),
+                    'fields'      => [
+                        [
+                            'id'    => 'ref_schedule',
+                            'type'  => 'repeater',
+                            'label' => __('Schedules', 'field-reference'),
+                            'args'  => [
+                                'sortable'       => true,
+                                'collapsible'    => true,
+                                'add_label'      => __('Add schedule', 'field-reference'),
+                                'empty_message'  => __('No schedules configured.', 'field-reference'),
+                                'title_template' => '{kind}',
+                                'subfields'      => [
+                                    [
+                                        'id'      => 'kind',
+                                        'type'    => 'select',
+                                        'label'   => __('Type', 'field-reference'),
+                                        'default' => 'once',
+                                        'columns' => 4,
+                                        'args'    => [
+                                            'options' => [
+                                                'once'      => __('One-off', 'field-reference'),
+                                                'recurring' => __('Recurring', 'field-reference'),
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        'id'         => 'run_at',
+                                        'type'       => 'date',
+                                        'label'      => __('Run at', 'field-reference'),
+                                        'required'   => true,
+                                        'columns'    => 8,
+                                        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'once']]],
+                                    ],
+                                    [
+                                        'id'         => 'frequency',
+                                        'type'       => 'select',
+                                        'label'      => __('Frequency', 'field-reference'),
+                                        'default'    => 'daily',
+                                        'columns'    => 4,
+                                        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'recurring']]],
+                                        'args'       => [
+                                            'options' => [
+                                                'daily'   => __('Daily', 'field-reference'),
+                                                'weekly'  => __('Weekly', 'field-reference'),
+                                                'monthly' => __('Monthly', 'field-reference'),
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        'id'         => 'interval',
+                                        'type'       => 'number',
+                                        'label'      => __('Every', 'field-reference'),
+                                        'default'    => 1,
+                                        'columns'    => 4,
+                                        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'recurring']]],
+                                        'args'       => ['min' => 1, 'max' => 99],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
             ],
         ],
 

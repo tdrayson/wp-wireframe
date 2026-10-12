@@ -1,0 +1,265 @@
+# Publish the example zips built by playground.yml to gh-pages and link them
+# from the pull request, or from the release notes when called by its release
+# job. Runs with a write token, so the artifact is treated as untrusted data
+# and nothing from the pull request is checked out or executed.
+#
+# See the top of playground.yml for the one-time setup.
+
+name: Playground publish
+
+on:
+  workflow_run:
+    workflows: [Playground]
+    types: [completed]
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'release' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+
+    # Concurrent pushes to gh-pages get rejected; queue them all rather than
+    # letting a newer pending run cancel an older one.
+    concurrency:
+      group: gh-pages-publish
+      cancel-in-progress: false
+      queue: max
+
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      GH_TOKEN: ${{ github.token }}
+
+    outputs:
+      names: ${{ steps.meta.outputs.names }}
+      pr: ${{ steps.meta.outputs.pr }}
+      base: ${{ steps.pages.outputs.base }}
+      link: ${{ steps.blueprint.outputs.link }}
+
+    steps:
+      - name: Check gh-pages exists
+        run: |
+          if ! gh api "repos/${GITHUB_REPOSITORY}/branches/gh-pages" --silent 2>/dev/null; then
+            cat <<'MSG'
+          ::error::The `gh-pages` branch does not exist. One-time setup (run from a clone):
+
+            # 1. Create and push an empty orphan branch
+            git switch --orphan gh-pages
+            git commit --allow-empty -m "Initialise gh-pages"
+            git push origin gh-pages
+            git switch -
+
+            # 2. Enable GitHub Pages from the root of gh-pages
+            gh api --method POST repos/{owner}/{repo}/pages \
+              -f build_type=legacy -f 'source[branch]=gh-pages' -f 'source[path]=/'
+
+            # 3. Let workflows push to the repository
+            gh api --method PUT repos/{owner}/{repo}/actions/permissions/workflow \
+              -f default_workflow_permissions=write -F can_approve_pull_request_reviews=false
+
+          See the comment at the top of .github/workflows/playground.yml.
+          MSG
+            exit 1
+          fi
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: example-plugins-${{ env.SHA }}
+          path: ${{ runner.temp }}/artifact
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      # Never echo values from the artifact: they could inject workflow commands.
+      - name: Validate artifact
+        id: meta
+        env:
+          ARTIFACT: ${{ runner.temp }}/artifact
+        run: |
+          set -euo pipefail
+          meta="$ARTIFACT/playground.json"
+          if [ ! -f "$meta" ] || [ -L "$meta" ]; then
+            echo "::error::Artifact has no playground.json"
+            exit 1
+          fi
+          if [ "$(jq -r '.sha' "$meta")" != "$SHA" ]; then
+            echo "::error::Artifact metadata does not match $SHA"
+            exit 1
+          fi
+
+          mkdir -p site
+          names=()
+          while IFS= read -r name; do
+            if [[ ! "$name" =~ ^[a-z0-9-]+$ ]]; then
+              echo "::error::Artifact metadata contains an invalid example name"
+              exit 1
+            fi
+            zip="$ARTIFACT/$name.zip"
+            if [ ! -f "$zip" ] || [ -L "$zip" ] || ! unzip -tq "$zip" >/dev/null; then
+              echo "::error::$name.zip is missing or not a valid zip"
+              exit 1
+            fi
+            cp "$zip" "site/$name.zip"
+            names+=("$name")
+          done < <(jq -r '.names[]' "$meta")
+
+          if [ "${#names[@]}" -eq 0 ]; then
+            echo "::error::Artifact metadata lists no examples"
+            exit 1
+          fi
+          echo "names=${names[*]}" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
+            pr="$(jq -r '.pr' "$meta")"
+            if [[ ! "$pr" =~ ^[0-9]+$ ]]; then
+              echo "::error::Artifact metadata contains an invalid PR number"
+              exit 1
+            fi
+            # Stops a run from pointing its comment at someone else's PR.
+            head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/$pr" --jq .head.sha)"
+            if [ "$head" != "$SHA" ]; then
+              echo "::error::PR #$pr is at $head, not $SHA"
+              exit 1
+            fi
+            echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve GitHub Pages URL
+        id: pages
+        run: |
+          # Prefer the URL GitHub reports (handles custom domains); fall back
+          # to the conventional one if Pages hasn't been enabled yet.
+          url="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.html_url' 2>/dev/null || true)"
+          if [ -z "$url" ]; then
+            owner="${GITHUB_REPOSITORY_OWNER,,}"
+            repo="${GITHUB_REPOSITORY#*/}"
+            url="https://${owner}.github.io/${repo}/"
+            echo "::warning::Could not read Pages settings; assuming $url"
+          fi
+          url="${url%/}/${SHA}/examples"
+          echo "base=$url" >> "$GITHUB_OUTPUT"
+
+      # The blueprint is published next to the zips and referenced by URL.
+      # GitHub Pages sends `Access-Control-Allow-Origin: *`, which Playground
+      # needs to fetch both the blueprint and the plugin zips.
+      - name: Write Playground blueprint
+        id: blueprint
+        env:
+          BASE: ${{ steps.pages.outputs.base }}
+          NAMES: ${{ steps.meta.outputs.names }}
+        run: |
+          set -euo pipefail
+          steps='[]'
+          for name in $NAMES; do
+            steps="$(jq -c --arg url "$BASE/$name.zip" \
+              '. + [{step:"installPlugin", pluginData:{resource:"url", url:$url}, options:{activate:true}}]' <<<"$steps")"
+          done
+          steps="$(jq -c \
+            '. + [{step:"installPlugin", pluginData:{resource:"wordpress.org/plugins", slug:"options-view"}, options:{activate:true}}]' <<<"$steps")"
+
+          jq -n --argjson steps "$steps" '{
+            "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+            landingPage: "/wp-admin/plugins.php",
+            login: true,
+            preferredVersions: { php: "8.2", wp: "latest" },
+            features: { networking: true },
+            steps: $steps
+          }' > site/blueprint.json
+
+          cat site/blueprint.json
+
+          link="https://playground.wordpress.net/?blueprint-url=${BASE}/blueprint.json"
+          echo "link=$link" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: site
+          destination_dir: ${{ env.SHA }}/examples
+          keep_files: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_message: 'Publish example plugins for ${{ env.SHA }}'
+
+  announce:
+    needs: publish
+    runs-on: ubuntu-latest
+
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      BASE: ${{ needs.publish.outputs.base }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      # The query string keeps our own early 404s out of the Pages CDN cache
+      # for the URL we are about to share.
+      - name: Wait for GitHub Pages
+        id: live
+        run: |
+          for _ in $(seq 30); do
+            if curl -sfo /dev/null "$BASE/blueprint.json?ready=$(date +%s)"; then
+              echo "live=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::$BASE/blueprint.json was not reachable after 5 minutes"
+
+      - name: Compose summary
+        env:
+          LINK: ${{ needs.publish.outputs.link }}
+          NAMES: ${{ needs.publish.outputs.names }}
+          LIVE: ${{ steps.live.outputs.live }}
+        run: |
+          {
+            echo "## WordPress Playground"
+            echo
+            echo "[Open all example plugins in Playground]($LINK)"
+            echo
+            if [ "$LIVE" != true ]; then
+              echo "> GitHub Pages is still deploying, so the preview may take a few minutes to load."
+              echo
+            fi
+            echo "Built from \`${SHA}\`. Plugins installed:"
+            echo
+            for name in $NAMES; do
+              echo "- [\`$name.zip\`]($BASE/$name.zip)"
+            done
+            echo "- [options-view](https://wordpress.org/plugins/options-view/) from wordpress.org"
+            echo
+            echo "Blueprint: $BASE/blueprint.json"
+          } > summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on pull request
+        if: github.event_name == 'workflow_run'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: playground
+          number: ${{ needs.publish.outputs.pr }}
+          path: summary.md
+
+      - name: Update release notes
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          block="$(printf '<!-- playground -->\n%s\n<!-- /playground -->' "$(cat summary.md)")"
+          current="$(gh release view "$TAG" --json body --jq .body)"
+          if [[ "$current" == *'<!-- playground -->'*'<!-- /playground -->'* ]]; then
+            BLOCK="$block" perl -0pe 's/<!-- playground -->.*?<!-- \/playground -->/$ENV{BLOCK}/s' \
+              <<<"$current" > body.md
+          else
+            printf '%s\n\n%s\n' "$current" "$block" > body.md
+          fi
+          gh release edit "$TAG" --notes-file body.md

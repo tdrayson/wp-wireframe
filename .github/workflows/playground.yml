@@ -1,0 +1,212 @@
+# Build every example plugin in `examples/` into a zip. A second workflow,
+# playground-publish.yml, publishes the zips to the `gh-pages` branch under
+# `<commit-sha>/examples/` and posts a WordPress Playground link that boots a
+# site with all of them (plus the Options View plugin) installed.
+#
+# This workflow runs the pull request's code, so it only ever gets a read-only
+# token and hands the zips over as an artifact. playground-publish.yml runs on
+# `workflow_run` from the default branch with a write token and never executes
+# anything from the pull request. This is what lets pull requests from forks
+# get a link without `pull_request_target`.
+#
+# ───────────────────────────── One-time setup ─────────────────────────────
+#
+# The publish workflow pushes to a `gh-pages` branch and relies on GitHub
+# Pages serving it. Run these once from a clone of the repository (the `gh`
+# commands act on the repo of the current directory):
+#
+# 1. Create an empty, orphan `gh-pages` branch and push it:
+#
+#        git switch --orphan gh-pages
+#        git commit --allow-empty -m "Initialise gh-pages"
+#        git push origin gh-pages
+#        git switch -
+#
+# 2. Enable Pages, served from the root of `gh-pages`:
+#
+#     *  Settings → Pages → Source "Deploy from a branch" → `gh-pages`, `/ (root)`.
+#     *  https://github.com/{owner}/{repo}/settings/pages
+# Or: *  gh api --method POST repos/{owner}/{repo}/pages \
+#          -f build_type=legacy -f 'source[branch]=gh-pages' -f 'source[path]=/'
+#
+# 3. Allow workflows to push (the publish workflow asks for
+#    `contents: write`, but that is only honoured if the repo allows it):
+#
+#     *  Settings → Actions → General → Workflow permissions → "Read and write".
+#     *  https://github.com/{owner}/{repo}/settings/actions
+# Or: *  gh api --method PUT repos/{owner}/{repo}/actions/permissions/workflow \
+#          -f default_workflow_permissions=write -F can_approve_pull_request_reviews=false
+#
+# 4. Confirm the site URL the workflow will use:
+#
+#        gh api repos/{owner}/{repo}/pages --jq .html_url
+#
+# The "Check gh-pages exists" step in playground-publish.yml fails with these
+# instructions if step 1 has not been done.
+#
+# Notes:
+#  - `workflow_run` workflows only run from the default branch, so changes to
+#    playground-publish.yml take effect once merged.
+#  - Each run adds a `<sha>/` directory to gh-pages and never removes old
+#    ones. Prune the branch manually if it grows too large.
+
+name: Playground
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playground-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Download Strauss
+        run: |
+          curl -sSL -o build/strauss.phar --create-dirs \
+            https://github.com/BrianHenryIE/strauss/releases/download/0.31.1/strauss.phar
+          php build/strauss.phar --version
+
+      # For each example:
+      #  1. Work on a fresh copy of the checkout, because Strauss's
+      #     `update_call_sites` rewrites src/ in place.
+      #  2. Point Strauss at the example's vendor/ with a namespace prefix
+      #     derived from the directory name (field-reference → FieldReference),
+      #     so each example gets its own prefixed copy of the dependencies.
+      #  3. Copy the (call-site-updated) framework src/ into the example as
+      #     vendor/wp-wireframe/src and dump a Composer autoloader for it, with
+      #     a per-example suffix so several examples can be active at once.
+      #     Its vendor/autoload.php is replaced by a wrapper that chains the
+      #     Strauss autoloader first, so the example's existing
+      #     `require vendor/wp-wireframe/vendor/autoload.php` works unchanged.
+      - name: Build example zips
+        id: zips
+        run: |
+          set -euo pipefail
+          mkdir -p build/work dist/examples
+          names=()
+
+          for dir in examples/*/; do
+            name="$(basename "$dir")"
+            prefix="$(perl -pe 's/(^|-)(\w)/\u$2/g' <<<"$name")"
+            work="build/work/$name"
+            echo "::group::Building $name (namespace prefix $prefix\\)"
+
+            mkdir -p "$work"
+            rsync -a \
+              --exclude='.git' \
+              --exclude='node_modules' \
+              --exclude='build' \
+              --exclude='dist' \
+              --exclude='.DS_Store' \
+              ./ "$work/"
+
+            jq --arg t "examples/$name/vendor" --arg p "$prefix\\" \
+              '.extra.strauss = { target_directory: $t, namespace_prefix: $p, update_call_sites: true }' \
+              "$work/composer.json" > "$work/composer.json.tmp"
+            mv "$work/composer.json.tmp" "$work/composer.json"
+
+            (cd "$work" && php "$GITHUB_WORKSPACE/build/strauss.phar" dependencies)
+
+            pkg="$work/examples/$name/vendor/wp-wireframe"
+            mkdir -p "$pkg"
+            cp -R "$work/src" "$pkg/src"
+            jq -n --arg s "$prefix" '{
+              autoload: { "psr-4": { "Wireframe\\": "src/" } },
+              config:   { "autoloader-suffix": $s }
+            }' > "$pkg/composer.json"
+            composer dump-autoload --working-dir "$pkg" --optimize --no-interaction
+
+            # Composer's `files` autoload would be the natural way to chain the
+            # Strauss autoloader in, but it keys entries by the hash of the
+            # relative path, which is identical in every example, so only the
+            # first active plugin's copy would ever load. Chain it explicitly.
+            cat > "$pkg/vendor/autoload.php" <<PHP
+          <?php
+          // Generated by .github/workflows/playground.yml.
+          // 1. Strauss-prefixed dependencies for this example (../../autoload.php).
+          // 2. Composer autoloader for the Wireframe\\ namespace (src/).
+          require_once dirname(__DIR__, 2) . '/autoload.php';
+          require_once __DIR__ . '/composer/autoload_real.php';
+          return ComposerAutoloaderInit${prefix}::getLoader();
+          PHP
+
+            (cd "$work/examples" && zip -qr "$GITHUB_WORKSPACE/dist/examples/$name.zip" "$name")
+            unzip -l "dist/examples/$name.zip" | tail -1
+            names+=("$name")
+            echo "::endgroup::"
+          done
+
+          if [ "${#names[@]}" -eq 0 ]; then
+            echo "::error::No directories found under examples/"
+            exit 1
+          fi
+
+          echo "names=${names[*]}" >> "$GITHUB_OUTPUT"
+
+      - name: Write metadata
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          NAMES: ${{ steps.zips.outputs.names }}
+        run: |
+          jq -n --arg pr "$PR" --arg sha "$SHA" --arg names "$NAMES" \
+            '{pr: $pr, sha: $sha, names: ($names | split(" "))}' \
+            > dist/examples/playground.json
+          cat dist/examples/playground.json
+
+      - name: Upload zips as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: example-plugins-${{ env.SHA }}
+          path: dist/examples
+          if-no-files-found: error
+
+  # A release event already has a write token and runs trusted code, so it
+  # publishes from this run instead of waiting for `workflow_run`.
+  release:
+    needs: build
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    uses: ./.github/workflows/playground-publish.yml

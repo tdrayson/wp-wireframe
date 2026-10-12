@@ -78,7 +78,7 @@ final class AdminPage
                 $capability,
                 $page['menu_slug'],
                 $callback,
-                $page['menu_icon'],
+                MenuIcon::normalize((string) $page['menu_icon']),
                 $page['menu_position']
             );
         }

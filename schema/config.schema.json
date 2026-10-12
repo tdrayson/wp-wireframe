@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/tdrayson/wp-wireframe/main/schema/config.schema.json",
+  "title": "WP Wireframe page config",
+  "description": "Schema for a WP Wireframe page config — the array returned from a config file or passed inline to App::boot(). Accepts any of the three input formats normalized by ConfigLoader::normalize(): fields-only, sections-only, or full tabs.",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Optional page title rendered above the form."
+    },
+    "subtitle": {
+      "type": "string",
+      "description": "Optional page subtitle rendered under the title."
+    },
+    "tabs": {
+      "type": "array",
+      "description": "Full-tabs format: top-level tabs, each containing sections of fields.",
+      "items": { "$ref": "#/$defs/tab" }
+    },
+    "sections": {
+      "type": "array",
+      "description": "Sections-only format: sections wrapped in a single default tab.",
+      "items": { "$ref": "#/$defs/section" }
+    },
+    "fields": {
+      "type": "array",
+      "description": "Fields-only format: fields wrapped in a single default section and tab.",
+      "items": { "$ref": "#/$defs/field" }
+    }
+  },
+  "oneOf": [
+    {
+      "required": ["tabs"],
+      "not": { "anyOf": [{ "required": ["sections"] }, { "required": ["fields"] }] }
+    },
+    {
+      "required": ["sections"],
+      "not": { "anyOf": [{ "required": ["tabs"] }, { "required": ["fields"] }] }
+    },
+    {
+      "required": ["fields"],
+      "not": { "anyOf": [{ "required": ["tabs"] }, { "required": ["sections"] }] }
+    }
+  ],
+  "$defs": {
+    "tab": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique tab identifier." },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "access": { "$ref": "#/$defs/access" },
+        "sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/section" }
+        }
+      }
+    },
+    "section": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique section identifier." },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "access": { "$ref": "#/$defs/access" },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["id", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique field identifier; the key used to store and read its value." },
+        "type": {
+          "type": "string",
+          "description": "Field type slug. The values below are the built-in types; custom types registered via the `wp-wireframe/field_types` filter are also valid but not enumerated here.",
+          "enum": [
+            "text", "textarea", "email", "url", "password", "hidden",
+            "number", "range", "select", "radio", "image_radio",
+            "checkboxes", "image_checkboxes", "toggle", "checkbox",
+            "color", "date", "time", "editor", "code_editor", "file",
+            "repeater", "html", "export", "import", "table", "action"
+          ]
+        },
+        "label": { "type": "string", "description": "Visible field label." },
+        "title": { "type": "string" },
+        "description": { "type": "string", "description": "Help text shown under the field. Supports {field_id} interpolation." },
+        "default": { "description": "Default value used until the user saves one. Shape depends on the field type." },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Grid width out of 12 columns."
+        },
+        "required": { "type": "boolean" },
+        "readonly": { "type": "boolean" },
+        "validation": {
+          "type": "string",
+          "description": "Rakit validation rules string, e.g. \"min:3|max:100\"."
+        },
+        "access": { "$ref": "#/$defs/access" },
+        "conditions": { "$ref": "#/$defs/conditionNode" },
+        "args": {
+          "type": "object",
+          "description": "Type-specific options. Keys vary by `type`; see the per-type constraints."
+        }
+      },
+      "allOf": [
+        { "$ref": "#/$defs/argsByType/choice" },
+        { "$ref": "#/$defs/argsByType/repeater" },
+        { "$ref": "#/$defs/argsByType/table" },
+        { "$ref": "#/$defs/argsByType/html" },
+        { "$ref": "#/$defs/argsByType/number" },
+        { "$ref": "#/$defs/argsByType/range" },
+        { "$ref": "#/$defs/argsByType/color" }
+      ]
+    },
+    "access": {
+      "description": "Role/capability access rule. A string or list applies to both view and edit; an object splits them. Strings match a role slug first, then a capability. Arrays are OR.",
+      "oneOf": [
+        { "$ref": "#/$defs/accessValue" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "view": { "$ref": "#/$defs/accessValue" },
+            "edit": { "$ref": "#/$defs/accessValue" }
+          }
+        }
+      ]
+    },
+    "accessValue": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 }
+      ]
+    },
+    "conditionNode": {
+      "type": "object",
+      "description": "Conditional show/hide rule. Either a combinator (`all`/`any`) or a single rule (`field` + `operator` + optional `value`).",
+      "additionalProperties": false,
+      "properties": {
+        "all": { "type": "array", "items": { "$ref": "#/$defs/conditionNode" } },
+        "any": { "type": "array", "items": { "$ref": "#/$defs/conditionNode" } },
+        "field": { "type": "string" },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "equals", "not_equals", "truthy", "falsy", "in", "not_in",
+            "between", "starts_with", "ends_with", "contains", "not_contains",
+            "is_empty", "is_not_empty", "gt", "gte", "lt", "lte"
+          ]
+        },
+        "value": true
+      }
+    },
+    "optionMap": {
+      "type": "object",
+      "description": "Map of stored value → display label. Image variants may pair each value with an object carrying an image URL.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": ["string", "object"]
+      }
+    },
+    "argsByType": {
+      "choice": {
+        "if": {
+          "properties": {
+            "type": {
+              "enum": ["select", "radio", "image_radio", "checkboxes", "image_checkboxes"]
+            }
+          },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "required": ["options"],
+              "properties": {
+                "options": { "$ref": "#/$defs/optionMap" },
+                "multiple": { "type": "boolean" },
+                "allow_custom": { "type": "boolean" },
+                "placeholder": { "type": "string" },
+                "max": { "type": "integer" }
+              }
+            }
+          },
+          "required": ["args"]
+        }
+      },
+      "repeater": {
+        "if": {
+          "properties": { "type": { "const": "repeater" } },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "required": ["subfields"],
+              "properties": {
+                "subfields": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/field" }
+                },
+                "sortable": { "type": "boolean" },
+                "collapsible": { "type": "boolean" },
+                "collapsed": { "type": "boolean" },
+                "duplicate_row": { "type": "boolean" },
+                "add_row": { "type": "boolean" },
+                "delete_row": { "type": "boolean" },
+                "min_rows": { "type": "integer", "minimum": 0 },
+                "max_rows": { "type": "integer", "minimum": 1 },
+                "add_label": { "type": "string" },
+                "empty_message": { "type": "string" },
+                "title_template": { "type": "string" }
+              }
+            }
+          },
+          "required": ["args"]
+        }
+      },
+      "table": {
+        "if": {
+          "properties": { "type": { "const": "table" } },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "required": ["fields"],
+              "properties": {
+                "fields": {
+                  "type": "array",
+                  "description": "Column definitions.",
+                  "items": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {
+                      "id": { "type": "string" },
+                      "label": { "type": "string" },
+                      "type": { "type": "string" },
+                      "sortable": { "type": "boolean" },
+                      "searchable": { "type": "boolean" },
+                      "elements": { "type": "object" }
+                    }
+                  }
+                },
+                "data_callback": { "type": "string", "description": "Name of a PHP callable returning the rows." },
+                "per_page": { "type": "integer", "minimum": 1 },
+                "search": { "type": "boolean" },
+                "actions": { "type": "array", "items": { "type": "object" } },
+                "detail_view": { "type": "object" }
+              }
+            }
+          },
+          "required": ["args"]
+        }
+      },
+      "html": {
+        "if": {
+          "properties": { "type": { "const": "html" } },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "required": ["content"],
+              "properties": {
+                "content": { "type": "string" },
+                "variant": {
+                  "type": "string",
+                  "enum": ["plain", "info", "success", "warning", "error"]
+                }
+              }
+            }
+          },
+          "required": ["args"]
+        }
+      },
+      "number": {
+        "if": {
+          "properties": { "type": { "const": "number" } },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "step": { "type": "number" },
+                "integer": { "type": "boolean" },
+                "placeholder": { "type": "string" },
+                "readonly": { "type": "boolean" },
+                "copyable": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      },
+      "range": {
+        "if": {
+          "properties": { "type": { "const": "range" } },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "step": { "type": "number" },
+                "suffix": { "type": "string" },
+                "allowReset": { "type": "boolean" },
+                "marks": { "type": ["array", "object", "boolean"] }
+              }
+            }
+          }
+        }
+      },
+      "color": {
+        "if": {
+          "properties": { "type": { "const": "color" } },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "properties": {
+                "enableAlpha": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

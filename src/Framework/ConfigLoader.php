@@ -95,15 +95,17 @@ final class ConfigLoader
                     $fields[$fieldId] = $field;
 
                     // Flatten repeater subfields.
-                    if (($field['type'] ?? '') === 'repeater') {
-                        $subfields = $field['args']['subfields'] ?? [];
+                    if (($field['type'] ?? '') !== 'repeater') {
+                        continue;
+                    }
 
-                        foreach ($subfields as $subfield) {
-                            $subId = $subfield['id'] ?? '';
+                    $subfields = $field['args']['subfields'] ?? [];
 
-                            if ($subId !== '') {
-                                $fields["{$fieldId}.{$subId}"] = $subfield;
-                            }
+                    foreach ($subfields as $subfield) {
+                        $subId = $subfield['id'] ?? '';
+
+                        if ($subId !== '') {
+                            $fields["{$fieldId}.{$subId}"] = $subfield;
                         }
                     }
                 }
