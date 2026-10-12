@@ -36,8 +36,8 @@ Wireframe\App::boot([
 | `capability`    | `string`        | `'manage_options'`        | Capability required to view, save, and reset the page.                             |
 | `menu_icon`     | `string`        | `'dashicons-admin-generic'` | Any Dashicon class or data-URI icon. Ignored when `parent` is set.               |
 | `menu_position` | `int`           | `80`                      | Position in the WP admin menu.                                                     |
-| `parent`        | `string`        | `''`                      | Register as a submenu of the given parent. See [Submenu Pages](/configuration/submenu-pages/). |
-| `pages`         | `array`         | —                         | Register multiple pages under one prefix. See [Multi-Page](/configuration/multi-page/). |
+| `parent`        | `string`        | `''`                      | Register as a submenu of the given parent. See [Submenu Pages](/wp-wireframe/docs/configuration/submenu-pages/). |
+| `pages`         | `array`         | —                         | Register multiple pages under one prefix. See [Multi-Page](/wp-wireframe/docs/configuration/multi-page/). |
 | `assets_url`    | `string`        | derived                   | Override the URL base for admin assets. Useful for symlinked vendor directories.   |
 
 <Aside type="tip">
@@ -56,7 +56,7 @@ Anything you pass that isn't listed here is silently ignored — safe to add you
 ],
 ```
 
-A file lets you keep large configs out of the boot call. Inline is convenient for small pages and one-off scripts. Either way, the resulting array shape is the same — see [Config Structure](/configuration/config-structure/).
+A file lets you keep large configs out of the boot call. Inline is convenient for small pages and one-off scripts. Either way, the resulting array shape is the same — see [Config Structure](/wp-wireframe/docs/configuration/config-structure/).
 
 ## Multiple plugins, one framework
 

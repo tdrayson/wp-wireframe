@@ -58,15 +58,15 @@ These are common to every field type:
 | Key           | Type           | Default  | Description                                                                                                |
 | ------------- | -------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | `id`          | `string`       | Required | Unique field identifier within the page.                                                                   |
-| `type`        | `string`       | `'text'` | One of the [registered field types](/field-types/text-family/).                                            |
+| `type`        | `string`       | `'text'` | One of the [registered field types](/wp-wireframe/docs/field-types/text-family/).                                            |
 | `label`       | `string`       | `''`     | Display label. Pass `''` explicitly to render no label (the field will still align with labelled siblings).|
 | `description` | `string`       | `''`     | Help text below the field. Supports `{field_id}` token interpolation against live form values.             |
 | `default`     | `mixed`        | `null`   | Default value, used when no saved value exists.                                                            |
 | `required`    | `bool`         | `false`  | Whether the field must have a value at save time.                                                          |
-| `validation`  | `string`       | `''`     | Pipe-separated [Rakit validation rules](/features/validation/) — e.g. `'min:3\|max:100'`.                  |
+| `validation`  | `string`       | `''`     | Pipe-separated [Rakit validation rules](/wp-wireframe/docs/features/validation/) — e.g. `'min:3\|max:100'`.                  |
 | `columns`     | `int (1..12)`  | `12`     | Grid width. 12 = full row; 6 = half; 4 = third; etc.                                                       |
-| `conditions`  | `array`        | `null`   | [Conditional visibility](/features/conditional-visibility/) rules evaluated against current values.        |
-| `access`      | `string\|array`| `null`   | [Role / capability gating](/features/role-based-access/). Strictly opt-in.                                 |
+| `conditions`  | `array`        | `null`   | [Conditional visibility](/wp-wireframe/docs/features/conditional-visibility/) rules evaluated against current values.        |
+| `access`      | `string\|array`| `null`   | [Role / capability gating](/wp-wireframe/docs/features/role-based-access/). Strictly opt-in.                                 |
 | `args`        | `array`        | `[]`     | Type-specific settings — `placeholder`, `rows`, `options`, `multiple`, `mode`, etc.                        |
 
 ## Type-specific settings (`args`)
@@ -87,7 +87,7 @@ Everything that varies between field types lives under `args`. Some examples:
 ['type' => 'repeater', 'args' => ['subfields' => [ /* … */ ], 'add_button_label' => 'Add row']]
 ```
 
-See each field type's page in [Field Types](/field-types/text-family/) for the full set.
+See each field type's page in [Field Types](/wp-wireframe/docs/field-types/text-family/) for the full set.
 
 ## Flexible structure — tabs and sections are optional
 

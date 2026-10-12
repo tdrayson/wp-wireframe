@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-The [`table` field](/field-types/complex/#table) is stateless — rows come from a server handler each time the user paginates, searches, or filters. The framework dispatches via the `{prefix}/table/{pageId}/{fieldId}/data` filter; you return `['items', 'total']`.
+The [`table` field](/wp-wireframe/docs/field-types/complex/#table) is stateless — rows come from a server handler each time the user paginates, searches, or filters. The framework dispatches via the `{prefix}/table/{pageId}/{fieldId}/data` filter; you return `['items', 'total']`.
 
 This recipe wires a `$wpdb` query to that hook.
 

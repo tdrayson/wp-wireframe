@@ -42,7 +42,7 @@ Per-page entries accept the same options as a single-page boot, with two extras 
 | `menu_slug`    | `{prefix}-{id}`                        | Override the URL slug (`?page=…`).                                                     |
 | `option_key`   | `{boot_option_key}_{id_snake_cased}`   | Storage row. Each page gets its own by default.                                         |
 | `config`       | —                                      | Path **or** inline array — same as single-page.                                        |
-| `parent`       | inherits from boot                     | Override per page. See [Submenu Pages](/configuration/submenu-pages/).                  |
+| `parent`       | inherits from boot                     | Override per page. See [Submenu Pages](/wp-wireframe/docs/configuration/submenu-pages/).                  |
 | `menu_icon`    | `'dashicons-admin-generic'`            | Ignored when `parent` is set.                                                          |
 | `menu_position`| `80 + $index`                          | Auto-incremented if omitted.                                                            |
 
@@ -66,7 +66,7 @@ By default each page persists into its own `wp_options` row (`{boot_option_key}_
 ```
 
 <Aside type="caution">
-When two pages share an `option_key`, save / reset on one page affects the values declared on it only — fields outside that page's config are untouched. The merge happens server-side via the same logic as the [save flow](/features/save-and-reset/).
+When two pages share an `option_key`, save / reset on one page affects the values declared on it only — fields outside that page's config are untouched. The merge happens server-side via the same logic as the [save flow](/wp-wireframe/docs/features/save-and-reset/).
 </Aside>
 
 ## REST endpoints

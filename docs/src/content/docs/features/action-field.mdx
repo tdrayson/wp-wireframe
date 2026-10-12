@@ -166,5 +166,5 @@ add_filter(
 The values are **sanitised** but **not validated**. Your handler is responsible for treating them as untrusted input — `$wpdb->prepare()`, cap checks, etc.
 
 <Aside type="tip">
-Prefer **named functions** over anonymous closures when wiring handlers — they're greppable, replaceable via `remove_filter`, and show up cleanly in tools like Query Monitor. See the [Action handlers recipe](/recipes/action-handlers/) for the pattern.
+Prefer **named functions** over anonymous closures when wiring handlers — they're greppable, replaceable via `remove_filter`, and show up cleanly in tools like Query Monitor. See the [Action handlers recipe](/wp-wireframe/docs/recipes/action-handlers/) for the pattern.
 </Aside>

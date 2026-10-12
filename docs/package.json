@@ -10,6 +10,7 @@
     "start": "astro dev",
     "prebuild": "node scripts/build-changelog.mjs",
     "build": "astro build",
+    "postbuild": "node scripts/check-links.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },

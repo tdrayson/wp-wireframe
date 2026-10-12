@@ -48,7 +48,7 @@ That's enough for the server side — the field accepts and sanitises values. Yo
 | `static type(): string`                                    | `string`      | The slug used in config (`'my_custom'`). Required.                       |
 | `static sanitize(mixed $value, array $args): mixed`        | sanitised value | Coerce the value into a safe canonical form. Required.                |
 | `static isStateless(): bool`                               | `bool`        | `true` for display-only fields that don't persist a value.               |
-| `static defaultRules(array $args): string`                 | `string`      | Default [Rakit validation rules](/features/validation/) for the field.   |
+| `static defaultRules(array $args): string`                 | `string`      | Default [Rakit validation rules](/wp-wireframe/docs/features/validation/) for the field.   |
 | `static validate(mixed $value, array $args): ?string`      | `?string`     | Return an error message, or `null` if valid.                             |
 
 ## Rendering on the client
@@ -95,7 +95,7 @@ export default function MyCustomEdit({ field, value, onChange }) {
 ```
 
 <Aside type="caution">
-The `readOnly` prop on `field` is set by the [Role-Based Access](/features/role-based-access/) pipeline when the current user has view but not edit access. Honour it by disabling your input — the server enforces writes regardless, so it's a UI hint not a security boundary.
+The `readOnly` prop on `field` is set by the [Role-Based Access](/wp-wireframe/docs/features/role-based-access/) pipeline when the current user has view but not edit access. Honour it by disabling your input — the server enforces writes regardless, so it's a UI hint not a security boundary.
 </Aside>
 
 ## Sanitising vs validating

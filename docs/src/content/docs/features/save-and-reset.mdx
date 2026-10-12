@@ -16,11 +16,11 @@ When you hit **Save**, the client posts the in-flight values to the REST endpoin
 1. Looks up the user's editable field list (via the access map).
 2. Intersects the posted payload with that list — fields outside it are silently dropped.
 3. Sanitises every remaining value through its type handler.
-4. Runs the [validation pass](/features/validation/).
+4. Runs the [validation pass](/wp-wireframe/docs/features/validation/).
 5. **Merges** the validated values into the existing saved state, replacing only the keys it received.
 6. Persists, fires `{prefix}/settings_saved`, returns the updated value set.
 
-The merge step is the important one. A user editing 3 of 20 fields will leave the other 17 alone. Same for fields hidden by [conditions](/features/conditional-visibility/) — their saved values are preserved.
+The merge step is the important one. A user editing 3 of 20 fields will leave the other 17 alone. Same for fields hidden by [conditions](/wp-wireframe/docs/features/conditional-visibility/) — their saved values are preserved.
 
 <Aside type="tip">
 This means a `wp_options` row can hold values from multiple authors with different access scopes, and nobody overwrites anyone else's work.
@@ -75,4 +75,4 @@ add_action('my-plugin/settings_saved', function (array $values, string $pageId) 
 }, 10, 2);
 ```
 
-For finer-grained mutation, see the `wp-wireframe/save/editable_fields` and `wp-wireframe/save/payload` filters in [Hooks & Filters](/reference/hooks-and-filters/).
+For finer-grained mutation, see the `wp-wireframe/save/editable_fields` and `wp-wireframe/save/payload` filters in [Hooks & Filters](/wp-wireframe/docs/reference/hooks-and-filters/).
