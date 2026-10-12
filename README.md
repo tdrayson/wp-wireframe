@@ -649,6 +649,7 @@ Role-based access is **strictly opt-in**. If a page config contains zero `access
 | Empty tab/section after filtering                    | Auto-hidden                                                                                                   | n/a                                                                                            |
 | Save endpoint                                        | Merges editable fields into existing values — fields outside the user's scope are never touched               | `wp-wireframe/save/editable_fields` and `wp-wireframe/save/payload`                            |
 | Reset endpoint                                       | Resets only the user's editable fields (admins with full access naturally reset everything)                   | `wp-wireframe/access/can_reset` filter                                                         |
+| Action / header action `$values`                     | Only fields the user can view; view-only fields carry the stored value (or default), never the posted one     | n/a                                                                                            |
 | Reset eligibility                                    | Any user with at least one editable field on the page may reset                                               | `wp-wireframe/access/can_reset` returns false                                                  |
 | Save / Reset buttons                                 | Hidden when the user has no editable fields                                                                   | n/a                                                                                            |
 | REST permission callback (legacy, no `access` keys)  | `current_user_can($page['capability'])`                                                                       | Page declares an `access` key → switches to RBAC mode                                          |
@@ -679,7 +680,7 @@ Custom field types receive a `field.readOnly` prop on their Edit component when 
 
 ### Action Field
 
-Run a server-side handler from a button. The current (in-flight) form values are sent along, so the handler can read sibling fields. Config is **pure data** — no PHP callables — and the handler is wired via `add_filter` anywhere in your plugin.
+Run a server-side handler from a button. The current (in-flight) form values are sent along, so the handler can read sibling fields. On a page using [role-based access](#role-based-access), `$values` holds only the fields the user can view, and view-only fields carry their stored value rather than whatever was posted. Config is **pure data** — no PHP callables — and the handler is wired via `add_filter` anywhere in your plugin.
 
 #### Single-button (sugar)
 

@@ -190,7 +190,7 @@ final class SettingsController
         // fill in defaults for non-editable fields and we'd merge them over
         // legitimate saved values. Include repeater subfields (`parent.sub`)
         // when their parent is editable so subfield validation still runs.
-        $editableFields = self::scopeFieldsToEditable($fields, $editableTopLevel);
+        $editableFields = self::scopeFields($fields, $editableTopLevel);
 
         $savedValues   = Settings::allFor($optionKey);
         $mergedValues  = array_merge($savedValues, $payload);
@@ -289,8 +289,10 @@ final class SettingsController
 
     /**
      * Build (and cache per request) the AccessMap for the given page.
+     *
+     * @param array $page Page entry from App::page().
      */
-    private static function accessMap(array $page): ConfigAccessMap
+    public static function accessMap(array $page): ConfigAccessMap
     {
         static $cache = [];
         $key = $page['prefix'] . '__' . $page['page_id'];
@@ -311,7 +313,7 @@ final class SettingsController
      * @param list<string> $editable Full editable list including subfield IDs.
      * @return list<string>
      */
-    private static function editableTopLevelIds(array $editable): array
+    public static function editableTopLevelIds(array $editable): array
     {
         $top = [];
 
@@ -325,20 +327,16 @@ final class SettingsController
     }
 
     /**
-     * Slice a flat-fields map down to a user's editable scope.
+     * Slice a flat-fields map down to the given top-level fields and their
+     * repeater subfields (stored as `parent.sub` keys).
      *
-     * Keeps the requested top-level fields and any of their repeater
-     * subfields (stored as `parent.sub` keys). Used to constrain what
-     * Validator and Sanitizer act on so non-editable fields don't trip
-     * validation or get overwritten with defaults.
-     *
-     * @param array<string, array> $fields            Flat fields from ConfigLoader::flatFields().
-     * @param list<string>         $editableTopLevel  Top-level field IDs the user may write.
+     * @param array<string, array> $fields      Flat fields from ConfigLoader::flatFields().
+     * @param list<string>         $topLevelIds Top-level field IDs to keep.
      * @return array<string, array>
      */
-    private static function scopeFieldsToEditable(array $fields, array $editableTopLevel): array
+    public static function scopeFields(array $fields, array $topLevelIds): array
     {
-        $allowed = array_flip($editableTopLevel);
+        $allowed = array_flip($topLevelIds);
         $scoped  = [];
 
         foreach ($fields as $fieldId => $fieldConfig) {
@@ -347,7 +345,7 @@ final class SettingsController
                 continue;
             }
 
-            // Repeater subfields keep their parent's editability.
+            // Repeater subfields follow their parent.
             if (str_contains($fieldId, '.')) {
                 $parentId = explode('.', $fieldId, 2)[0];
                 if (isset($allowed[$parentId])) {
