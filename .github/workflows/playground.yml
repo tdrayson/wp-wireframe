@@ -103,7 +103,7 @@ jobs:
       - name: Download Strauss
         run: |
           curl -sSL -o build/strauss.phar --create-dirs \
-            https://github.com/BrianHenryIE/strauss/releases/latest/download/strauss.phar
+            https://github.com/BrianHenryIE/strauss/releases/download/0.31.1/strauss.phar
           php build/strauss.phar --version
 
       # For each example:
