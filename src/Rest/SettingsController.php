@@ -7,6 +7,7 @@ namespace Wireframe\Rest;
 use Wireframe\App;
 use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\Access\ConfigAccessMap;
+use Wireframe\Framework\Access\PageFlags;
 use Wireframe\Framework\Conditions;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldRegistry;
@@ -118,8 +119,8 @@ final class SettingsController
         return new WP_REST_Response([
             'config'   => apply_filters('wp-wireframe/config/for_user', $filtered, $page['page_id'], $map),
             'values'   => Settings::resolvedFor($page['option_key'], $page['config']),
-            'canSave'  => !empty($map->editable),
-            'canReset' => $map->canReset && !empty($map->editable),
+            'canSave'  => PageFlags::canSave($page, $map),
+            'canReset' => PageFlags::canReset($page, $map),
         ]);
     }
 
@@ -134,7 +135,17 @@ final class SettingsController
      */
     private static function saveSettings(WP_REST_Request $request, string $internalId): WP_REST_Response|WP_Error
     {
-        $page    = App::page($internalId);
+        $page = App::page($internalId);
+        $map  = self::accessMap($page);
+
+        if (!PageFlags::canSave($page, $map)) {
+            return new WP_Error(
+                'rest_cannot_save',
+                __('Saving is disabled for this page.', App::textDomain($page['prefix'])),
+                ['status' => 403]
+            );
+        }
+
         $payload = $request->get_json_params();
 
         if (!is_array($payload)) {
@@ -148,7 +159,6 @@ final class SettingsController
         $optionKey  = $page['option_key'];
         $configSlug = $page['config'];
         $fields     = ConfigLoader::flatFields($configSlug);
-        $map        = self::accessMap($page);
 
         // Drop any fields the user can't edit. Repeater subfields share the
         // parent field's editability (see AccessResolver::resolveForConfig).
@@ -242,10 +252,18 @@ final class SettingsController
      * declared default on the next read). Fields the user cannot edit are
      * preserved untouched, mirroring the save flow's merge semantics.
      */
-    private static function resetSettings(string $internalId): WP_REST_Response
+    private static function resetSettings(string $internalId): WP_REST_Response|WP_Error
     {
         $page = App::page($internalId);
         $map  = self::accessMap($page);
+
+        if (!PageFlags::canReset($page, $map)) {
+            return new WP_Error(
+                'rest_cannot_reset',
+                __('Resetting is disabled for this page.', App::textDomain($page['prefix'])),
+                ['status' => 403]
+            );
+        }
 
         if ($map->isLegacy()) {
             Settings::resetFor($page['option_key']);

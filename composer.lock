@@ -4,29 +4,32 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fccbc4c8f691c46d9c6cee3fa0070d6c",
+    "content-hash": "847dc85ff65884bc0a3b40c6ace079ff",
     "packages": [
         {
-            "name": "rakit/validation",
-            "version": "v1.4.0",
+            "name": "magewirephp/validation",
+            "version": "1.0.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/rakit/validation.git",
-                "reference": "ff003a35cdf5030a5f2482299f4c93f344a35b29"
+                "url": "https://github.com/magewirephp/validation.git",
+                "reference": "4d3728165a2618b02a449576ee9d13497e942c5b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/rakit/validation/zipball/ff003a35cdf5030a5f2482299f4c93f344a35b29",
-                "reference": "ff003a35cdf5030a5f2482299f4c93f344a35b29",
+                "url": "https://api.github.com/repos/magewirephp/validation/zipball/4d3728165a2618b02a449576ee9d13497e942c5b",
+                "reference": "4d3728165a2618b02a449576ee9d13497e942c5b",
                 "shasum": ""
             },
             "require": {
                 "ext-mbstring": "*",
-                "php": ">=7.0"
+                "php": ">=8.1 <8.6"
+            },
+            "replace": {
+                "rakit/validation": "*"
             },
             "require-dev": {
                 "php-coveralls/php-coveralls": "^2.2",
-                "phpunit/phpunit": "^6.5",
+                "phpunit/phpunit": "^9.5 || ^10.0",
                 "squizlabs/php_codesniffer": "^3"
             },
             "type": "library",
@@ -39,18 +42,11 @@
             "license": [
                 "MIT"
             ],
-            "authors": [
-                {
-                    "name": "Muhammad Syifa",
-                    "email": "emsifa@gmail.com"
-                }
-            ],
-            "description": "PHP Laravel like standalone validation library",
+            "description": "PHP Laravel like standalone validation library (forked from rakit/validation)",
             "support": {
-                "issues": "https://github.com/rakit/validation/issues",
-                "source": "https://github.com/rakit/validation/tree/v1.4.0"
+                "source": "https://github.com/magewirephp/validation/tree/1.0.1"
             },
-            "time": "2020-08-27T05:07:01+00:00"
+            "time": "2026-05-12T10:23:15+00:00"
         }
     ],
     "packages-dev": [
@@ -158,30 +154,29 @@
         },
         {
             "name": "doctrine/instantiator",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/instantiator.git",
-                "reference": "c6222283fa3f4ac679f8b9ced9a4e23f163e80d0"
+                "reference": "23da848e1a2308728fe5fdddabf4be17ff9720c7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/instantiator/zipball/c6222283fa3f4ac679f8b9ced9a4e23f163e80d0",
-                "reference": "c6222283fa3f4ac679f8b9ced9a4e23f163e80d0",
+                "url": "https://api.github.com/repos/doctrine/instantiator/zipball/23da848e1a2308728fe5fdddabf4be17ff9720c7",
+                "reference": "23da848e1a2308728fe5fdddabf4be17ff9720c7",
                 "shasum": ""
             },
             "require": {
-                "php": "^8.1"
+                "php": "^8.4"
             },
             "require-dev": {
-                "doctrine/coding-standard": "^11",
+                "doctrine/coding-standard": "^14",
                 "ext-pdo": "*",
                 "ext-phar": "*",
                 "phpbench/phpbench": "^1.2",
-                "phpstan/phpstan": "^1.9.4",
-                "phpstan/phpstan-phpunit": "^1.3",
-                "phpunit/phpunit": "^9.5.27",
-                "vimeo/psalm": "^5.4"
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^10.5.58"
             },
             "type": "library",
             "autoload": {
@@ -208,7 +203,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/instantiator/issues",
-                "source": "https://github.com/doctrine/instantiator/tree/2.0.0"
+                "source": "https://github.com/doctrine/instantiator/tree/2.1.0"
             },
             "funding": [
                 {
@@ -224,7 +219,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-12-30T00:23:10+00:00"
+            "time": "2026-01-05T06:47:08+00:00"
         },
         {
             "name": "hamcrest/hamcrest-php",

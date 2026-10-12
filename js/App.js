@@ -5,7 +5,7 @@
  * Renders the settings page with tabs, sections, and fields.
  *
  * @param {Object} props
- * @param {Object} props.data The localized data object from wp_localize_script.
+ * @param {Object} props.data The page data object printed by AdminPage::localizeData().
  */
 import { __ } from '@wordpress/i18n';
 import SettingsPage from './components/SettingsPage';

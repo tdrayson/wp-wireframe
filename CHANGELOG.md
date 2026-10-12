@@ -11,6 +11,7 @@
 - Conditions DSL now works at the tab level.
 - Repeater subfields support the conditions DSL (#13).
 - Suppress third-party admin notices on Wireframe-managed pages — filterable via `wp-wireframe/suppress_admin_notices`.
+- `{prefix}/can_save` / `{prefix}/can_reset` filters, enforced by the REST endpoints; Save and Reset hide on stateless-only pages (#36).
 - Fluent config builder (`Wireframe\Builder`) with a typed class per field type, accepted anywhere a config array is.
 - `{prefix}/config` filter with an `Editor` so add-ons can add, move or remove tabs, sections and fields that save like native ones.
 
@@ -20,6 +21,8 @@
 - Wrap React root in `SlotFillProvider` (#4, reported by @davidofchatham) — silences the warning and fixes popover positioning.
 - Anchor admin-screen matching on `_page_{menu_slug}` suffix instead of substring (#6, reported by @davidofchatham).
 - `DateField` falls back to a sensible format when WP's date format setting is empty (#3, thanks to @drkskwlkr).
+- Swap abandoned `rakit/validation` for its maintained fork `magewirephp/validation`, silencing PHP 8.4 deprecation notices (#33).
+- `editor` subfields initialise in every repeater row and survive collapse, reorder and removal (#38).
 
 ## [1.0.5] - 2026-04-23
 

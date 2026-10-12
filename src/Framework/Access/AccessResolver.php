@@ -13,6 +13,15 @@ use WP_User;
  * `edit`. `edit` implicitly requires `view`. Values match role slugs first
  * (via get_role()), then fall back to capabilities (current_user_can()).
  *
+ * Access cascades downward — a section inherits unspecified verbs from its
+ * tab, a field from its section. A tab or section that declares no `access`
+ * key of its own is the exception: instead of inheriting a view gate top-down,
+ * its visibility bubbles *up* from its children, so it shows whenever the user
+ * can view at least one descendant field and hides when they can view none — no
+ * redundant container-level rule required. Tabs and sections with an explicit
+ * `access` key keep the top-down behaviour (deny on the container hides it
+ * regardless of its children).
+ *
  * Role-based access is strictly opt-in. If a page config contains zero
  * `access` keys anywhere in its tree, hasAccessKeys() returns false and
  * callers fall through to the legacy `manage_options` capability flow.
@@ -116,6 +125,29 @@ final class AccessResolver
     }
 
     /**
+     * View check for a tab or section with no `access` key of its own.
+     *
+     * Allowed by default (its children decide), but still passed through `wp-wireframe/access/resolve`.
+     *
+     * @param WP_User|null                     $user    User being checked; defaults to the current user.
+     * @param array{level: string, id: string} $context Container level and id.
+     * @return bool
+     */
+    private function implicitContainerAllowed(?WP_User $user, array $context): bool
+    {
+        if (!function_exists('apply_filters')) {
+            return true;
+        }
+
+        $context = array_merge(
+            ['verb' => 'view', 'spec' => [], 'user' => $user ?? self::currentUser()],
+            $context,
+        );
+
+        return (bool) apply_filters('wp-wireframe/access/resolve', true, $context);
+    }
+
+    /**
      * Build a per-user access map for a normalized config.
      *
      * Walks tabs → sections → fields once, resolving inherited specs and
@@ -150,9 +182,26 @@ final class AccessResolver
                 continue;
             }
 
-            $tabSpec = self::normalizeSpec($tab['access'] ?? null);
+            $tabHasOwnAccess = isset($tab['access']);
+            $tabSpec         = self::normalizeSpec($tab['access'] ?? null);
 
-            if (!$this->userCan('view', $tabSpec, $user, ['level' => 'tab', 'id' => $tabId])) {
+            // Bubble-up rule (applies to tabs and sections alike): a container
+            // with its OWN `access` key gates top-down — deny here and the whole
+            // container is hidden regardless of its children. A container with
+            // NO `access` key instead derives its visibility from its children:
+            // it survives as long as at least one viewable descendant remains
+            // (the emptiness checks after each loop drop it otherwise), so we
+            // skip the gate here. Without this skip an unspecified spec would
+            // fall back to the page capability and hide the container — and
+            // every field under it — from a lower-privileged user who was
+            // explicitly granted one of those fields. The resolve filter still
+            // runs for implicit containers so integrators can deny them.
+            $tabContext = ['level' => 'tab', 'id' => $tabId];
+            $tabAllowed = $tabHasOwnAccess
+                ? $this->userCan('view', $tabSpec, $user, $tabContext)
+                : $this->implicitContainerAllowed($user, $tabContext);
+
+            if (!$tabAllowed) {
                 continue;
             }
 
@@ -164,13 +213,24 @@ final class AccessResolver
                     continue;
                 }
 
+                $sectionHasOwnAccess = isset($section['access']);
+
                 // Sections inherit unspecified verbs from the tab.
                 $sectionSpec = self::inheritSpec(
                     self::normalizeSpec($section['access'] ?? null),
                     $tabSpec,
                 );
 
-                if (!$this->userCan('view', $sectionSpec, $user, ['level' => 'section', 'id' => $sectionId])) {
+                // Same bubble-up rule as tabs (see the tab gate above): gate
+                // top-down only when the section declares its own `access` key;
+                // otherwise its visibility is derived from its fields and the
+                // post-loop emptiness check decides whether it survives.
+                $sectionContext = ['level' => 'section', 'id' => $sectionId];
+                $sectionAllowed = $sectionHasOwnAccess
+                    ? $this->userCan('view', $sectionSpec, $user, $sectionContext)
+                    : $this->implicitContainerAllowed($user, $sectionContext);
+
+                if (!$sectionAllowed) {
                     continue;
                 }
 
