@@ -8,9 +8,9 @@
         "magewirephp/validation": "^1.0"
     },
     "autoload": {
-        "psr-4": {
-            "Wireframe\\": "src/"
-        }
+        "files": [
+            "bootstrap.php"
+        ]
     },
     "keywords": ["wordpress", "settings", "admin", "framework", "react"]
 }
