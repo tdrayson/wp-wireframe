@@ -626,6 +626,8 @@ Restrict who can view or edit a tab, section, or field with the optional `access
 ],
 ```
 
+**Section/tab access bubbles up from fields.** A tab or section that declares **no** `access` key of its own derives its visibility from its children: it's shown to anyone who can view at least one field inside it, and hidden when they can view none. So you only need to annotate `access` on the fields — there's no need to restate the rule on the section just to keep it from rendering as an empty card. Add an explicit `access` key to a tab/section only when you want to gate it top-down regardless of its fields (as in `danger_zone` above).
+
 #### Defaults at a glance
 
 Role-based access is **strictly opt-in**. If a page config contains zero `access` keys anywhere, behavior is identical to previous versions — `manage_options` required for everything. The table below describes what kicks in once at least one `access` key is declared on the page:
@@ -638,7 +640,8 @@ Role-based access is **strictly opt-in**. If a page config contains zero `access
 | `access` shorthand `'editor'`                        | Applied to both `view` and `edit`                                                                             | Use long form `['view' => …, 'edit' => …]` to split                                            |
 | `access` arrays                                      | Logical OR — any match grants access                                                                          | n/a                                                                                            |
 | `edit` without `view`                                | Implicitly denied                                                                                             | `edit` always requires `view`                                                                  |
-| Tab / section / field with no `access` key           | Inherits from parent (ultimately the page capability)                                                         | Add an `access` key                                                                            |
+| Field with no `access` key                           | Inherits from its section/tab (ultimately the page capability)                                                | Add an `access` key                                                                            |
+| Tab / section with no `access` key                   | Visibility bubbles up from its children — shown if the user can view ≥1 descendant field, hidden if none      | Add an explicit `access` key to gate it top-down instead                                       |
 | Non-viewable elements                                | Stripped from the config sent to the browser entirely                                                         | `wp-wireframe/config/for_user` filter                                                          |
 | Non-editable but viewable fields                     | Rendered with the input disabled; server rejects any writes                                                   | n/a                                                                                            |
 | Empty tab/section after filtering                    | Auto-hidden                                                                                                   | n/a                                                                                            |
@@ -944,6 +947,20 @@ add_action('my-plugin/settings_saved', function (array $values, string $pageId) 
 add_action('my-plugin/settings_reset', function (string $pageId) {
     // clear caches, etc.
 });
+```
+
+`{prefix}/can_save` and `{prefix}/can_reset` receive `(bool $value, string $pageId, ConfigAccessMap $map)` and decide whether the Save / Reset buttons show. They are enforced server-side too: when either resolves `false`, the matching REST endpoint returns a 403. Both default to `false` when every editable field is stateless (`html`, `table`, `action`, ...).
+
+```php
+// Hide Save on a read-only status page
+add_filter('my-plugin/can_save', function (bool $canSave, string $pageId, $map) {
+    return $pageId === 'status' ? false : $canSave;
+}, 10, 3);
+
+// Only administrators may reset
+add_filter('my-plugin/can_reset', function (bool $canReset, string $pageId, $map) {
+    return $canReset && current_user_can('manage_options');
+}, 10, 3);
 ```
 
 The field type registry is shared across every plugin, so its filter is global:

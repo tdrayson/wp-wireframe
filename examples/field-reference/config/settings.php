@@ -741,6 +741,23 @@ return [
                                 ],
                             ],
                         ],
+                        [
+                            'id'    => 'ref_repeater_faqs',
+                            'type'  => 'repeater',
+                            'label' => __('FAQs (rich text per row)', 'field-reference'),
+                            'args'  => [
+                                'sortable'       => true,
+                                'collapsible'    => true,
+                                'duplicate_row'  => true,
+                                'add_label'      => __('Add FAQ', 'field-reference'),
+                                'empty_message'  => __('No FAQs added yet.', 'field-reference'),
+                                'title_template' => '{question}',
+                                'subfields'      => [
+                                    ['id' => 'question', 'type' => 'text',   'label' => __('Question', 'field-reference')],
+                                    ['id' => 'answer',   'type' => 'editor', 'label' => __('Answer', 'field-reference'), 'args' => ['rows' => 5, 'media_buttons' => false]],
+                                ],
+                            ],
+                        ],
                     ],
                 ],
                 [
@@ -830,6 +847,7 @@ return [
                                 'data_callback' => 'field_reference_entries_fetch',
                                 'per_page'      => 10,
                                 'search'        => true,
+                                'export'        => ['filename' => 'demo-entries'],
                                 'detail_view'   => [
                                     'fetch_callback'  => 'field_reference_entries_find',
                                     'render_callback' => 'field_reference_entries_render',
@@ -905,6 +923,16 @@ return [
                     'fields'      => [
                         ['id' => 'ref_export', 'type' => 'export', 'label' => __('Export', 'field-reference'), 'description' => __('Download all settings as JSON.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Download JSON', 'field-reference'), 'filename' => 'field-reference-settings']],
                         ['id' => 'ref_import', 'type' => 'import', 'label' => __('Import', 'field-reference'), 'description' => __('Upload JSON to replace settings.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Upload JSON', 'field-reference')]],
+                        ['id' => 'ref_download', 'type' => 'action', 'label' => __('Download from an action', 'field-reference'), 'description' => __('The handler returns a `download` key, so the browser saves a file.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Download report', 'field-reference')]],
+                    ],
+                ],
+                [
+                    'id'          => 'csv_preview',
+                    'title'       => __('CSV preview', 'field-reference'),
+                    'description' => __('Pick a CSV and preview it on the server. The file is sent with the action request only; it is never saved.', 'field-reference'),
+                    'fields'      => [
+                        ['id' => 'ref_csv_file', 'type' => 'upload', 'label' => __('CSV file', 'field-reference'), 'columns' => 6, 'args' => ['accept' => '.csv,text/csv', 'max_size' => 1048576, 'button_label' => __('Choose CSV', 'field-reference')]],
+                        ['id' => 'ref_csv_preview', 'type' => 'action', 'label' => __('Preview', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Preview rows', 'field-reference'), 'variant' => 'primary']],
                     ],
                 ],
             ],

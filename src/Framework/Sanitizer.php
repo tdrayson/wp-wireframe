@@ -11,7 +11,14 @@ use Wireframe\Framework\Fields\FieldRegistry;
  */
 final class Sanitizer
 {
-    public static function sanitize(array $payload, array $fields, array $visibilityMap = []): array
+    /**
+     * @param bool $includeStateless When true, stateless fields are sanitized
+     *                               and included too. Save leaves this false so
+     *                               stateless fields are never persisted; the
+     *                               action path passes true so transient inputs
+     *                               (e.g. `upload`) still reach the handler.
+     */
+    public static function sanitize(array $payload, array $fields, array $visibilityMap = [], bool $includeStateless = false): array
     {
         $registry = FieldRegistry::instance();
         $clean    = [];
@@ -31,7 +38,7 @@ final class Sanitizer
             $default = $fieldConfig['default'] ?? null;
             $value   = $payload[$fieldId] ?? $default;
 
-            if ($handler::isStateless()) {
+            if (!$includeStateless && $handler::isStateless()) {
                 continue;
             }
 
