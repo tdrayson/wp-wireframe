@@ -1,0 +1,47 @@
+# Remove a pull request's Playground preview (`pr/<number>/`) from gh-pages
+# once it is closed or merged.
+#
+# Runs on `pull_request_target` so fork PRs are cleaned up too. It only ever
+# checks out gh-pages and never executes anything from the pull request.
+
+name: Playground cleanup
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    # Shared with playground-publish.yml and docs.yml: concurrent pushes to gh-pages get rejected.
+    concurrency:
+      group: gh-pages-publish
+      cancel-in-progress: false
+      queue: max
+
+    env:
+      PR: ${{ github.event.pull_request.number }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Remove preview
+        run: |
+          set -euo pipefail
+          dir="pr/$PR"
+          if [ ! -d "$dir" ]; then
+            echo "No $dir on gh-pages, nothing to remove"
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -rq "$dir"
+          git commit -qm "Remove Playground preview for PR #$PR"
+          git push origin HEAD:gh-pages

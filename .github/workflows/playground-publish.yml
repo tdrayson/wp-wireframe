@@ -137,10 +137,16 @@ jobs:
             echo "::error::Artifact metadata contains an invalid PR number"
             exit 1
           fi
+          pull="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/$pr")"
           # Stops a run from pointing its comment at someone else's PR.
-          head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/$pr" --jq .head.sha)"
+          head="$(jq -r .head.sha <<<"$pull")"
           if [ "$head" != "$SHA" ]; then
             echo "::error::PR #$pr is at $head, not $SHA"
+            exit 1
+          fi
+          # playground-cleanup.yml has removed, or is about to remove, its folder.
+          if [ "$(jq -r .state <<<"$pull")" != open ]; then
+            echo "::error::PR #$pr is closed"
             exit 1
           fi
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
@@ -284,6 +290,10 @@ jobs:
             echo "- [options-view](https://wordpress.org/plugins/options-view/) from wordpress.org"
             echo
             echo "Blueprint: $BASE/blueprint.json"
+            if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
+              echo
+              echo "Updated on every push and removed when this pull request closes."
+            fi
           } > summary.md
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 

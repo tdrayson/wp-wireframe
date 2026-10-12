@@ -49,6 +49,7 @@
 # Notes:
 #  - `workflow_run` workflows only run from the default branch, so changes to
 #    playground-publish.yml take effect once merged.
+#  - playground-cleanup.yml deletes `pr/<number>/` when the pull request closes.
 #  - release.yml calls this workflow for every tag. To publish (or re-publish)
 #    the preview for an existing release:
 #
