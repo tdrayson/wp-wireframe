@@ -830,6 +830,7 @@ return [
                                 'data_callback' => 'field_reference_entries_fetch',
                                 'per_page'      => 10,
                                 'search'        => true,
+                                'export'        => ['filename' => 'demo-entries'],
                                 'detail_view'   => [
                                     'fetch_callback'  => 'field_reference_entries_find',
                                     'render_callback' => 'field_reference_entries_render',
@@ -905,6 +906,7 @@ return [
                     'fields'      => [
                         ['id' => 'ref_export', 'type' => 'export', 'label' => __('Export', 'field-reference'), 'description' => __('Download all settings as JSON.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Download JSON', 'field-reference'), 'filename' => 'field-reference-settings']],
                         ['id' => 'ref_import', 'type' => 'import', 'label' => __('Import', 'field-reference'), 'description' => __('Upload JSON to replace settings.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Upload JSON', 'field-reference')]],
+                        ['id' => 'ref_download', 'type' => 'action', 'label' => __('Download from an action', 'field-reference'), 'description' => __('The handler returns a `download` key, so the browser saves a file.', 'field-reference'), 'columns' => 6, 'args' => ['button_label' => __('Download report', 'field-reference')]],
                     ],
                 ],
             ],

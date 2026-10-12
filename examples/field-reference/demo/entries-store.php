@@ -117,8 +117,10 @@ function field_reference_entries_fetch(array $query): array
     }
 
     $total  = count($entries);
-    $offset = ($query['page'] - 1) * $query['per_page'];
-    $items  = array_slice($entries, $offset, $query['per_page']);
+    // per_page < 0 is the export contract: return every matching row.
+    $items = $query['per_page'] < 0
+        ? $entries
+        : array_slice($entries, ($query['page'] - 1) * $query['per_page'], $query['per_page']);
 
     return ['items' => $items, 'total' => $total];
 }
