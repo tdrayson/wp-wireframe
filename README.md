@@ -1,16 +1,13 @@
-![WP Wireframe Thumbnail](docs/featured-image.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/banner-dark.png">
+  <img alt="WP Wireframe" src=".github/banner-light.png">
+</picture>
 
 # WP Wireframe
 
-**Skip the admin UI. Ship your plugin.**
+**[Install](#install)** · **[Quick Start](#quick-start)** · **[Documentation](https://tdrayson.github.io/wp-wireframe/docs/)** · **[Contributing](https://tdrayson.github.io/wp-wireframe/docs/contributing/)**
 
-A fast, standardised way to build WordPress settings pages. List your fields in a PHP array and WP Wireframe builds the whole admin page using WordPress React components. Same clean UI, same field behaviour, same patterns across every plugin you ship.
-
-📖 **[Read the docs →](https://tdrayson.github.io/wp-wireframe/docs/)**
-
----
-
-## Features
+**Skip the admin UI. Ship your plugin.** A fast, standardised way to build WordPress settings pages. List your fields in a PHP array and WP Wireframe builds the whole admin page using WordPress React components. Same clean UI, same field behaviour, same patterns across every plugin you ship.
 
 - **One PHP array, full settings page** — tabs, sections, and 20+ field types
 - **Standardised fields** — every input looks and behaves the same across plugins and projects
@@ -21,14 +18,19 @@ A fast, standardised way to build WordPress settings pages. List your fields in 
 - **Multi-page, repeaters, import/export, action buttons, i18n** — included out of the box
 - **Zero JS build** — pre-built React app ships with the package
 
----
+![Config: one PHP array builds the whole settings page](.github/screenshots/config.png)
+
+<div align="center">
+  <img src=".github/screenshots/fields.png" width="412" alt="Fields: 20+ field types built on native WordPress components">
+  <img src=".github/screenshots/conditions.png" width="412" alt="Conditions: show and hide fields straight from the config">
+  <img src=".github/screenshots/api.png" width="412" alt="API: Laravel-style getters, typed values and dot notation">
+  <img src=".github/screenshots/validation.png" width="412" alt="Validation: rules run on the server, errors land on the field">
+</div>
 
 ## Requirements
 
 - PHP 8.1+
 - WordPress 6.5+
-
----
 
 ## Install
 
@@ -78,8 +80,6 @@ require_once __DIR__ . '/vendor/wp-wireframe/vendor/autoload.php';
 ```
 
 See [Installation](https://tdrayson.github.io/wp-wireframe/docs/getting-started/installation/) for the full walkthrough.
-
----
 
 ## Quick Start
 
@@ -144,8 +144,6 @@ $send = Settings::bool($opt, 'notifications');
 ```
 
 Activate the plugin and the settings page appears in the admin menu.
-
----
 
 ## Documentation
 
