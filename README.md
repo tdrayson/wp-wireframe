@@ -104,7 +104,9 @@ That's it — no separate plugin to install or activate.
 Any number of plugins can bundle their own copy. Each copy registers its version, and from `plugins_loaded` on every plugin uses the classes from the newest copy, booting independently under its own prefix.
 
 - Require the autoloader when your plugin file loads, and don't use `Wireframe\` classes before `plugins_loaded`: a newer copy may not have registered yet. Booting on `init`, as below, is fine. With `WP_DEBUG` on, early use triggers a `_doing_it_wrong` notice.
-- `Wireframe\Versions::registered()` lists every copy found; `Wireframe\Versions::active()` is the one in use.
+- Classes resolve through the running copy's `autoload-map.php`, so a newer copy can bundle a dependency an older one doesn't know about.
+- With `WP_DEBUG` on, copies spanning more than one major version trigger a notice naming each plugin, the version it bundles, and the version running.
+- `Wireframe\Versions::registered()` lists every copy found with its version and source plugin; `Wireframe\Versions::active()` is the one in use.
 - A copy prefixed with [Strauss](https://github.com/BrianHenryIE/strauss) gets its own namespace and registry, so it stays isolated.
 
 ---
