@@ -4,7 +4,8 @@
  * WP Wireframe bootstrap.
  *
  * Every bundled copy of the framework includes this file. Each copy registers
- * itself, and framework classes load from the newest version registered.
+ * itself, and classes load from the newest version registered, using that
+ * copy's autoload-map.php.
  */
 
 declare(strict_types=1);
@@ -18,8 +19,8 @@ if (! class_exists(Versions::class, false)) {
     /**
      * Registry of bundled WP Wireframe copies, plus the one autoloader they share.
      *
-     * Whichever copy loads first defines this class for every other copy, so its
-     * public API must never change.
+     * Whichever copy loads first defines this class for every other copy, so it
+     * must stay generic and its public API must never change.
      */
     final class Versions
     {
@@ -28,6 +29,9 @@ if (! class_exists(Versions::class, false)) {
 
         /** @var array{version: string, dir: string}|null Copy chosen at `plugins_loaded`. */
         private static ?array $locked = null;
+
+        /** @var array<string, array<string, list<string>>> Namespace maps, keyed by copy root. */
+        private static array $maps = [];
 
         private static ?Closure $loader = null;
 
@@ -51,7 +55,12 @@ if (! class_exists(Versions::class, false)) {
                     return;
                 }
             }
-            self::$copies[] = ['version' => $version, 'dir' => $dir];
+            $copy = ['version' => $version, 'dir' => $dir];
+            self::$copies[] = $copy;
+
+            if (self::$locked !== null) {
+                self::warnMajorMismatch([$copy]);
+            }
 
             // Re-prepend so pre-registry copies, which ship their own Composer
             // autoloader, can't serve framework classes ahead of this one.
@@ -69,18 +78,22 @@ if (! class_exists(Versions::class, false)) {
         }
 
         /**
-         * Every registered copy, in registration order.
+         * Every registered copy, in registration order. `source` is the owning plugin's
+         * directory name, `theme:{slug}` for a theme, or the copy's path otherwise.
          *
-         * @return list<array{version: string, dir: string}>
+         * @return list<array{version: string, dir: string, source: string}>
          */
         public static function registered(): array
         {
-            return self::$copies;
+            return array_map(
+                static fn (array $copy): array => $copy + ['source' => self::source($copy['dir'])],
+                self::$copies
+            );
         }
 
         /**
-         * The copy framework classes load from: the one locked at `plugins_loaded`,
-         * or the newest registered so far.
+         * The copy classes load from: the one locked at `plugins_loaded`, or the
+         * newest registered so far.
          *
          * @return array{version: string, dir: string}|null
          */
@@ -99,21 +112,12 @@ if (! class_exists(Versions::class, false)) {
             self::discoverComposerCopies();
             self::$locked = self::newest();
             self::$locking = false;
+
+            self::warnMajorMismatch(self::$copies);
         }
 
         private static function autoload(string $class): void
         {
-            if (str_starts_with($class, __NAMESPACE__ . '\\')) {
-                $relative = substr($class, strlen(__NAMESPACE__) + 1);
-                $roots = ['/src/'];
-            } elseif (str_starts_with($class, 'Rakit\\Validation\\')) {
-                $relative = substr($class, strlen('Rakit\\Validation\\'));
-                // Nested vendor/ in the release zip; sibling package in a Composer install.
-                $roots = ['/vendor/magewirephp/validation/src/', '/../../magewirephp/validation/src/'];
-            } else {
-                return;
-            }
-
             if (self::$locked === null && self::pluginsLoaded()) {
                 self::lock();
             }
@@ -123,17 +127,40 @@ if (! class_exists(Versions::class, false)) {
                 return;
             }
 
-            if (self::$locked === null) {
-                self::warnEarly($class);
-            }
+            foreach (self::map($copy['dir']) as $prefix => $paths) {
+                if (! str_starts_with($class, $prefix)) {
+                    continue;
+                }
 
-            foreach ($roots as $root) {
-                $file = $copy['dir'] . $root . str_replace('\\', '/', $relative) . '.php';
-                if (is_file($file)) {
-                    require $file;
-                    return;
+                if (self::$locked === null) {
+                    self::warnEarly($class);
+                }
+
+                $relative = str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+                foreach ($paths as $path) {
+                    $file = $copy['dir'] . '/' . $path . $relative;
+                    if (is_file($file)) {
+                        require $file;
+                        return;
+                    }
                 }
             }
+        }
+
+        /**
+         * Namespace prefixes a copy autoloads, mapped to directories relative to its root.
+         *
+         * @param string $dir The copy's root.
+         * @return array<string, list<string>>
+         */
+        private static function map(string $dir): array
+        {
+            if (! isset(self::$maps[$dir])) {
+                $map = is_file($dir . '/autoload-map.php') ? require $dir . '/autoload-map.php' : [];
+                self::$maps[$dir] = is_array($map) ? array_map(static fn ($paths): array => (array) $paths, $map) : [];
+            }
+
+            return self::$maps[$dir];
         }
 
         /**
@@ -170,6 +197,33 @@ if (! class_exists(Versions::class, false)) {
             return $newest;
         }
 
+        /**
+         * Plugin directory name, `theme:{slug}`, or the path itself.
+         *
+         * @param string $dir A copy's root.
+         * @return string
+         */
+        private static function source(string $dir): string
+        {
+            $path = trim(function_exists('wp_normalize_path') ? wp_normalize_path($dir) : str_replace('\\', '/', $dir), '/');
+
+            if (function_exists('plugin_basename')) {
+                $relative = plugin_basename($dir);
+                if ($relative !== $path) {
+                    return explode('/', $relative)[0];
+                }
+            }
+
+            if (function_exists('get_theme_root')) {
+                $themes = trim(str_replace('\\', '/', get_theme_root()), '/') . '/';
+                if (str_starts_with($path, $themes)) {
+                    return 'theme:' . explode('/', substr($path, strlen($themes)))[0];
+                }
+            }
+
+            return $dir;
+        }
+
         private static function prependLoader(): void
         {
             self::$loader ??= static fn (string $class) => self::autoload($class);
@@ -183,9 +237,14 @@ if (! class_exists(Versions::class, false)) {
             return function_exists('did_action') && did_action('plugins_loaded') > 0;
         }
 
+        private static function debugging(): bool
+        {
+            return function_exists('_doing_it_wrong') && defined('WP_DEBUG') && WP_DEBUG;
+        }
+
         private static function warnEarly(string $class): void
         {
-            if (self::$warned || ! function_exists('_doing_it_wrong') || ! defined('WP_DEBUG') || ! WP_DEBUG) {
+            if (self::$warned || ! self::debugging()) {
                 return;
             }
 
@@ -195,6 +254,31 @@ if (! class_exists(Versions::class, false)) {
                 'WP Wireframe classes must not be used before the plugins_loaded action. A newer bundled copy may still register, so the version loaded is not final.',
                 ''
             );
+        }
+
+        /**
+         * Warn when any of the given copies is a different major version from the locked one.
+         *
+         * @param list<array{version: string, dir: string}> $copies Copies to compare.
+         */
+        private static function warnMajorMismatch(array $copies): void
+        {
+            if (self::$locked === null || ! self::debugging()) {
+                return;
+            }
+
+            $running = self::$locked['version'];
+            $lines = [];
+            foreach ($copies as $copy) {
+                if (explode('.', $copy['version'])[0] !== explode('.', $running)[0]) {
+                    $lines[] = sprintf('%s bundles wp-wireframe %s but %s is running.', self::source($copy['dir']), $copy['version'], $running);
+                }
+            }
+
+            if ($lines !== []) {
+                $lines[] = sprintf('The running copy comes from %s.', self::source(self::$locked['dir']));
+                _doing_it_wrong(self::class, implode(' ', $lines), '');
+            }
         }
     }
 }

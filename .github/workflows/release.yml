@@ -79,6 +79,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check autoload map
+        run: php .github/scripts/check-autoload-map.php build/wp-wireframe
+
       - name: Create zip
         run: |
           cd build
