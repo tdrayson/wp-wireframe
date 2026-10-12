@@ -23,6 +23,17 @@ use Wireframe\Framework\Fields\FieldRegistry;
  */
 final class Settings
 {
+    /**
+     * Bind an option key so it doesn't need passing on every call.
+     *
+     * @param string $optionKey The wp_options key to bind.
+     * @return SettingsRepository
+     */
+    public static function for(string $optionKey): SettingsRepository
+    {
+        return new SettingsRepository($optionKey);
+    }
+
     // ─── Core CRUD ────────────────────────────────────
 
     /**
