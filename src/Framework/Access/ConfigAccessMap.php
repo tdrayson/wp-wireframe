@@ -67,7 +67,7 @@ final class ConfigAccessMap
 
         foreach ($this->viewable as $sections) {
             foreach ($sections as $fieldIds) {
-                array_push($ids, ...$fieldIds);
+                $ids = array_merge($ids, $fieldIds);
             }
         }
 

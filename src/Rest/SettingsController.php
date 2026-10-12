@@ -297,11 +297,14 @@ final class SettingsController
         static $cache = [];
         $key = $page['prefix'] . '__' . $page['page_id'];
 
-        if (!isset($cache[$key])) {
-            $config = ConfigLoader::load($page['config']);
-            $resolver = new AccessResolver($page['capability']);
-            $cache[$key] = $resolver->resolveForConfig($config);
+        if (isset($cache[$key])) {
+            return $cache[$key];
         }
+
+        $config   = ConfigLoader::load($page['config']);
+        $resolver = new AccessResolver($page['capability']);
+
+        $cache[$key] = $resolver->resolveForConfig($config);
 
         return $cache[$key];
     }
@@ -318,9 +321,11 @@ final class SettingsController
         $top = [];
 
         foreach ($editable as $fieldId) {
-            if (!str_contains($fieldId, '.')) {
-                $top[] = $fieldId;
+            if (str_contains($fieldId, '.')) {
+                continue;
             }
+
+            $top[] = $fieldId;
         }
 
         return array_values(array_unique($top));
@@ -340,17 +345,10 @@ final class SettingsController
         $scoped  = [];
 
         foreach ($fields as $fieldId => $fieldConfig) {
-            if (isset($allowed[$fieldId])) {
-                $scoped[$fieldId] = $fieldConfig;
-                continue;
-            }
+            $parentId = explode('.', $fieldId, 2)[0];
 
-            // Repeater subfields follow their parent.
-            if (str_contains($fieldId, '.')) {
-                $parentId = explode('.', $fieldId, 2)[0];
-                if (isset($allowed[$parentId])) {
-                    $scoped[$fieldId] = $fieldConfig;
-                }
+            if (isset($allowed[$fieldId]) || isset($allowed[$parentId])) {
+                $scoped[$fieldId] = $fieldConfig;
             }
         }
 

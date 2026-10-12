@@ -207,8 +207,7 @@ final class ActionController
      */
     private static function sanitizeIncomingValues(WP_REST_Request $request, array $page): array
     {
-        $body    = $request->get_json_params();
-        $payload = is_array($body['values'] ?? null) ? $body['values'] : [];
+        $payload = self::postedValues($request);
 
         if ($payload === []) {
             return [];
@@ -217,10 +216,41 @@ final class ActionController
         $fields = ConfigLoader::flatFields($page['config']);
         $map    = SettingsController::accessMap($page);
 
-        if ($map->isRbac()) {
-            [$payload, $fields] = self::scopeToAccess($payload, $fields, $map, $page);
+        if ($map->isLegacy()) {
+            return self::sanitizeForHandler($payload, $fields);
         }
 
+        [$payload, $fields] = self::scopeToAccess($payload, $fields, $map, $page);
+
+        return self::sanitizeForHandler($payload, $fields);
+    }
+
+    /**
+     * Read the JSON body's `values` object.
+     *
+     * @param WP_REST_Request $request The originating request.
+     * @return array<string, mixed> Posted values, or an empty array when absent or malformed.
+     */
+    private static function postedValues(WP_REST_Request $request): array
+    {
+        $values = $request->get_json_params()['values'] ?? null;
+
+        if (!is_array($values)) {
+            return [];
+        }
+
+        return $values;
+    }
+
+    /**
+     * Run values through the same sanitizer chain Save uses.
+     *
+     * @param array<string, mixed> $payload Values to sanitize.
+     * @param array<string, array> $fields  Flat fields to sanitize against.
+     * @return array<string, mixed> Field ID → sanitized value.
+     */
+    private static function sanitizeForHandler(array $payload, array $fields): array
+    {
         // Include stateless fields so transient inputs (e.g. `upload`) reach the
         // action handler — they're passed through here, never persisted.
         return Sanitizer::sanitize($payload, $fields, [], true);
@@ -241,13 +271,25 @@ final class ActionController
     private static function scopeToAccess(array $payload, array $fields, ConfigAccessMap $map, array $page): array
     {
         $viewable = $map->viewableFieldIds();
-        $editable = array_intersect($viewable, SettingsController::editableTopLevelIds($map->editable));
+        $editable = SettingsController::editableTopLevelIds($map->editable);
         $readOnly = array_diff($viewable, $editable);
 
-        $payload = array_intersect_key($payload, array_flip($editable))
-            + array_intersect_key(Settings::allFor($page['option_key']), array_flip($readOnly));
+        $posted = self::onlyKeys($payload, $editable);
+        $stored = self::onlyKeys(Settings::allFor($page['option_key']), $readOnly);
 
-        return [$payload, SettingsController::scopeFields($fields, $viewable)];
+        return [$posted + $stored, SettingsController::scopeFields($fields, $viewable)];
+    }
+
+    /**
+     * Keep only the given keys.
+     *
+     * @param array<string, mixed> $values Keyed values.
+     * @param list<string>         $keys   Keys to keep.
+     * @return array<string, mixed>
+     */
+    private static function onlyKeys(array $values, array $keys): array
+    {
+        return array_intersect_key($values, array_flip($keys));
     }
 
     /**
