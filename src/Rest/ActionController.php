@@ -148,7 +148,9 @@ final class ActionController
 
         $fields = ConfigLoader::flatFields($page['config']);
 
-        return Sanitizer::sanitize($payload, $fields);
+        // Include stateless fields so transient inputs (e.g. `upload`) reach the
+        // action handler — they're passed through here, never persisted.
+        return Sanitizer::sanitize($payload, $fields, [], true);
     }
 
     /**
