@@ -108,6 +108,8 @@ The `action` field type dispatches each button press through a per-button filter
 | ----------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
 | `{prefix}/action/{pageId}/{fieldId}/{actionId}`       | filter | Handle a button press. Args: `$default`, `$values`, `$request`.                 |
 
+| `{prefix}/header_action/{pageId}/{actionId}`          | filter | Handle a [header action](/wp-wireframe/docs/features/header-actions/) press. Same args. |
+
 In sugar mode (no `args.buttons[]`), the `{actionId}` is the literal string `run`.
 
 See [Action Field](/wp-wireframe/docs/features/action-field/) for the full handler contract.

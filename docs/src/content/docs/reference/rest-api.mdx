@@ -60,11 +60,12 @@ Each dispatch slot is hooks-first with a legacy callback fallback for back-compa
 
 ## Action endpoints
 
-The `action` field type registers one route per page:
+`action` fields and [header actions](/wp-wireframe/docs/features/header-actions/) register these routes per page:
 
 | Method | Endpoint                                                          | Purpose                                                       |
 | ------ | ----------------------------------------------------------------- | ------------------------------------------------------------- |
 | `POST` | `/{prefix}/v1/action/{pageId}/{fieldId}/{actionId}`               | Dispatch a button press to its filter handler.                |
+| `POST` | `/{prefix}/v1/header_action/{pageId}/{actionId}`                  | Dispatch a header button press. 403 for link buttons or users without `edit` access. |
 
 The request body carries the in-flight form values:
 
