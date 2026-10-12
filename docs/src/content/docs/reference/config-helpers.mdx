@@ -43,14 +43,18 @@ $config = Config::removeSection('deprecated', $config);
 Use them to build up an inline config, or to load a base config file and adjust it before boot:
 
 ```php
-$config = require __DIR__ . '/config/settings.php';
+add_action('init', function () {
+    $config = require __DIR__ . '/config/settings.php';
 
-$config = Config::addFieldAfter('site_name', [
-    'id' => 'powered_by', 'type' => 'text', 'label' => 'Powered By',
-], $config);
+    $config = Config::addFieldAfter('site_name', [
+        'id' => 'powered_by', 'type' => 'text', 'label' => 'Powered By',
+    ], $config);
 
-Wireframe\App::boot([
-    'prefix' => 'my-plugin',
-    'config' => $config,
-]);
+    Wireframe\App::boot([
+        'prefix' => 'my-plugin',
+        'config' => $config,
+    ]);
+});
 ```
+
+Like every `Wireframe\` class, `Config` must not be used before `plugins_loaded`.

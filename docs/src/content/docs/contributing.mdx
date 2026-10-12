@@ -16,6 +16,8 @@ npm run build    # production build → src/assets/
 
 The compiled bundle in `src/assets/` is committed, so consumers never need a JS build.
 
+To release, bump the version in `bootstrap.php` (the `Versions::register()` call) and tag `v{version}`. The release workflow fails if the two differ.
+
 ## Working on the docs
 
 The docs are an [Astro Starlight](https://starlight.astro.build/) site in `docs/`.

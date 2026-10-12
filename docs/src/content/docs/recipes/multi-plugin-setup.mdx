@@ -31,7 +31,17 @@ add_action('init', function () {
 });
 ```
 
-Both plugins bundle their own copy of the framework in `vendor/`. At runtime PHP loads whichever copy autoloads first — they share the same class definitions but each `boot()` call registers its own state.
+Both plugins bundle their own copy of the framework in `vendor/`. Every plugin runs on the newest copy, and each `boot()` call registers its own state.
+
+## Which copy runs
+
+Each bundled copy registers its version when its autoloader is required. From `plugins_loaded` on, every plugin uses the classes from the newest copy.
+
+- Require the autoloader when your plugin file loads, and don't use `Wireframe\` classes before `plugins_loaded`: a newer copy may not have registered yet. Booting on `init` is fine. With `WP_DEBUG` on, early use triggers a `_doing_it_wrong` notice.
+- Classes resolve through the running copy's `autoload-map.php`, so a newer copy can bundle a dependency an older one doesn't know about.
+- With `WP_DEBUG` on, copies spanning more than one major version trigger a notice naming each plugin, the version it bundles, and the version running.
+- `Wireframe\Versions::registered()` lists every copy found with its version and source plugin; `Wireframe\Versions::active()` is the one in use.
+- A copy prefixed with [Strauss](https://github.com/BrianHenryIE/strauss) gets its own namespace and registry, so it stays isolated.
 
 ## What's isolated per prefix
 
@@ -52,8 +62,8 @@ Both plugins bundle their own copy of the framework in `vendor/`. At runtime PHP
 | --------------------------- | ------------------------------------------------------------------------------------------- |
 | Field type registry         | Custom field types registered via `wp-wireframe/field_types` are visible to every plugin.   |
 | Package-level filters       | `wp-wireframe/access/resolve`, `wp-wireframe/save/payload`, etc. apply across all consumers.|
-| Compiled JS / CSS bundle    | One copy enqueued. The first plugin to boot wins the asset URL derivation.                  |
-| The `Wireframe\` namespace  | Singleton classes (`App`, `Plugin`) hold per-prefix state internally.                       |
+| Compiled JS / CSS bundle    | One copy enqueued, from the running (newest) copy.                                          |
+| The `Wireframe\` namespace  | Loaded once from the newest copy. Singleton classes (`App`, `Plugin`) hold per-prefix state internally. |
 
 Plugins that want to add a custom field type for their own use can still register globally and just not reference the type from other plugins' configs.
 

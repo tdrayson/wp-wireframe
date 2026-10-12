@@ -58,8 +58,10 @@ WP Wireframe is a **library**, not a standalone plugin. Bundle a copy inside you
 	</TabItem>
 </Tabs>
 
-<Aside type="tip">
-	No separate plugin to install or activate. If multiple plugins each bundle their own copy, they share one class definition at runtime and boot independently under their own prefixes.
+No separate plugin to install or activate. Any number of plugins can bundle their own copy; every plugin runs on the newest one — see [Multi-plugin setup](/wp-wireframe/docs/recipes/multi-plugin-setup/#which-copy-runs).
+
+<Aside type="caution">
+	Require the autoloader when your plugin file loads, but don't use `Wireframe\` classes before `plugins_loaded` — a newer bundled copy may not have registered yet. Booting on `init`, as in the [Quick Start](/wp-wireframe/docs/getting-started/quick-start/), is fine.
 </Aside>
 
 ## Next steps

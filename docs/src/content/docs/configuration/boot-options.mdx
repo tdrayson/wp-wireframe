@@ -88,4 +88,4 @@ Wireframe\App::boot(['prefix' => 'plugin-a', 'config' => /* … */]);
 Wireframe\App::boot(['prefix' => 'plugin-b', 'config' => /* … */]);
 ```
 
-Each plugin gets its own admin page, REST namespace (`/plugin-a/v1/…`), hooks (`plugin-a/settings_saved`), and option key — no collisions.
+Each plugin gets its own admin page, REST namespace (`/plugin-a/v1/…`), hooks (`plugin-a/settings_saved`), and option key — no collisions. When the plugins bundle different versions, all of them run on the newest — see [Multi-plugin setup](/wp-wireframe/docs/recipes/multi-plugin-setup/#which-copy-runs).
