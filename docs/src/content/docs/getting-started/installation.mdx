@@ -18,23 +18,26 @@ WP Wireframe is a **library**, not a standalone plugin. Bundle a copy inside you
 
 <Tabs>
 	<TabItem label="Composer (recommended)">
-		Add the GitHub repo to your plugin's `composer.json` — no Packagist needed:
+		Add the GitHub repo to your plugin's Composer repositories — no Packagist needed:
+
+		```bash
+		composer config repositories.tdrayson/wp-wireframe git https://github.com/tdrayson/wp-wireframe
+		```
+
+		Or add it to `composer.json` by hand:
 
 		```json
 		{
 		    "repositories": [
 		        { "type": "vcs", "url": "https://github.com/tdrayson/wp-wireframe" }
-		    ],
-		    "require": {
-		        "tdrayson/wp-wireframe": "^1.0"
-		    }
+		    ]
 		}
 		```
 
 		Then install:
 
 		```bash
-		composer install
+		composer require tdrayson/wp-wireframe
 		```
 
 		And require the Composer autoloader from your plugin's main file:

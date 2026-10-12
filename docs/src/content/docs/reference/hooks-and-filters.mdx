@@ -22,6 +22,7 @@ Hooks split into two namespaces:
 | `wp-wireframe/access/can_reset`       | filter   | Override whether a user may reset on a given page.                                |
 | `wp-wireframe/save/editable_fields`   | filter   | Final list of writable field IDs for a save request.                              |
 | `wp-wireframe/save/payload`           | filter   | Transform the sanitised payload before merge.                                     |
+| `wp-wireframe/suppress_admin_notices` | filter   | Return `false` to keep third-party admin notices on Wireframe pages.              |
 
 ### Signatures
 
@@ -71,6 +72,14 @@ add_filter('wp-wireframe/save/payload',
         return $values;
     },
     10, 3
+);
+
+// Third-party admin notices are hidden on Wireframe pages by default.
+add_filter('wp-wireframe/suppress_admin_notices',
+    function (bool $suppress, WP_Screen $screen): bool {
+        return $suppress;
+    },
+    10, 2
 );
 ```
 

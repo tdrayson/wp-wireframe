@@ -60,6 +60,10 @@ export default defineConfig({
 					items: [{ autogenerate: { directory: 'recipes' } }],
 				},
 				{
+					label: 'Contributing',
+					link: '/contributing/',
+				},
+				{
 					label: 'Changelog',
 					link: '/changelog/',
 				},

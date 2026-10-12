@@ -1,0 +1,45 @@
+---
+title: Contributing
+description: Working on the package and the docs site, and how pull request previews work.
+---
+
+## Working on the package
+
+```bash
+git clone https://github.com/tdrayson/wp-wireframe.git
+cd wp-wireframe
+composer install
+npm install
+npm run start    # watch mode
+npm run build    # production build → src/assets/
+```
+
+The compiled bundle in `src/assets/` is committed, so consumers never need a JS build.
+
+## Working on the docs
+
+The docs are an [Astro Starlight](https://starlight.astro.build/) site in `docs/`.
+
+```bash
+cd docs
+npm install
+npm run dev      # serves at http://localhost:4321/wp-wireframe/docs/
+npm run build    # builds to docs/dist and fails on broken internal links
+```
+
+`changelog.md` is generated from the root `CHANGELOG.md` on every dev/build run — edit the root file, not the generated page. Internal links must include the base path, e.g. `/wp-wireframe/docs/features/action-field/`.
+
+Pushes to `main` that touch `docs/` or `CHANGELOG.md` publish the site via `.github/workflows/docs.yml`.
+
+## Playground previews
+
+Every pull request, including ones from forks, gets a sticky comment with a [WordPress Playground](https://playground.wordpress.net/) link that boots a site with every plugin in `examples/` installed against the PR's code, plus [Options View](https://wordpress.org/plugins/options-view/) for inspecting saved values. Published releases get the same link appended to their release notes.
+
+Two workflows split the work so fork PRs never run with a write token:
+
+- `playground.yml` builds a zip per example from the PR's code with a read-only token and uploads them as an artifact.
+- `playground-publish.yml` runs from `main` on `workflow_run`, validates the artifact, publishes it to `gh-pages` under `<sha>/examples/`, and posts the comment. Changes to it only take effect once merged.
+
+GitHub Pages serves the `gh-pages` branch: previews live under `<sha>/` and these docs under `docs/`. Both publishers share the `gh-pages-publish` concurrency group so their pushes never race. Old `<sha>/` directories are never pruned automatically.
+
+One-time repository setup is documented at the top of `.github/workflows/playground.yml`.

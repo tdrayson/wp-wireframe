@@ -64,6 +64,23 @@ Subfields are declared inline in `args.subfields` and follow the same shape as a
 Subfields don't get their own `access` keys — the whole repeater is one editable unit; subfields inherit the parent's editability.
 </Aside>
 
+### Conditional subfields
+
+Subfields accept the same [`conditions`](/wp-wireframe/docs/features/conditional-visibility/) DSL as top-level fields. Rules evaluate against **the row**, so `field` refers to a sibling subfield id.
+
+```php
+'subfields' => [
+    ['id' => 'kind', 'type' => 'select', 'label' => __('Type', 'my-plugin'), 'default' => 'once',
+        'args' => ['options' => ['once' => __('One-off', 'my-plugin'), 'recurring' => __('Recurring', 'my-plugin')]],
+    ],
+    ['id' => 'run_at', 'type' => 'date', 'label' => __('Run at', 'my-plugin'), 'required' => true,
+        'conditions' => ['all' => [['field' => 'kind', 'operator' => 'equals', 'value' => 'once']]],
+    ],
+],
+```
+
+A hidden subfield doesn't render, skips validation (so `required` won't block the save), and is dropped from the saved row. Unlike hidden top-level fields, its previous value is not preserved.
+
 ## `table`
 
 The `table` field is stateless — it doesn't persist a value. It renders a paginated, sortable, filterable DataViews-style table whose rows come from a server-side handler.

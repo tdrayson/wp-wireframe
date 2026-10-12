@@ -81,6 +81,27 @@ add_filter(
     </TabItem>
 </Tabs>
 
+## Unlabelled actions
+
+`label` is optional. Without it, the button text is the accessible name and no label row is rendered, so a standalone action sits flush in its section.
+
+When an unlabelled action shares a row with labelled fields (via `columns`), set `args.label_spacer` to reserve the label's height so the buttons line up with the neighbouring inputs:
+
+```php
+['id' => 'api_key', 'type' => 'text', 'label' => __('API key', 'my-plugin'), 'columns' => 8],
+[
+    'id'      => 'test_key',
+    'type'    => 'action',
+    'columns' => 4,
+    'args'    => [
+        'button_label' => __('Test connection', 'my-plugin'),
+        'label_spacer' => true,
+    ],
+],
+```
+
+`label_spacer` defaults to `false` and has no effect when `label` is set.
+
 ## Response shape
 
 Return any of:

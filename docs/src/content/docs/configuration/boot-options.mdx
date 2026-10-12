@@ -34,7 +34,7 @@ Wireframe\App::boot([
 | `config`        | `string\|array` | `[]`                      | Path to a PHP file that returns the config array, **or** the config array inline.  |
 | `version`       | `string`        | `'1.0.0'`                 | Plugin version. Used for cache-busting and surfaced in some hooks.                 |
 | `capability`    | `string`        | `'manage_options'`        | Capability required to view, save, and reset the page.                             |
-| `menu_icon`     | `string`        | `'dashicons-admin-generic'` | Any Dashicon class or data-URI icon. Ignored when `parent` is set.               |
+| `menu_icon`     | `string`        | `'dashicons-admin-generic'` | Dashicon, image URL, `data:` URI, inline `<svg>`, or `.svg` path. See [Menu icon](#menu-icon). Ignored when `parent` is set. |
 | `menu_position` | `int`           | `80`                      | Position in the WP admin menu.                                                     |
 | `parent`        | `string`        | `''`                      | Register as a submenu of the given parent. See [Submenu Pages](/wp-wireframe/docs/configuration/submenu-pages/). |
 | `pages`         | `array`         | —                         | Register multiple pages under one prefix. See [Multi-Page](/wp-wireframe/docs/configuration/multi-page/). |
@@ -57,6 +57,24 @@ Anything you pass that isn't listed here is silently ignored — safe to add you
 ```
 
 A file lets you keep large configs out of the boot call. Inline is convenient for small pages and one-off scripts. Either way, the resulting array shape is the same — see [Config Structure](/wp-wireframe/docs/configuration/config-structure/).
+
+## Menu icon
+
+`menu_icon` accepts anything [`add_menu_page()`](https://developer.wordpress.org/reference/functions/add_menu_page/) does — a dashicon slug, an image URL, a `data:` URI, or `'none'` — plus two custom-SVG conveniences:
+
+```php
+// Inline SVG markup.
+'menu_icon' => '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="..."/></svg>',
+
+// Path to an .svg file shipped with your plugin.
+'menu_icon' => __DIR__ . '/assets/icon.svg',
+```
+
+Both are base64-encoded into a `data:image/svg+xml` URI for you. Use `fill="currentColor"` (or no `fill` at all) so the icon inherits the admin colour scheme and highlight states, exactly like a dashicon.
+
+<Aside type="caution">
+File paths must resolve to a readable `.svg` under the WordPress content, plugin, or theme directories (or the wp-wireframe package). Anything else is passed through to WordPress unchanged.
+</Aside>
 
 ## Multiple plugins, one framework
 
