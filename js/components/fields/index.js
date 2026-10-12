@@ -18,6 +18,7 @@ import TimeEdit from './TimeEdit';
 import HiddenEdit from './HiddenEdit';
 import HtmlDisplay from './HtmlDisplay';
 import MediaEdit from './MediaEdit';
+import UploadEdit from './UploadEdit';
 import WysiwygEdit from './WysiwygEdit';
 import CodeEditorEdit from './CodeEditorEdit';
 import RepeaterEdit from './RepeaterEdit';
@@ -63,6 +64,7 @@ export const customEditComponents = {
 
 	// Media.
 	file: MediaEdit,
+	upload: UploadEdit,
 
 	// Complex.
 	repeater: RepeaterEdit,
