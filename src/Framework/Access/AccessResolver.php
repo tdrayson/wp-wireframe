@@ -379,9 +379,9 @@ final class AccessResolver
     }
 
     /**
-     * Keep the header actions the user can view, with their `access` keys stripped.
+     * Keep the header actions the user can run, with their `access` keys stripped.
      *
-     * An action without `access` falls back to the page capability, like a field does.
+     * Running is checked as `edit` (which falls back to `view`); no `access` means the page capability.
      *
      * @param list<array>  $actions Normalized `header_actions` entries.
      * @param WP_User|null $user    User being checked; defaults to the current user.
@@ -395,7 +395,7 @@ final class AccessResolver
             $id   = (string) ($action['id'] ?? '');
             $spec = self::normalizeSpec($action['access'] ?? null);
 
-            if ($id === '' || !$this->userCan('view', $spec, $user, ['level' => 'header_action', 'id' => $id])) {
+            if ($id === '' || !$this->userCan('edit', $spec, $user, ['level' => 'header_action', 'id' => $id])) {
                 continue;
             }
 

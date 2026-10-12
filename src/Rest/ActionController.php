@@ -249,7 +249,7 @@ final class ActionController
     private static function findHeaderAction(array $page, string $actionId): ?array
     {
         foreach (ConfigLoader::load($page['config'])['header_actions'] ?? [] as $action) {
-            if (($action['id'] ?? null) === $actionId) {
+            if ((string) ($action['id'] ?? '') === $actionId) {
                 return $action;
             }
         }

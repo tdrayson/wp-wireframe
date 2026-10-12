@@ -809,7 +809,7 @@ add_filter('my-plugin/header_action/{pageId}/recalculate', function ($unhandled,
 }, 10, 3);
 ```
 
-A button with `href` is a plain link. Any other button works like an [action field](#action-field) button: it posts the in-flight form values to `{prefix}/header_action/{pageId}/{id}` and takes the same `variant`, `destructive`, `confirm` and response shape (`html` opens in a modal). `access` uses the [field format](#role-based-access) and defaults to the page capability; buttons the user can't view are never sent to the browser, and their route returns `403`.
+A button with `href` is a plain link. Any other button works like an [action field](#action-field) button: it posts the in-flight form values to `{prefix}/header_action/{pageId}/{id}` and takes the same `variant`, `destructive`, `confirm` and response shape (`html` opens in a modal). `access` uses the [field format](#role-based-access) and defaults to the page capability; running a button is an edit, so a user needs its `edit` rule (which falls back to `view`). Buttons the user can't run are never sent to the browser, and their route returns `403`.
 
 ### Validation
 
@@ -1010,6 +1010,7 @@ The `action` and `table` field types dispatch through per-page, per-field filter
 | Hook                                                          | Type   | Purpose                                                                                     |
 | ------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------- |
 | `{prefix}/action/{pageId}/{fieldId}/{actionId}`               | filter | Handle a button press on an `action` field. See [Action Field](#action-field).              |
+| `{prefix}/header_action/{pageId}/{actionId}`                  | filter | Handle a header button press. See [Header Actions](#header-actions).                        |
 | `{prefix}/table/{pageId}/{fieldId}/data`                      | filter | Row fetch for a `table` field. Receives `$query`, returns `['items', 'total']`.             |
 | `{prefix}/table/{pageId}/{fieldId}/{actionId}`                | filter | Row / bulk action on a `table` field. Receives `$ids`, `$request`.                          |
 | `{prefix}/table/{pageId}/{fieldId}/detail/fetch`              | filter | Load a single entry for the detail view. Receives `$entryId`, `$request`.                   |
