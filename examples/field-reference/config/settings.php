@@ -15,6 +15,10 @@ if (! defined('ABSPATH')) {
 return [
     'title'    => __('Field Reference', 'field-reference'),
     'subtitle' => __('Every field type supported by WP Wireframe.', 'field-reference'),
+    'header_actions' => [
+        ['id' => 'docs', 'label' => __('Docs', 'field-reference'), 'variant' => 'tertiary', 'href' => 'https://github.com/tdrayson/wp-wireframe#header-actions', 'target' => '_blank'],
+        ['id' => 'count', 'label' => __('Count filled fields', 'field-reference'), 'confirm' => __('Count the fields that currently have a value?', 'field-reference')],
+    ],
     'tabs'     => [
 
         // ─── Example ──────────────────────────────────────

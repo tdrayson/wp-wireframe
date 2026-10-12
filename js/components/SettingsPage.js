@@ -20,6 +20,7 @@ import {
   URL_CHANGE_EVENT,
 } from '../utils/tableDetailUrl';
 import SettingsSection from './SettingsSection';
+import HeaderActions from './HeaderActions';
 import TableDetailView from './fields/TableDetailView';
 
 /**
@@ -165,6 +166,7 @@ export default function SettingsPage() {
   // so read-only users see no action affordance at all.
   const headerActions = (
     <>
+      <HeaderActions actions={config.header_actions} />
       {canReset &&
         hasSaved &&
         (confirmReset ? (

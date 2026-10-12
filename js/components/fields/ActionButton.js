@@ -40,14 +40,12 @@
  * Sugar: omit `buttons` for the single-button case. The button id falls
  * back to the field id, the label to `args.button_label` or `field.label`.
  */
-import { Button, BaseControl, Modal, Flex, FlexItem } from '@wordpress/components';
+import { Button, BaseControl, Flex, FlexItem } from '@wordpress/components';
 import { RawHTML, useCallback, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { useDispatch } from '@wordpress/data';
-import { store as noticesStore } from '@wordpress/notices';
-import apiFetch from '@wordpress/api-fetch';
 import { useSettings } from '../../hooks/useSettings';
-import { downloadFile } from '../../utils/downloadFile';
+import { useActionRunner, resolveConfirm } from '../../hooks/useActionRunner';
+import ActionConfirmModal from '../ActionConfirmModal';
 
 const VARIANT_CLASSES = {
 	success: 'wireframe-action__result--success',
@@ -55,59 +53,6 @@ const VARIANT_CLASSES = {
 	warning: 'wireframe-action__result--warning',
 	info: 'wireframe-action__result--info',
 };
-
-// WordPress `createNotice( status, ... )` only honours these statuses.
-const SNACKBAR_STATUSES = new Set( [ 'success', 'error', 'warning', 'info' ] );
-
-/**
- * Pick a response status from any of the supported response shapes.
- */
-function resolveStatus( payload ) {
-	if ( payload && typeof payload.status === 'string' && SNACKBAR_STATUSES.has( payload.status ) ) {
-		return payload.status;
-	}
-
-	if ( payload && payload.success === false ) {
-		return 'error';
-	}
-
-	return 'success';
-}
-
-/**
- * Normalize a confirm declaration into a uniform shape, or null.
- *
- * Accepts either:
- *  - string         → shorthand, becomes `{ message }`
- *  - array / object → `{ message, title, button_label, cancel_label }`
- *
- * Returning null means "no confirm" — the button fires immediately.
- */
-function resolveConfirm( raw ) {
-	if ( ! raw ) {
-		return null;
-	}
-
-	if ( typeof raw === 'string' ) {
-		return {
-			message: raw,
-			title: '',
-			buttonLabel: '',
-			cancelLabel: '',
-		};
-	}
-
-	if ( typeof raw === 'object' ) {
-		return {
-			message: raw.message || '',
-			title: raw.title || '',
-			buttonLabel: raw.button_label || '',
-			cancelLabel: raw.cancel_label || '',
-		};
-	}
-
-	return null;
-}
 
 /**
  * Normalize the field's button list into the array form.
@@ -148,10 +93,7 @@ export default function ActionButton( { field } ) {
 	const args = field._args || {};
 	const buttons = resolveButtons( field, args );
 
-	const { values, restRoot, pageId } = useSettings();
-	const { createNotice } = useDispatch( noticesStore );
-
-	const [ runningId, setRunningId ] = useState( null );
+	const { restRoot, pageId } = useSettings();
 
 	// Result panels are keyed by button id, so each button owns its own
 	// slot. Clicking button A only ever updates A's panel — B's previous
@@ -159,86 +101,31 @@ export default function ActionButton( { field } ) {
 	// (returns html → replaces) or clears (returns no html → removes) only
 	// its own slot.
 	const [ results, setResults ] = useState( {} );
-	const [ confirmingButton, setConfirmingButton ] = useState( null );
 
-	const performAction = useCallback(
-		async ( button ) => {
-			setRunningId( button.id );
-
-			const endpoint = `/${ restRoot }/action/${ pageId }/${ encodeURIComponent(
+	const pathFor = useCallback(
+		( button ) =>
+			`/${ restRoot }/action/${ pageId }/${ encodeURIComponent(
 				field.id
-			) }/${ encodeURIComponent( button.id ) }`;
-
-			try {
-				const response = await apiFetch( {
-					path: endpoint,
-					method: 'POST',
-					data: { values },
-				} );
-
-				const status = resolveStatus( response );
-				const message = response?.message || '';
-				const html = response?.html || '';
-
-				if ( message ) {
-					createNotice( status, message, { type: 'snackbar' } );
-				}
-
-				// Optional file download — handler returned a `download`
-				// artifact (e.g. a generated CSV or report).
-				if ( response?.download?.filename ) {
-					downloadFile( response.download );
-				}
-
-				// Update only this button's slot. Other buttons' panels are
-				// untouched.
-				setResults( ( previous ) => {
-					const next = { ...previous };
-
-					if ( html ) {
-						next[ button.id ] = { status, message, html };
-					} else {
-						delete next[ button.id ];
-					}
-
-					return next;
-				} );
-			} catch ( requestError ) {
-				const message =
-					requestError?.message ||
-					__( 'Action failed.', 'wp-wireframe' );
-
-				createNotice( 'error', message, { type: 'snackbar' } );
-				// Don't touch any result slots on error — whatever was
-				// showing before stays visible.
-			} finally {
-				setRunningId( null );
-			}
-		},
-		[ restRoot, pageId, field.id, values, createNotice ]
+			) }/${ encodeURIComponent( button.id ) }`,
+		[ restRoot, pageId, field.id ]
 	);
 
-	const handleClick = useCallback(
-		( button ) => {
-			if ( button.confirm ) {
-				setConfirmingButton( button );
-				return;
+	const storeResult = useCallback( ( button, { status, message, html } ) => {
+		setResults( ( previous ) => {
+			const next = { ...previous };
+
+			if ( html ) {
+				next[ button.id ] = { status, message, html };
+			} else {
+				delete next[ button.id ];
 			}
 
-			performAction( button );
-		},
-		[ performAction ]
-	);
+			return next;
+		} );
+	}, [] );
 
-	const handleConfirm = useCallback( () => {
-		if ( ! confirmingButton ) {
-			return;
-		}
-
-		const button = confirmingButton;
-		setConfirmingButton( null );
-		performAction( button );
-	}, [ confirmingButton, performAction ] );
+	const { runningId, confirmingButton, run, confirm, cancel } =
+		useActionRunner( pathFor, storeResult );
 
 	// Each button's text IS the accessible name of its action, so when
 	// `field.label` is empty we deliberately omit BaseControl's <label>
@@ -274,7 +161,7 @@ export default function ActionButton( { field } ) {
 								__next40pxDefaultSize
 								variant={ button.variant }
 								isDestructive={ button.destructive }
-								onClick={ () => handleClick( button ) }
+								onClick={ () => run( button ) }
 								isBusy={ runningId === button.id }
 								disabled={ runningId !== null }
 							>
@@ -305,38 +192,11 @@ export default function ActionButton( { field } ) {
 				} ) }
 			</div>
 
-			{ confirmingButton && confirmingButton.confirm && (
-				<Modal
-					title={
-						confirmingButton.confirm.title ||
-						__( 'Are you sure?', 'wp-wireframe' )
-					}
-					onRequestClose={ () => setConfirmingButton( null ) }
-				>
-					<p>{ confirmingButton.confirm.message }</p>
-					<Flex justify="flex-end" gap={ 2 }>
-						<FlexItem>
-							<Button
-								variant="tertiary"
-								onClick={ () => setConfirmingButton( null ) }
-							>
-								{ confirmingButton.confirm.cancelLabel ||
-									__( 'Cancel', 'wp-wireframe' ) }
-							</Button>
-						</FlexItem>
-						<FlexItem>
-							<Button
-								variant="primary"
-								isDestructive={ confirmingButton.destructive }
-								onClick={ handleConfirm }
-							>
-								{ confirmingButton.confirm.buttonLabel ||
-									confirmingButton.label }
-							</Button>
-						</FlexItem>
-					</Flex>
-				</Modal>
-			) }
+			<ActionConfirmModal
+				button={ confirmingButton }
+				onConfirm={ confirm }
+				onCancel={ cancel }
+			/>
 		</BaseControl>
 	);
 }

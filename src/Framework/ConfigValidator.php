@@ -38,6 +38,18 @@ final class ConfigValidator
         $seenIds    = [];
         $prefix     = $slug !== '' ? $slug . ' · ' : '';
 
+        $seenActions = [];
+
+        foreach ($config['header_actions'] ?? [] as $index => $action) {
+            if (empty($action['id']) || empty($action['label'])) {
+                $issues[] = sprintf('%sheader_actions[%d]: requires "id" and "label".', $prefix, $index);
+            } elseif (isset($seenActions[(string) $action['id']])) {
+                $issues[] = sprintf('%sheader_actions: duplicate id "%s".', $prefix, $action['id']);
+            }
+
+            $seenActions[(string) ($action['id'] ?? '')] = true;
+        }
+
         foreach ($config['tabs'] ?? [] as $tab) {
             $tabId = (string) ($tab['id'] ?? '(no id)');
 
