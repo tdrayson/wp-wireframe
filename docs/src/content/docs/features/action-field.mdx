@@ -175,6 +175,7 @@ The filter default is a private `Unhandled` sentinel — if no listener attaches
 ## Security boundaries
 
 - **View-level auth** — the route requires a WP REST nonce and the page's `capability` (default `manage_options`). With [role-based access](/wp-wireframe/docs/features/role-based-access/) on, any user who can *view* something on the page can call it, so check `current_user_can()` in handlers that change data.
+- **Values scoped to access** — with role-based access on, `$values` holds only the fields the user can view, and view-only fields carry their stored value (or default), never the posted one. `$request` still carries the raw body, so read `$values`.
 - **Declared fields only** — unknown payload keys are dropped before sanitisation. Each declared value runs through its type's `sanitize()` (so a `number` is an `int`, a `url` has been through `esc_url_raw`, etc.).
 - **Sanitisers enforce format, not semantics** — your handler must still authorise what's being asked for (e.g. "can this user modify *that* order?") and use `$wpdb->prepare()` for anything it interpolates into SQL.
 - **Raw HTML output is on you** — any `html` you return is rendered as `<RawHTML>` on the client. Escape anything user-derived with `esc_html()`, `wp_kses_post()`, or build the HTML server-side from trusted strings.
@@ -182,7 +183,7 @@ The filter default is a private `Unhandled` sentinel — if no listener attaches
 
 ## Reading sibling values
 
-Because the request carries the in-flight values, your handler can read other fields on the page without any extra plumbing:
+Because the request carries the in-flight values, your handler can read other fields on the page without any extra plumbing. On [role-based access](/wp-wireframe/docs/features/role-based-access/) pages, fields the user can't view are absent — read those from `Settings` instead:
 
 ```php
 add_filter(

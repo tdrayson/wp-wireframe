@@ -78,6 +78,7 @@ Once **at least one** `access` key is declared anywhere on the page, RBAC mode e
 | Empty tab/section after filtering               | Auto-hidden                                                                                    | n/a                                                                 |
 | Save endpoint                                   | Merges editable fields into existing values — fields outside scope are never touched           | `wp-wireframe/save/editable_fields`, `wp-wireframe/save/payload`    |
 | Reset endpoint                                  | Resets only the user's editable fields                                                         | `wp-wireframe/access/can_reset` filter                              |
+| Action / header action `$values`                | Only fields the user can view; view-only fields carry the stored value (or default), never the posted one | n/a                                                      |
 | Save / Reset buttons                            | Hidden when the user has no editable fields                                                    | n/a                                                                 |
 | REST permission callback                        | `read` AND: GET — any viewable element; POST — an editable field; DELETE — an editable field and `can_reset`. Action and table routes use the GET rule | `wp-wireframe/access/resolve` filter |
 

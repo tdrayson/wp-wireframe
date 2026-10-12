@@ -24,7 +24,7 @@ add_filter('my-plugin/header_action/{pageId}/recalculate', function ($unhandled,
 }, 10, 3);
 ```
 
-A button with `href` is a plain link. Any other button works like an [action field](/wp-wireframe/docs/features/action-field/) button: it posts the in-flight form values to `{prefix}/header_action/{pageId}/{id}` and takes the same `variant`, `destructive`, `confirm` and [response shape](/wp-wireframe/docs/features/action-field/#response-shape). Returned `html` opens in a modal.
+A button with `href` is a plain link. Any other button works like an [action field](/wp-wireframe/docs/features/action-field/) button: it posts the in-flight form values to `{prefix}/header_action/{pageId}/{id}` and takes the same `variant`, `destructive`, `confirm` and [response shape](/wp-wireframe/docs/features/action-field/#response-shape). Returned `html` opens in a modal, and `$values` is [scoped to the user's access](/wp-wireframe/docs/features/action-field/#security-boundaries) the same way.
 
 ## Access
 
