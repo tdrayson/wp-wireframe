@@ -7,14 +7,15 @@ namespace Wireframe;
 /**
  * Static helpers for programmatic config manipulation.
  *
- * All methods accept and return the full config array, making them
- * ideal for use inside filter callbacks:
+ * All methods accept and return the full config array, for shaping a config
+ * before it is passed to `App::boot()`:
  *
- *   add_filter('my-plugin/config', function (array $config) {
- *       return Config::addFieldAfter('site_name', [
- *           'id' => 'subtitle', 'type' => 'text', 'label' => 'Subtitle',
- *       ], $config);
- *   });
+ *   $config = Config::addFieldAfter('site_name', [
+ *       'id' => 'subtitle', 'type' => 'text', 'label' => 'Subtitle',
+ *   ], $config);
+ *
+ * To edit another plugin's config, use the `{prefix}/config` filter and
+ * its `Builder\Editor` instead.
  */
 final class Config
 {

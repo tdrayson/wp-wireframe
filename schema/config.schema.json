@@ -53,6 +53,7 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "access": { "$ref": "#/$defs/access" },
+        "conditions": { "$ref": "#/$defs/conditionNode" },
         "sections": {
           "type": "array",
           "items": { "$ref": "#/$defs/section" }
@@ -68,6 +69,7 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "access": { "$ref": "#/$defs/access" },
+        "conditions": { "$ref": "#/$defs/conditionNode" },
         "fields": {
           "type": "array",
           "items": { "$ref": "#/$defs/field" }
@@ -87,7 +89,7 @@
             "text", "textarea", "email", "url", "password", "hidden",
             "number", "range", "select", "radio", "image_radio",
             "checkboxes", "image_checkboxes", "toggle", "checkbox",
-            "color", "date", "time", "editor", "code_editor", "file",
+            "color", "date", "time", "editor", "code_editor", "file", "upload",
             "repeater", "html", "export", "import", "table", "action"
           ]
         },

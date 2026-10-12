@@ -53,6 +53,9 @@ jobs:
             --exclude='node_modules' \
             --exclude='package.json' \
             --exclude='package-lock.json' \
+            --exclude='tests' \
+            --exclude='phpunit.xml' \
+            --exclude='.phpunit.result.cache' \
             ./ build/wp-wireframe/
 
       - name: Create zip

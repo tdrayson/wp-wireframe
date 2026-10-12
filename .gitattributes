@@ -8,6 +8,8 @@
 /package-lock.json export-ignore
 /.gitattributes    export-ignore
 /.gitignore        export-ignore
+/tests             export-ignore
+/phpunit.xml       export-ignore
 
 # Built assets are committed so Composer VCS installs work, but mark them
 # as binary-style so PR diffs don't show every minified-bundle change.

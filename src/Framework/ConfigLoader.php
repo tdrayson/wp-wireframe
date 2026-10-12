@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Wireframe\Framework;
 
+use Wireframe\App;
+use Wireframe\Builder\Editor;
+
 /**
  * Loads, normalizes, and caches settings configurations.
  *
@@ -15,6 +18,10 @@ namespace Wireframe\Framework;
  * All formats use sequential arrays with explicit `id` keys.
  * The normalizer ensures the canonical structure is always:
  *   `['tabs' => [['id' => ..., 'sections' => [['id' => ..., 'fields' => [...]]]]]]`
+ *
+ * After normalizing, other plugins can edit the config through the
+ * `{prefix}/config` filter (see Builder\Editor) before it is cached, so
+ * injected fields render, sanitize, validate and save like native ones.
  */
 final class ConfigLoader
 {
@@ -27,18 +34,24 @@ final class ConfigLoader
     /** @var array<string, array> Configs registered as inline arrays at boot time. */
     private static array $inlineConfigs = [];
 
+    /** @var array<string, array{prefix: string, page_id: string}> Owning plugin prefix + page ID per slug. */
+    private static array $owners = [];
+
     /**
      * Register a config array under a slug.
      *
      * Called from App::boot() once per page, after resolving the `config`
-     * option (either an inline array or a path to a config file).
+     * option (an inline array, a Page builder, or a path to a config file).
      *
      * @param string $slug   Config slug.
      * @param array  $config Raw config array (same shape as a config file return).
+     * @param string $prefix Owning plugin prefix; enables the `{prefix}/config` filter.
+     * @param string $pageId Page ID passed to that filter.
      */
-    public static function register(string $slug, array $config): void
+    public static function register(string $slug, array $config, string $prefix = '', string $pageId = 'default'): void
     {
         self::$inlineConfigs[$slug] = $config;
+        self::$owners[$slug] = ['prefix' => $prefix, 'page_id' => $pageId];
         unset(self::$configs[$slug], self::$flatFieldsCache[$slug]);
     }
 
@@ -61,8 +74,49 @@ final class ConfigLoader
             return self::$configs[$slug];
         }
 
-        self::$configs[$slug] = self::normalize(self::$inlineConfigs[$slug]);
+        $normalized = self::normalize(self::$inlineConfigs[$slug]);
+
+        // Seeded first so a `{prefix}/config` callback that reads settings doesn't recurse.
+        self::$configs[$slug] = $normalized;
+        self::$configs[$slug] = self::extend($slug, $normalized);
+        unset(self::$flatFieldsCache[$slug]);
+
         return self::$configs[$slug];
+    }
+
+    /**
+     * Run the owning plugin's `{prefix}/config` filter over a normalized config.
+     *
+     * @param string $slug   Config slug.
+     * @param array  $config Normalized config.
+     * @return array Config with any injected tabs, sections and fields.
+     */
+    private static function extend(string $slug, array $config): array
+    {
+        $prefix = self::$owners[$slug]['prefix'] ?? '';
+
+        if ($prefix === '' || !function_exists('apply_filters')) {
+            return $config;
+        }
+
+        $hook = App::hookName($prefix, 'config');
+
+        if (function_exists('has_filter') && !has_filter($hook)) {
+            return $config;
+        }
+
+        $editor = Editor::fromArray($config);
+
+        /**
+         * Add, move or remove tabs, sections and fields in this plugin's page config.
+         *
+         * @param Editor $editor Mutable view of the normalized config.
+         * @param string $pageId Page identifier (`default` for single-page plugins).
+         * @param string $slug   Config slug, e.g. `my-plugin` or `my-plugin-general`.
+         */
+        $result = apply_filters($hook, $editor, self::$owners[$slug]['page_id'], $slug);
+
+        return ($result instanceof Editor ? $result : $editor)->toArray();
     }
 
     /**
