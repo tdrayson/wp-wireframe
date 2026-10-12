@@ -5,8 +5,6 @@
 
 # WP Wireframe
 
-[![Try in Playground](https://wordpress.github.io/action-wp-playground-pr-preview/assets/playground-preview-button.svg)](https://playground.wordpress.net/?blueprint-url=https://tdrayson.github.io/wp-wireframe/latest/blueprint.json)
-
 **[Install](#install)** · **[Quick Start](#quick-start)** · **[Documentation](https://tdrayson.github.io/wp-wireframe/docs/)** · **[Contributing](https://tdrayson.github.io/wp-wireframe/docs/contributing/)**
 
 **Skip the admin UI. Ship your plugin.** A fast, standardised way to build WordPress settings pages. List your fields in a PHP array and WP Wireframe builds the whole admin page using WordPress React components. Same clean UI, same field behaviour, same patterns across every plugin you ship.
@@ -19,6 +17,8 @@
 - **Role-based access** — per-field view/edit gating using role slugs or capabilities
 - **Multi-page, repeaters, import/export, action buttons, i18n** — included out of the box
 - **Zero JS build** — pre-built React app ships with the package
+
+<a href="https://playground.wordpress.net/?blueprint-url=https://tdrayson.github.io/wp-wireframe/latest/blueprint.json"><img src="https://wordpress.github.io/action-wp-playground-pr-preview/assets/playground-preview-button.svg" width="200" alt="Try in Playground"></a>
 
 ![Config: one PHP array builds the whole settings page](.github/screenshots/config.png)
 
