@@ -55,4 +55,22 @@ final class ConfigAccessMap
     {
         return in_array($fieldId, $this->editable, true);
     }
+
+    /**
+     * Every top-level field ID the user may view, flattened out of the tab → section map.
+     *
+     * @return list<string>
+     */
+    public function viewableFieldIds(): array
+    {
+        $ids = [];
+
+        foreach ($this->viewable as $sections) {
+            foreach ($sections as $fieldIds) {
+                $ids = array_merge($ids, $fieldIds);
+            }
+        }
+
+        return $ids;
+    }
 }
