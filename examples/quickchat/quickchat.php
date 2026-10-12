@@ -23,7 +23,7 @@ add_action('init', function () {
         'prefix'     => 'quickchat',
         'page_title' => __('QuickChat', 'quickchat'),
         'option_key' => 'quickchat_settings',
-        'menu_icon'  => 'dashicons-format-status',
+        'menu_icon'  => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="black" d="M3 3h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H8l-4 3v-3H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm3 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm4 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>',
         'config'     => [
             'title'    => __('QuickChat', 'quickchat'),
             'subtitle' => __('Drop-in support chat for your site.', 'quickchat'),

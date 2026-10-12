@@ -23,7 +23,7 @@ add_action('init', function () {
         'prefix'     => 'newsletter-signup',
         'page_title' => __('Newsletter Signup', 'newsletter-signup'),
         'option_key' => 'newsletter_signup_settings',
-        'menu_icon'  => 'dashicons-email',
+        'menu_icon'  => __DIR__ . '/assets/icon.svg',
         'config'     => __DIR__ . '/config/settings.php',
     ]);
 });
