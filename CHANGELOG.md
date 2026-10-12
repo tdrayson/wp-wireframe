@@ -18,6 +18,7 @@
 - Wrap React root in `SlotFillProvider` (#4, reported by @davidofchatham) — silences the warning and fixes popover positioning.
 - Anchor admin-screen matching on `_page_{menu_slug}` suffix instead of substring (#6, reported by @davidofchatham).
 - `DateField` falls back to a sensible format when WP's date format setting is empty (#3, thanks to @drkskwlkr).
+- Swap abandoned `rakit/validation` for its maintained fork `magewirephp/validation`, silencing PHP 8.4 deprecation notices (#33).
 
 ## [1.0.5] - 2026-04-23
 

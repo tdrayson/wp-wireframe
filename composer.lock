@@ -4,29 +4,32 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5ab6302fbe61d885c18b2f788c136d25",
+    "content-hash": "a0b3b4e617cacce338dd0f267f99715d",
     "packages": [
         {
-            "name": "rakit/validation",
-            "version": "v1.4.0",
+            "name": "magewirephp/validation",
+            "version": "1.0.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/rakit/validation.git",
-                "reference": "ff003a35cdf5030a5f2482299f4c93f344a35b29"
+                "url": "https://github.com/magewirephp/validation.git",
+                "reference": "4d3728165a2618b02a449576ee9d13497e942c5b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/rakit/validation/zipball/ff003a35cdf5030a5f2482299f4c93f344a35b29",
-                "reference": "ff003a35cdf5030a5f2482299f4c93f344a35b29",
+                "url": "https://api.github.com/repos/magewirephp/validation/zipball/4d3728165a2618b02a449576ee9d13497e942c5b",
+                "reference": "4d3728165a2618b02a449576ee9d13497e942c5b",
                 "shasum": ""
             },
             "require": {
                 "ext-mbstring": "*",
-                "php": ">=7.0"
+                "php": ">=8.1 <8.6"
+            },
+            "replace": {
+                "rakit/validation": "*"
             },
             "require-dev": {
                 "php-coveralls/php-coveralls": "^2.2",
-                "phpunit/phpunit": "^6.5",
+                "phpunit/phpunit": "^9.5 || ^10.0",
                 "squizlabs/php_codesniffer": "^3"
             },
             "type": "library",
@@ -39,18 +42,11 @@
             "license": [
                 "MIT"
             ],
-            "authors": [
-                {
-                    "name": "Muhammad Syifa",
-                    "email": "emsifa@gmail.com"
-                }
-            ],
-            "description": "PHP Laravel like standalone validation library",
+            "description": "PHP Laravel like standalone validation library (forked from rakit/validation)",
             "support": {
-                "issues": "https://github.com/rakit/validation/issues",
-                "source": "https://github.com/rakit/validation/tree/v1.4.0"
+                "source": "https://github.com/magewirephp/validation/tree/1.0.1"
             },
-            "time": "2020-08-27T05:07:01+00:00"
+            "time": "2026-05-12T10:23:15+00:00"
         }
     ],
     "packages-dev": [],
@@ -63,5 +59,5 @@
         "php": ">=8.1"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

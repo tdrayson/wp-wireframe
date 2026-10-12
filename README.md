@@ -207,7 +207,7 @@ my-plugin/
 └── vendor/
     └── wp-wireframe/          # Extracted from the release zip
         ├── src/
-        └── vendor/            # rakit/validation
+        └── vendor/            # magewirephp/validation
 ```
 
 ---
@@ -789,7 +789,7 @@ Default value is a private `Unhandled` sentinel — if no listener attaches, the
 ],
 ```
 
-Built-in validation is automatic per field type (email format, URL format, numeric bounds, color hex, date/time format). Add custom rules via the `validation` key using [rakit/validation](https://github.com/rakit/validation) syntax.
+Built-in validation is automatic per field type (email format, URL format, numeric bounds, color hex, date/time format). Add custom rules via the `validation` key using [magewirephp/validation](https://github.com/magewirephp/validation) (rakit/validation) syntax.
 
 ### Layout Grid
 
@@ -1068,4 +1068,4 @@ GPL-2.0-or-later
 
 Built by [Taylor Drayson](https://github.com/tdrayson).
 
-Uses [@wordpress/components](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-components/), [@wordpress/admin-ui](https://github.com/WordPress/gutenberg/tree/trunk/packages/admin-ui), and [rakit/validation](https://github.com/rakit/validation).
+Uses [@wordpress/components](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-components/), [@wordpress/admin-ui](https://github.com/WordPress/gutenberg/tree/trunk/packages/admin-ui), and [magewirephp/validation](https://github.com/magewirephp/validation) (a maintained fork of rakit/validation).
