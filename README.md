@@ -938,6 +938,20 @@ add_action('my-plugin/settings_reset', function (string $pageId) {
 });
 ```
 
+`{prefix}/can_save` and `{prefix}/can_reset` receive `(bool $value, string $pageId, ConfigAccessMap $map)` and decide whether the Save / Reset buttons show. They are enforced server-side too: when either resolves `false`, the matching REST endpoint returns a 403. `can_save` defaults to `false` when every editable field is stateless (`html`, `table`, `action`, ...).
+
+```php
+// Hide Save on a read-only status page
+add_filter('my-plugin/can_save', function (bool $canSave, string $pageId, $map) {
+    return $pageId === 'status' ? false : $canSave;
+}, 10, 3);
+
+// Only administrators may reset
+add_filter('my-plugin/can_reset', function (bool $canReset, string $pageId, $map) {
+    return $canReset && current_user_can('manage_options');
+}, 10, 3);
+```
+
 The field type registry is shared across every plugin, so its filter is global:
 
 ```php
