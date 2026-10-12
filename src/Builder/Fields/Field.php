@@ -43,6 +43,7 @@ abstract class Field extends Node
         'editor'           => EditorField::class,
         'code_editor'      => CodeEditorField::class,
         'file'             => FileField::class,
+        'upload'           => UploadField::class,
         'repeater'         => RepeaterField::class,
         'html'             => HtmlField::class,
         'export'           => ExportField::class,

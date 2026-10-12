@@ -192,8 +192,8 @@ class FieldBuildersTest extends \WP_Mock\Tools\TestCase
                 ['id' => 'f', 'type' => 'time', 'default' => '09:00'],
             ],
             'editor' => [
-                Fields\EditorField::make('f')->rows(8),
-                ['id' => 'f', 'type' => 'editor', 'args' => ['rows' => 8]],
+                Fields\EditorField::make('f')->rows(8)->mediaButtons(false)->wpautop()->tinymce(['toolbar1' => 'bold italic'])->quicktags(false),
+                ['id' => 'f', 'type' => 'editor', 'args' => ['rows' => 8, 'media_buttons' => false, 'wpautop' => true, 'tinymce' => ['toolbar1' => 'bold italic'], 'quicktags' => false]],
             ],
             'code_editor' => [
                 Fields\CodeEditorField::make('f')->mode('css')->rows(6),
@@ -202,6 +202,10 @@ class FieldBuildersTest extends \WP_Mock\Tools\TestCase
             'file' => [
                 Fields\FileField::make('f')->multiple()->mimeTypes('image')->mediaTitle('t')->mediaButton('b'),
                 ['id' => 'f', 'type' => 'file', 'args' => ['multiple' => true, 'mime_types' => 'image', 'media_title' => 't', 'media_button' => 'b']],
+            ],
+            'upload' => [
+                Fields\UploadField::make('f')->accept('.csv,text/csv')->maxSize(1048576)->buttonLabel('Choose CSV'),
+                ['id' => 'f', 'type' => 'upload', 'args' => ['accept' => '.csv,text/csv', 'max_size' => 1048576, 'button_label' => 'Choose CSV']],
             ],
             'repeater' => [
                 Fields\RepeaterField::make('f')
@@ -246,6 +250,7 @@ class FieldBuildersTest extends \WP_Mock\Tools\TestCase
                     )
                     ->dataCallback('fetch_rows')->perPage(20)->search()
                     ->actions([['id' => 'delete', 'label' => 'Delete', 'supports_bulk' => true]])
+                    ->export(['filename' => 'entries', 'button_label' => 'Download'])
                     ->detailView(['back_label' => 'Back']),
                 ['id' => 'f', 'type' => 'table', 'args' => [
                     'fields'        => [
@@ -256,6 +261,7 @@ class FieldBuildersTest extends \WP_Mock\Tools\TestCase
                     'per_page'      => 20,
                     'search'        => true,
                     'actions'       => [['id' => 'delete', 'label' => 'Delete', 'supports_bulk' => true]],
+                    'export'        => ['filename' => 'entries', 'button_label' => 'Download'],
                     'detail_view'   => ['back_label' => 'Back'],
                 ]],
             ],

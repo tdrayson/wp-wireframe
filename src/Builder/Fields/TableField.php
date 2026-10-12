@@ -72,6 +72,17 @@ final class TableField extends Field
     }
 
     /**
+     * Show an Export CSV button that downloads every matching row.
+     *
+     * @param bool|array $export `true`, or `filename` / `button_label` overrides.
+     * @return static
+     */
+    public function export(bool|array $export = true): static
+    {
+        return $this->arg('export', $export);
+    }
+
+    /**
      * Enable the single-entry detail view.
      *
      * @param array $detailView Detail settings (`back_label`, legacy `*_callback` keys, …).
