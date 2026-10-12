@@ -13,7 +13,7 @@ A fast, standardised way to build WordPress settings pages. List your fields in 
 - **One PHP array, full settings page** — tabs, sections, and 20+ field types
 - **Standardised fields** — every input looks and behaves the same across plugins and projects
 - **Native WordPress look** — built on `@wordpress/components` and `@wordpress/admin-ui`
-- **Laravel-style API** — `Settings::get()`, `Settings::bool()`, dot notation
+- **Laravel-style API** — `Settings::for($key)->get()`, `->bool()`, dot notation
 - **Validation & conditional fields** — server-side rules and show/hide logic built right into the field config
 - **Multi-page, repeaters, import/export, i18n** — included out of the box
 - **Zero JS build** — pre-built React app ships with the package
@@ -173,15 +173,17 @@ return [
 
 ### 3. Use settings in your plugin
 
-Every `Settings::` call takes your plugin's `option_key` as the first argument, so multiple plugins sharing the framework can't collide.
+Bind your plugin's `option_key` once, so multiple plugins sharing the framework can't collide:
 
 ```php
 use Wireframe\Settings;
 
-$name  = Settings::get('my_plugin_settings', 'site_name', 'Default');
-$email = Settings::string('my_plugin_settings', 'contact_email');
+$settings = Settings::for('my_plugin_settings');
 
-if (Settings::bool('my_plugin_settings', 'notifications')) {
+$name  = $settings->get('site_name', 'Default');
+$email = $settings->string('contact_email');
+
+if ($settings->bool('notifications')) {
     // send notification...
 }
 ```
@@ -918,13 +920,34 @@ Wireframe\App::boot([
 
 ## Settings API
 
-Every `Settings::` call takes your plugin's `option_key` as the first argument. This makes the facade multi-tenant-safe: many plugins can share the same framework install without stepping on each other's saved options.
+Settings are scoped to your plugin's `option_key`, so many plugins can share the same framework install without stepping on each other's saved options.
+
+The recommended way is a bound instance, created once and kept on your plugin class:
 
 ```php
 use Wireframe\Settings;
+use Wireframe\SettingsRepository;
 
-$opt = 'my_plugin_settings';   // matches what you passed to App::boot()
+final class MyPlugin
+{
+    public readonly SettingsRepository $settings;
+
+    public function __construct()
+    {
+        $this->settings = Settings::for('my_plugin_settings'); // matches App::boot()
+    }
+}
+
+$plugin->settings->get('site_name');
 ```
+
+The static facade is an equivalent alternative that takes the option key first on every call:
+
+```php
+Settings::get('my_plugin_settings', 'site_name');
+```
+
+Both expose the same methods. The reference below uses the static form with `$opt = 'my_plugin_settings'`; drop `$opt` for the bound form.
 
 ### Reading
 

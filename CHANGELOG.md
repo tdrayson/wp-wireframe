@@ -13,6 +13,7 @@
 - Suppress third-party admin notices on Wireframe-managed pages — filterable via `wp-wireframe/suppress_admin_notices`.
 - Fluent config builder (`Wireframe\Builder`) with a typed class per field type, accepted anywhere a config array is.
 - `{prefix}/config` filter with an `Editor` so add-ons can add, move or remove tabs, sections and fields that save like native ones.
+- `Settings::for($optionKey)` returns a `SettingsRepository` bound to one option key, so calls drop the key argument.
 
 ### Fixes
 - Resolve admin assets correctly on Windows (#1).
