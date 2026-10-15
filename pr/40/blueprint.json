@@ -14,7 +14,7 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://tdrayson.github.io/wp-wireframe/pr/40/field-reference.zip?v=7ed701e5099d8f28bb31bc384d27537944404ff6"
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/40/field-reference.zip?v=b2f6b3cce2d759e5d1cebfa7dce595dad335d0fd"
       },
       "options": {
         "activate": true
@@ -24,7 +24,7 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://tdrayson.github.io/wp-wireframe/pr/40/newsletter-signup.zip?v=7ed701e5099d8f28bb31bc384d27537944404ff6"
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/40/newsletter-signup.zip?v=b2f6b3cce2d759e5d1cebfa7dce595dad335d0fd"
       },
       "options": {
         "activate": true
@@ -34,7 +34,7 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://tdrayson.github.io/wp-wireframe/pr/40/quickchat.zip?v=7ed701e5099d8f28bb31bc384d27537944404ff6"
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/40/quickchat.zip?v=b2f6b3cce2d759e5d1cebfa7dce595dad335d0fd"
       },
       "options": {
         "activate": true
