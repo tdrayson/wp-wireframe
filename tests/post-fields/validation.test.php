@@ -2,6 +2,7 @@
 
 use Wireframe\App;
 use Wireframe\Framework\Conditions;
+use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\SaveValidator;
 
@@ -38,8 +39,24 @@ check('publish without event_starts is refused', 400, $response->get_status());
 check('refusal code', 'validation_failed', $response->as_error()?->get_error_code());
 check('refusal names event_starts', true, !empty($errors($response)['event_starts']));
 
+$locationArgs = [];
+$recordArgs   = static function (array $context, int $postId, ?WP_User $user, string $postType) use (&$locationArgs): array {
+    $locationArgs = [$postId, $postType];
+
+    return $context;
+};
+add_filter('wp-wireframe/location_context', $recordArgs, 10, 4);
 $response = rest('POST', '/wp/v2/event', ['title' => 'New', 'status' => 'publish']);
+remove_filter('wp-wireframe/location_context', $recordArgs, 10);
 check('creating a published event without event_starts is refused', 400, $response->get_status());
+check('create refusal names event_starts', true, !empty($errors($response)['event_starts']));
+check('the location context filter gets the post type of a post not yet created', [0, 'event'], $locationArgs);
+
+$response = $save(make_event(), ['status' => 'future', 'date' => '2030-01-01T10:00:00', 'meta' => ['ticket_url' => $ticket]]);
+check('scheduling without event_starts is refused', true, !empty($errors($response)['event_starts']));
+
+$response = $save(make_event([], 'publish'), ['meta' => ['price' => 3]]);
+check('a partial save to a published post missing a required value is refused', true, !empty($errors($response)['event_starts']));
 
 $partial = make_event();
 $save($partial, ['meta' => ['event_starts' => '2026-11-01', 'ticket_url' => $ticket]]);
@@ -140,11 +157,27 @@ FieldGroups::register('wf-test', [
 check('administrator: an admin-only required field is enforced', true, !empty($errors($publishAs('administrator'))['approval_code']));
 check('editor: an admin-only required field does not block publishing', 200, $publishAs('editor')->get_status());
 
+$denySchedule = static fn (bool $allowed, array $context): bool
+    => $context['level'] === 'tab' && $context['id'] === 'schedule' && in_array('editor', $context['user']?->roles ?? [], true) ? false : $allowed;
+add_filter('wp-wireframe/access/resolve', $denySchedule, 10, 2);
+as_user('editor');
+$denied       = make_event(['event_starts' => '2026-11-01']);
+$detailsGroup = array_values(array_filter(EditorIntegration::data(get_post($denied))['groups'], static fn (array $g): bool => $g['id'] === 'event_details'))[0] ?? [];
+$tabIds       = array_column($detailsGroup['config']['tabs'] ?? [], 'id');
+check('editor: a filter-denied tab with unruled fields is absent from the localised config', ['details'], $tabIds);
+check('editor: its field is stripped from the REST read', false, array_key_exists('event_starts', rest('GET', "/wp/v2/event/$denied", [], ['context' => 'edit'])->get_data()['meta'] ?? []));
+check('editor: a REST write to it is refused', 403, $save($denied, ['meta' => ['event_starts' => '2026-12-01']])->get_status());
+check('editor: its required field does not block publishing', 200, $save(make_event(), ['status' => 'publish', 'meta' => ['ticket_url' => $ticket]])->get_status());
+remove_filter('wp-wireframe/access/resolve', $denySchedule, 10);
+
 as_user('administrator');
 $note = (int) wp_insert_post(['post_type' => 'note_cpt', 'post_status' => 'publish', 'post_title' => 'Note', 'meta_input' => ['note_source' => $ticket]]);
 $response = rest('POST', "/wp/v2/note_cpt/$note/autosaves", ['title' => 'Note, autosaved', 'meta' => ['note_source' => '']]);
 check('autosaves are not validated', 200, $response->get_status());
 check('the autosave is stored', 'Note, autosaved', wp_get_post_autosave($note)->post_title ?? null);
+$noteDraft = (int) wp_insert_post(['post_type' => 'note_cpt', 'post_status' => 'draft', 'post_title' => 'Draft note']);
+rest('POST', "/wp/v2/note_cpt/$noteDraft/autosaves", ['title' => 'Draft note, autosaved', 'status' => 'publish']);
+check('an autosave cannot publish a draft', 'draft', get_post_status($noteDraft));
 
 $settingsSave = static fn (array $values): int => rest('POST', '/wf-settings/v1/settings/default', $values)->get_status();
 check('settings page: a required field in a hidden section does not block saving', 200, $settingsSave(['use_api' => false]));

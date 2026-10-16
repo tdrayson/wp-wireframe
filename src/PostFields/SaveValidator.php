@@ -31,9 +31,13 @@ final class SaveValidator
      */
     public static function check(stdClass|WP_Error $prepared, WP_REST_Request $request): stdClass|WP_Error
     {
-        // Core's autosave controller uses this filter's result without checking for an error.
-        if ($prepared instanceof WP_Error || self::isAutosave($request)) {
+        if ($prepared instanceof WP_Error) {
             return $prepared;
+        }
+
+        // Core's autosave controller uses this filter's result without checking for an error.
+        if (self::isAutosave($request)) {
+            return self::withoutPublishing($prepared);
         }
 
         $postType = (string) ($prepared->post_type ?? '');
@@ -81,6 +85,21 @@ final class SaveValidator
     private static function isAutosave(WP_REST_Request $request): bool
     {
         return str_ends_with($request->get_route(), '/autosaves');
+    }
+
+    /**
+     * Drop a publishing status from an autosave, which core would otherwise apply to an author's own draft unvalidated.
+     */
+    private static function withoutPublishing(stdClass $prepared): stdClass
+    {
+        if (!in_array($prepared->post_status ?? null, self::ENFORCED_STATUSES, true)) {
+            return $prepared;
+        }
+
+        $kept = clone $prepared;
+        unset($kept->post_status);
+
+        return $kept;
     }
 
     /**

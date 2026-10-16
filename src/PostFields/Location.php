@@ -66,7 +66,7 @@ final class Location
             'user_role' => $user === null ? [] : array_values($user->roles),
         ];
 
-        return (array) apply_filters('wp-wireframe/location_context', $context, $postId, $user);
+        return (array) apply_filters('wp-wireframe/location_context', $context, $postId, $user, $context['post_type']);
     }
 
     /**
