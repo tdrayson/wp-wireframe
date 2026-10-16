@@ -104,7 +104,7 @@ final class MetaRegistrar
     }
 
     /**
-     * Filter `is_protected_meta`: hide registered field keys from the Custom Fields box and panel, which bypass field access.
+     * Filter `is_protected_meta`: hide registered field keys and their previous ids from the Custom Fields box and panel, which bypass field access.
      *
      * @param bool        $protected Whether the key is protected so far.
      * @param string      $metaKey   Meta key.
@@ -115,6 +115,10 @@ final class MetaRegistrar
     {
         if ($protected || $metaType !== 'post') {
             return $protected;
+        }
+
+        if (Aliases::isPrevious($metaKey)) {
+            return true;
         }
 
         foreach (array_keys(FieldGroups::all()) as $postType) {
@@ -246,7 +250,7 @@ final class MetaRegistrar
             return self::$savingStored[$key];
         }
 
-        if (self::$savingPostId <= 0 || !metadata_exists('post', self::$savingPostId, $key)) {
+        if (self::$savingPostId <= 0 || !Aliases::exists(self::$savingPostId, $key)) {
             return null;
         }
 
@@ -436,7 +440,7 @@ final class MetaRegistrar
             }
 
             $isEcho = $value === null
-                ? !metadata_exists('post', $postId, (string) $key)
+                ? !Aliases::exists($postId, (string) $key)
                 : self::restValue($fields[$key], $value) === $stored[$key];
 
             if ($isEcho) {

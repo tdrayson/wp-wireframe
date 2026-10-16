@@ -6,6 +6,7 @@ namespace Wireframe;
 
 use Wireframe\Framework\Fields\FieldRegistry;
 use Wireframe\Framework\Populate;
+use Wireframe\PostFields\Aliases;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\Index\IndexSync;
 use Wireframe\PostFields\MetaRegistrar;
@@ -96,9 +97,9 @@ final class Meta
         }
 
         if ($top === $key) {
-            delete_post_meta($postId, $top);
+            self::remove($postId, $top);
 
-            return !metadata_exists('post', $postId, $top);
+            return !Aliases::exists($postId, $top);
         }
 
         $stored = self::stored($postId, $top, $field);
@@ -167,7 +168,7 @@ final class Meta
         }
 
         foreach (array_keys(array_diff_key(self::storedFields($postId), $values)) as $key) {
-            delete_post_meta($postId, $key);
+            self::remove($postId, $key);
         }
 
         return $ok;
@@ -179,7 +180,7 @@ final class Meta
     public static function reset(int $postId): bool
     {
         foreach (array_keys(self::storedFields($postId)) as $key) {
-            delete_post_meta($postId, $key);
+            self::remove($postId, $key);
         }
 
         return true;
@@ -345,6 +346,17 @@ final class Meta
         return IndexSync::reindex($postType);
     }
 
+    /**
+     * Move values stored under a field's `previous_ids` to its current key, then delete the old keys.
+     *
+     * @param string|null $postType Post type slug, or null for every post type with groups.
+     * @return int Posts changed.
+     */
+    public static function migrate(?string $postType = null): int
+    {
+        return Aliases::migrate($postType);
+    }
+
     // ─── Internals ────────────────────────────────────
 
     /**
@@ -397,11 +409,11 @@ final class Meta
         if ($kind === StorageKind::MULTI) {
             $rows = array_values((array) $value);
 
-            if (get_post_meta($postId, $key) === array_map('strval', $rows)) {
+            if (metadata_exists('post', $postId, $key) && get_post_meta($postId, $key) === array_map('strval', $rows)) {
                 return true;
             }
 
-            delete_post_meta($postId, $key);
+            self::remove($postId, $key);
 
             foreach ($rows as $row) {
                 if (!add_post_meta($postId, $key, wp_slash($row))) {
@@ -447,7 +459,16 @@ final class Meta
             return $rows === [] ? null : $rows;
         }
 
-        return metadata_exists('post', $postId, $key) ? get_post_meta($postId, $key, true) : null;
+        return Aliases::exists($postId, $key) ? get_post_meta($postId, $key, true) : null;
+    }
+
+    /**
+     * Delete a field's rows and its previous keys, so it can't read an old value back.
+     */
+    private static function remove(int $postId, string $key): void
+    {
+        delete_post_meta($postId, $key);
+        Aliases::purge($postId, $key);
     }
 
     /**

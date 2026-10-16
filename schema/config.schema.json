@@ -133,6 +133,11 @@
             }
           ]
         },
+        "previous_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Post fields only, on a storable top-level field: ids it had before a rename, in priority order. Reads fall back to them, writes clear them, `wp wireframe migrate` moves the data."
+        },
         "indexed": {
           "type": "boolean",
           "description": "Repeater subfields on post fields only: write the value to the index table so `wireframe_query` can match it."

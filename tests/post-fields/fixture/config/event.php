@@ -20,7 +20,7 @@ return [
                             'required'   => true,
                             'conditions' => ['all' => [['field' => 'is_featured', 'operator' => 'truthy']]],
                         ],
-                        ['id' => 'price', 'type' => 'number', 'label' => 'Price', 'column' => ['sortable' => true, 'after' => 'wireframe_event_starts']],
+                        ['id' => 'price', 'type' => 'number', 'label' => 'Price', 'previous_ids' => ['cost'], 'column' => ['sortable' => true, 'after' => 'wireframe_event_starts']],
                         [
                             'id'      => 'genres',
                             'type'    => 'checkboxes',

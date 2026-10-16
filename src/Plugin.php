@@ -6,8 +6,10 @@ namespace Wireframe;
 
 use Wireframe\Admin\AdminPage;
 use Wireframe\Framework\ConfigValidator;
+use Wireframe\PostFields\Aliases;
 use Wireframe\PostFields\ClassicEditor;
 use Wireframe\PostFields\ClassicSave;
+use Wireframe\PostFields\Cli\MigrateCommand;
 use Wireframe\PostFields\Cli\ReindexCommand;
 use Wireframe\PostFields\Columns;
 use Wireframe\PostFields\EditorIntegration;
@@ -63,10 +65,12 @@ final class Plugin
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
         add_action('wp_loaded', [IndexTable::class, 'install'], 2);
         IndexSync::register();
+        Aliases::register();
         // Late, so a wireframe_query added by other pre_get_posts callbacks still lifts suppress_filters.
         add_action('pre_get_posts', [QueryClauses::class, 'prepare'], 1000);
         add_filter('posts_clauses', [QueryClauses::class, 'apply'], 10, 2);
         ReindexCommand::register();
+        MigrateCommand::register();
         add_filter('is_protected_meta', [MetaRegistrar::class, 'protect'], 10, 3);
         add_filter('register_post_type_args', [EditorIntegration::class, 'filterPostTypeArgs'], 10, 2);
         add_filter('block_editor_settings_all', [EditorIntegration::class, 'filterEditorSettings'], 10, 2);

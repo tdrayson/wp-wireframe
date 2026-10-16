@@ -152,6 +152,7 @@ final class FieldGroups
         self::$groups   = [];
         self::$problems = [];
         self::$attached = [];
+        Aliases::flush();
     }
 
     /**
@@ -408,6 +409,8 @@ final class FieldGroups
     {
         $owner = $group['owner'];
 
+        Aliases::flush();
+
         foreach (self::$attached as $postType => $groups) {
             self::$attached[$postType] = array_values(array_filter($groups, static fn (array $g): bool => $g['owner'] !== $owner));
 
@@ -440,7 +443,7 @@ final class FieldGroups
             }
         }
 
-        return null;
+        return Aliases::problem($group);
     }
 
     /**
@@ -470,7 +473,7 @@ final class FieldGroups
     }
 
     /**
-     * Describe a clash with a group already on the post type: a second `content` group, or a shared field id.
+     * Describe a clash with a group already on the post type: a second `content` group, a shared field id, or a colliding previous id.
      */
     private static function conflict(array $group, string $postType): ?string
     {
@@ -485,6 +488,12 @@ final class FieldGroups
 
             if ($shared !== []) {
                 return sprintf('field "%s" is already used by the group "%s" on post type "%s".', $shared[0], $other['id'], $postType);
+            }
+
+            $problem = Aliases::clash($group, $other, $postType);
+
+            if ($problem !== null) {
+                return $problem;
             }
         }
 
@@ -522,6 +531,7 @@ final class FieldGroups
         }
 
         self::$attached[$postType][] = $group;
+        Aliases::flush();
         add_post_type_support($postType, 'custom-fields');
     }
 
