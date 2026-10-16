@@ -32,8 +32,15 @@ use WP_User;
  */
 final class AccessResolver
 {
-    public function __construct(private readonly string $pageCapability = 'manage_options')
-    {
+    /**
+     * @param string $pageCapability Capability an element with no rule for a verb falls back to.
+     * @param bool   $deferUnruled   Allow elements with no `access` rule anywhere above them, leaving the
+     *                               decision to the caller's own capability check and the resolve filter.
+     */
+    public function __construct(
+        private readonly string $pageCapability = 'manage_options',
+        private readonly bool $deferUnruled = false,
+    ) {
     }
 
     /**
@@ -105,7 +112,7 @@ final class AccessResolver
             }
         }
 
-        $allowed = self::satisfies($requirement, $user);
+        $allowed = ($spec === null && $this->deferUnruled) || self::satisfies($requirement, $user);
 
         // Edit always requires view: if a user can't see it, they can't write to it.
         if ($verb === 'edit' && $allowed) {

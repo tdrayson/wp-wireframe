@@ -338,6 +338,13 @@ check('a filter denying the original tab id hides its field from the editor REST
 check('section contexts carry the original tab id', 'admin_tab', $sectionContexts['bare'] ?? null);
 remove_filter('wp-wireframe/access/resolve', $denyReadTab, 10);
 
+$denyOpenTab = static fn (bool $allowed, array $context): bool => $context['level'] === 'tab' && $context['id'] === 'open' ? false : $allowed;
+add_filter('wp-wireframe/access/resolve', $denyOpenTab, 10, 2);
+check('a filter denying an unruled original tab hides its field from the editor config', false, array_key_exists('g_open', $readOnly($gatedConfig())));
+check('a filter denying an unruled original tab hides its field from the editor REST read', false, array_key_exists('g_open', $restMeta()));
+check('a filter denying an unruled original tab refuses REST writes to its field', 403, rest('POST', "/wp/v2/gate_cpt/$gatePost", ['meta' => ['g_open' => 'denied']])->get_status());
+remove_filter('wp-wireframe/access/resolve', $denyOpenTab, 10);
+
 check(
     'post_id values are cast to int',
     ['all' => [['field' => 'post_id', 'operator' => 'not_in', 'value' => [42]]]],

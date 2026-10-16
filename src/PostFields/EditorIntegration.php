@@ -9,7 +9,6 @@ use WP_Post;
 use WP_User;
 use Wireframe\Admin\AdminPage;
 use Wireframe\App;
-use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\ConfigLoader;
 
 /**
@@ -236,10 +235,9 @@ final class EditorIntegration
      */
     private static function configFor(array $group, string $postType, WP_User $user): array
     {
-        $config   = ConfigLoader::load($group['config']);
-        $resolver = new AccessResolver(get_post_type_object($postType)?->cap->edit_posts ?? 'edit_posts');
+        $config = ConfigLoader::load($group['config']);
 
-        return $resolver->filterConfig($config, $resolver->resolveForConfig($config, $user));
+        return MetaRegistrar::resolver($postType)->filterConfig($config, MetaRegistrar::accessMap($postType, $group, $user));
     }
 
     /**

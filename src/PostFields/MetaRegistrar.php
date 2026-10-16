@@ -9,6 +9,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_User;
 use Wireframe\Framework\Access\AccessResolver;
+use Wireframe\Framework\Access\ConfigAccessMap;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldInterface;
 use Wireframe\Framework\Fields\FieldRegistry;
@@ -85,10 +86,11 @@ final class MetaRegistrar
         $user     = wp_get_current_user();
 
         foreach (FieldGroups::groupsFor($postType) as $group) {
-            $applies = Location::applies($group, $postId, $user->exists() ? $user : null);
+            $applies  = Location::applies($group, $postId, $user->exists() ? $user : null);
+            $viewable = $applies ? self::accessMap($postType, $group, $user)->viewableFieldIds() : [];
 
             foreach (self::stored(ConfigLoader::flatFields($group['config'])) as $key => $field) {
-                if (!$applies || !self::readable($postType, $group, (string) $key, $field, $context, $user)) {
+                if (!self::readable((string) $key, $field, $context, $viewable)) {
                     unset($data['meta'][$key]);
                 }
             }
@@ -241,15 +243,15 @@ final class MetaRegistrar
     }
 
     /**
-     * Whether a user may read a field in the given REST context.
+     * Whether a field may be read in the given REST context, given the field ids the user can view.
      */
-    private static function readable(string $postType, array $group, string $key, array $field, string $context, WP_User $user): bool
+    private static function readable(string $key, array $field, string $context, array $viewable): bool
     {
         if ($context !== 'edit' && empty($field['public'])) {
             return false;
         }
 
-        return self::allowed('view', $postType, $group, $key, $user);
+        return in_array($key, $viewable, true);
     }
 
     /**
@@ -268,56 +270,35 @@ final class MetaRegistrar
             return false;
         }
 
-        return self::allowed('edit', $postType, $group, $key, $user);
+        return self::accessMap($postType, $group, $user)->canEdit($key);
     }
 
     /**
-     * Check a field's `access`, inherited from its section and tab as on settings pages.
+     * Resolve a group's field access for a user, inherited from sections and tabs as on settings pages.
      *
-     * Fields with no rule anywhere above them defer to post capabilities, so public fields stay readable logged out.
+     * Fields with no rule anywhere above them defer to post capabilities, so public fields stay readable logged out;
+     * they still pass through the `wp-wireframe/access/resolve` filter.
      *
-     * @param string  $verb     `view` or `edit`.
      * @param string  $postType Post type slug.
-     * @param array   $group    Normalised group owning the field.
-     * @param string  $key      Top-level field id.
-     * @param WP_User $user     User being checked.
-     * @return bool
+     * @param array   $group    Normalised group.
+     * @param WP_User $user     User being checked; one that doesn't exist counts as logged out.
+     * @return ConfigAccessMap
      */
-    public static function allowed(string $verb, string $postType, array $group, string $key, WP_User $user): bool
+    public static function accessMap(string $postType, array $group, WP_User $user): ConfigAccessMap
     {
         $config = ConfigLoader::load($group['config']);
 
-        if (!in_array($key, self::gatedFieldIds($config), true)) {
-            return true;
-        }
-
-        $resolver = new AccessResolver(get_post_type_object($postType)?->cap->edit_posts ?? 'edit_posts');
-        $map      = $resolver->resolveForConfig($config, $user);
-
-        return $verb === 'edit' ? $map->canEdit($key) : in_array($key, $map->viewableFieldIds(), true);
+        return self::resolver($postType)->resolveForConfig($config, $user->exists() ? $user : null);
     }
 
     /**
-     * Get the top-level field IDs with an `access` rule on themselves, their section or their tab.
+     * Get the access resolver used for a post type's field groups.
      *
-     * @return list<string>
+     * @param string $postType Post type slug.
+     * @return AccessResolver
      */
-    private static function gatedFieldIds(array $config): array
+    public static function resolver(string $postType): AccessResolver
     {
-        $ids = [];
-
-        foreach ($config['tabs'] ?? [] as $tab) {
-            foreach ($tab['sections'] ?? [] as $section) {
-                $inherited = isset($tab['access']) || isset($section['access']);
-
-                foreach ($section['fields'] ?? [] as $field) {
-                    if ($inherited || isset($field['access'])) {
-                        $ids[] = (string) ($field['id'] ?? '');
-                    }
-                }
-            }
-        }
-
-        return $ids;
+        return new AccessResolver(get_post_type_object($postType)?->cap->edit_posts ?? 'edit_posts', deferUnruled: true);
     }
 }

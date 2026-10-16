@@ -108,10 +108,12 @@ final class SaveValidator
         $fields = [];
 
         foreach ($groups as $group) {
+            $map = MetaRegistrar::accessMap($postType, $group, $user);
+
             foreach (ConfigLoader::flatFields($group['config']) as $key => $field) {
                 $key = (string) $key;
 
-                if (!str_contains($key, '.') && MetaRegistrar::allowed('edit', $postType, $group, $key, $user)) {
+                if (!str_contains($key, '.') && $map->canEdit($key)) {
                     $fields[$key] = $field;
                 }
             }
