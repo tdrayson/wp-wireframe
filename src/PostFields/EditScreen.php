@@ -12,7 +12,7 @@ use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\ConfigLoader;
 
 /**
- * Replaces the post edit screen with the React field editor for post types that have a field group.
+ * Replaces the post edit screen with the React field editor for post types that have a `content` group.
  */
 final class EditScreen
 {
@@ -29,7 +29,7 @@ final class EditScreen
     {
         $assetFile = App::assetsDir() . 'post-fields.asset.php';
 
-        if (FieldGroups::forPostType($post->post_type) === null || !file_exists($assetFile)) {
+        if (self::contentGroup($post->post_type) === null || !file_exists($assetFile)) {
             return $replace;
         }
 
@@ -59,7 +59,7 @@ final class EditScreen
      */
     public static function isTakenOver(WP_Screen $screen): bool
     {
-        return $screen->base === 'post' && FieldGroups::forPostType($screen->post_type) !== null;
+        return $screen->base === 'post' && self::contentGroup($screen->post_type) !== null;
     }
 
     /**
@@ -119,7 +119,7 @@ final class EditScreen
      */
     private static function configFor(string $postType): array
     {
-        $group = FieldGroups::forPostType($postType);
+        $group = self::contentGroup($postType);
 
         if ($group === null) {
             return [];
@@ -129,6 +129,20 @@ final class EditScreen
         $resolver = new AccessResolver(get_post_type_object($postType)?->cap->edit_posts ?? 'edit_posts');
 
         return $resolver->filterConfig($config, $resolver->resolveForConfig($config));
+    }
+
+    /**
+     * Get the post type's `content` group, the only one this takeover renders.
+     */
+    private static function contentGroup(string $postType): ?array
+    {
+        foreach (FieldGroups::groupsFor($postType) as $group) {
+            if ($group['display']['position'] === 'content') {
+                return $group;
+            }
+        }
+
+        return null;
     }
 
     /**

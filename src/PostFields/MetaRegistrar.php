@@ -14,14 +14,14 @@ use Wireframe\Framework\Fields\FieldInterface;
 use Wireframe\Framework\Fields\FieldRegistry;
 
 /**
- * Registers post meta for claimed field groups, with REST schemas, sanitising, auth and read privacy.
+ * Registers post meta for attached field groups, with REST schemas, sanitising, auth and read privacy.
  */
 final class MetaRegistrar
 {
     private const ID_LIST_SCHEMA = ['type' => 'array', 'items' => ['type' => 'integer']];
 
     /**
-     * Register every claimed post type's top-level fields as post meta.
+     * Register the top-level fields of every post type with groups as post meta.
      */
     public static function register(): void
     {
@@ -33,11 +33,11 @@ final class MetaRegistrar
     /**
      * Register one post type's top-level fields as post meta; safe to call again.
      *
-     * @param string $postType Claimed post type slug.
+     * @param string $postType Post type slug.
      */
     public static function registerFor(string $postType): void
     {
-        foreach (self::storedFields($postType) as $key => $field) {
+        foreach (self::stored(FieldGroups::flatFields($postType)) as $key => $field) {
             register_post_meta($postType, $key, self::metaArgs($postType, (string) $key, $field));
         }
 
@@ -63,7 +63,7 @@ final class MetaRegistrar
     }
 
     /**
-     * Remove meta the current user may not read from a post, revision or autosave REST response.
+     * Remove meta the current user may not read, or whose group doesn't apply, from a post, revision or autosave response.
      *
      * @param WP_REST_Response $response Prepared response.
      * @param WP_Post          $post     Post, revision or autosave being prepared.
@@ -78,13 +78,18 @@ final class MetaRegistrar
             return $response;
         }
 
-        $postType = $post->post_type === 'revision' ? (string) get_post_type($post->post_parent) : $post->post_type;
+        $postId   = $post->post_type === 'revision' ? (int) $post->post_parent : $post->ID;
+        $postType = (string) get_post_type($postId);
         $context  = (string) ($request['context'] ?? 'view');
         $user     = wp_get_current_user();
 
-        foreach (self::storedFields($postType) as $key => $field) {
-            if (!self::readable($postType, (string) $key, $field, $context, $user)) {
-                unset($data['meta'][$key]);
+        foreach (FieldGroups::groupsFor($postType) as $group) {
+            $applies = Location::applies($group, $postId, $user->exists() ? $user : null);
+
+            foreach (self::stored(ConfigLoader::flatFields($group['config'])) as $key => $field) {
+                if (!$applies || !self::readable($postType, $group, (string) $key, $field, $context, $user)) {
+                    unset($data['meta'][$key]);
+                }
             }
         }
 
@@ -221,14 +226,14 @@ final class MetaRegistrar
     }
 
     /**
-     * Get a post type's top-level fields that store a value, keyed by meta key.
+     * Keep the top-level fields of a flat field map that store a value, keyed by meta key.
      *
      * @return array<string, array>
      */
-    private static function storedFields(string $postType): array
+    private static function stored(array $flatFields): array
     {
         return array_filter(
-            FieldGroups::flatFields($postType),
+            $flatFields,
             static fn (array $field, int|string $key): bool => !str_contains((string) $key, '.') && StorageKind::for($field) !== StorageKind::NONE,
             ARRAY_FILTER_USE_BOTH
         );
@@ -237,27 +242,32 @@ final class MetaRegistrar
     /**
      * Whether a user may read a field in the given REST context.
      */
-    private static function readable(string $postType, string $key, array $field, string $context, WP_User $user): bool
+    private static function readable(string $postType, array $group, string $key, array $field, string $context, WP_User $user): bool
     {
         if ($context !== 'edit' && empty($field['public'])) {
             return false;
         }
 
-        return self::allowed('view', $postType, $key, $user);
+        return self::allowed('view', $postType, $group, $key, $user);
     }
 
     /**
-     * Whether a user may write a field on a post.
+     * Whether a user may write a field on a post: they can edit the post, its group applies, and its access allows it.
      */
     private static function canWrite(string $postType, string $key, int $postId, int $userId): bool
     {
-        $user = get_userdata($userId);
+        $user  = get_userdata($userId);
+        $group = FieldGroups::groupOfField($postType, $key);
 
-        if (!$user instanceof WP_User || !user_can($user, 'edit_post', $postId)) {
+        if (!$user instanceof WP_User || $group === null || !user_can($user, 'edit_post', $postId)) {
             return false;
         }
 
-        return self::allowed('edit', $postType, $key, $user);
+        if (!Location::applies($group, $postId, $user)) {
+            return false;
+        }
+
+        return self::allowed('edit', $postType, $group, $key, $user);
     }
 
     /**
@@ -265,10 +275,9 @@ final class MetaRegistrar
      *
      * Fields with no rule anywhere above them defer to post capabilities, so public fields stay readable logged out.
      */
-    private static function allowed(string $verb, string $postType, string $key, WP_User $user): bool
+    private static function allowed(string $verb, string $postType, array $group, string $key, WP_User $user): bool
     {
-        $group  = FieldGroups::forPostType($postType);
-        $config = $group === null ? [] : ConfigLoader::load($group['config']);
+        $config = ConfigLoader::load($group['config']);
 
         if (!in_array($key, self::gatedFieldIds($config), true)) {
             return true;

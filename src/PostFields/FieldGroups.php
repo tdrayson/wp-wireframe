@@ -17,63 +17,50 @@ final class FieldGroups
     /** Field types with no stored value, or no meaning, on a post screen. */
     private const EXCLUDED_TYPES = ['action', 'table', 'import', 'export', 'upload'];
 
-    /** @var array<string, array{id: string, prefix: string, post_types: list<string>, config: string}> Groups by owner key, in registration order. */
+    private const KEYS = ['id', 'title', 'location', 'display', 'config'];
+
+    private const DISPLAY_DEFAULTS = ['position' => 'meta_box', 'collapsed' => false, 'order' => 10];
+
+    private const POSITIONS = ['content', 'meta_box', 'sidebar'];
+
+    /** @var array<string, array> Normalised groups by owner key, in registration order. */
     private static array $groups = [];
 
-    /** @var array<string, array{id: string, prefix: string, post_types: list<string>, config: string}> Valid groups by post type. */
-    private static array $claimed = [];
+    /** @var array<string, string> Shape problems found while normalising, by owner key. */
+    private static array $problems = [];
+
+    /** @var array<string, list<array>> Valid groups by post type. */
+    private static array $attached = [];
 
     /**
      * Register a field group, replacing one with the same prefix and id; validates it and registers its meta at once after `wp_loaded`.
      *
      * @param string $prefix Consumer prefix from `App::boot()`.
-     * @param array  $group  `id`, `post_types`, and `config` (a ConfigLoader slug or a raw config array).
+     * @param array  $group  `id`, `title`, `location`, `display` and `config` (a ConfigLoader slug or a raw config array).
      */
     public static function register(string $prefix, array $group): void
     {
-        $id   = is_string($group['id'] ?? null) ? $group['id'] : '';
-        $slug = self::slug($prefix, $id);
+        [$normalised, $problem] = self::normalise($prefix, $group);
+        $owner = $normalised['owner'];
 
-        if (is_array($group['config'] ?? null)) {
-            ConfigLoader::register($slug, $group['config']);
-        } elseif (is_string($group['config'] ?? null) && $group['config'] !== '') {
-            $slug = $group['config'];
-        }
-
-        self::$groups[self::owner(['prefix' => $prefix, 'id' => $id])] = [
-            'id'         => $id,
-            'prefix'     => $prefix,
-            'post_types' => array_values(array_unique(array_filter((array) ($group['post_types'] ?? []), 'is_string'))),
-            'config'     => $slug,
-        ];
+        self::$groups[$owner] = $normalised;
+        self::$problems[$owner] = $problem;
+        self::lintShape($normalised, $group);
 
         if (did_action('wp_loaded') > 0) {
-            $registered = self::$groups[self::owner(['prefix' => $prefix, 'id' => $id])];
-            self::bootGroup($registered);
-            self::registerMeta($registered);
+            self::bootGroup($normalised);
+            self::registerMeta($normalised);
         }
     }
 
     /**
-     * Register post meta for the post types a late group claimed; `wp_loaded` has already registered the rest.
-     */
-    private static function registerMeta(array $group): void
-    {
-        foreach ($group['post_types'] as $postType) {
-            if ((self::$claimed[$postType] ?? null) === $group) {
-                MetaRegistrar::registerFor($postType);
-            }
-        }
-    }
-
-    /**
-     * Validate every registered group and claim post types for the valid ones.
+     * Validate every registered group and attach the valid ones to their post types.
      *
      * Safe to run again: the result is rebuilt from the registered groups.
      */
     public static function boot(): void
     {
-        self::$claimed = [];
+        self::$attached = [];
 
         foreach (self::$groups as $group) {
             self::bootGroup($group);
@@ -81,78 +68,75 @@ final class FieldGroups
     }
 
     /**
-     * Validate one group and claim its post types, releasing any claims it held before.
-     */
-    private static function bootGroup(array $group): void
-    {
-        self::release($group);
-        self::lint($group);
-
-        $problem = self::configProblem($group) ?? self::postTypeProblem($group);
-
-        if ($problem !== null) {
-            self::reject($group, $problem);
-
-            return;
-        }
-
-        foreach ($group['post_types'] as $postType) {
-            self::claim($group, $postType);
-        }
-    }
-
-    /**
-     * Drop the claims a group holds, here and site-wide.
-     */
-    private static function release(array $group): void
-    {
-        $owner = self::owner($group);
-
-        foreach (self::$claimed as $postType => $claimedGroup) {
-            if (self::owner($claimedGroup) !== $owner) {
-                continue;
-            }
-
-            unset(self::$claimed[$postType]);
-
-            if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? null) === $owner) {
-                unset($GLOBALS['wireframe_field_group_owners'][$postType]);
-            }
-        }
-    }
-
-    /**
-     * Get the group attached to a post type.
+     * Get this copy's valid groups for a post type, by `display.order` then registration order.
      *
      * @param string $postType Post type slug.
-     * @return array{id: string, prefix: string, post_types: list<string>, config: string}|null
+     * @return list<array> Normalised groups.
      */
-    public static function forPostType(string $postType): ?array
+    public static function groupsFor(string $postType): array
     {
-        return self::$claimed[$postType] ?? null;
+        $groups   = self::$attached[$postType] ?? [];
+        $position = array_flip(array_keys(self::$groups));
+
+        usort($groups, static fn (array $a, array $b): int => [$a['display']['order'], $position[$a['owner']]]
+            <=> [$b['display']['order'], $position[$b['owner']]]);
+
+        return $groups;
     }
 
     /**
-     * Get a post type's fields keyed by id, repeater subfields as `{id}.{sub}`.
+     * Get a post type's fields from every group, keyed by id, repeater subfields as `{id}.{sub}`.
      *
      * @param string $postType Post type slug.
      * @return array<string, array>
      */
     public static function flatFields(string $postType): array
     {
-        $group = self::forPostType($postType);
+        $fields = [];
 
-        return $group === null ? [] : ConfigLoader::flatFields($group['config']);
+        foreach (self::groupsFor($postType) as $group) {
+            $fields += ConfigLoader::flatFields($group['config']);
+        }
+
+        return $fields;
     }
 
     /**
-     * Get every claimed group, keyed by post type.
+     * Get the group that owns a top-level field on a post type.
      *
-     * @return array<string, array{id: string, prefix: string, post_types: list<string>, config: string}>
+     * @param string $postType Post type slug.
+     * @param string $fieldId  Top-level field id (meta key).
+     * @return array|null Normalised group.
+     */
+    public static function groupOfField(string $postType, string $fieldId): ?array
+    {
+        if (str_contains($fieldId, '.')) {
+            return null;
+        }
+
+        foreach (self::$attached[$postType] ?? [] as $group) {
+            if (isset(ConfigLoader::flatFields($group['config'])[$fieldId])) {
+                return $group;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get every post type with groups, mapped to its sorted groups.
+     *
+     * @return array<string, list<array>>
      */
     public static function all(): array
     {
-        return self::$claimed;
+        $all = [];
+
+        foreach (array_keys(self::$attached) as $postType) {
+            $all[$postType] = self::groupsFor($postType);
+        }
+
+        return $all;
     }
 
     /**
@@ -164,39 +148,166 @@ final class FieldGroups
             self::release($group);
         }
 
-        self::$groups  = [];
-        self::$claimed = [];
+        self::$groups   = [];
+        self::$problems = [];
+        self::$attached = [];
     }
 
     /**
-     * Build the ConfigLoader slug for a group.
+     * Fill in defaults and expand the location; returns the group and its first shape problem, if any.
+     *
+     * @return array{0: array, 1: string|null}
      */
-    private static function slug(string $prefix, string $id): string
+    private static function normalise(string $prefix, array $group): array
     {
-        return preg_replace('/[^a-z0-9_-]/i', '-', "{$prefix}-group-{$id}") ?: 'settings';
+        $id       = is_string($group['id'] ?? null) ? $group['id'] : '';
+        $display  = $group['display'] ?? [];
+        $location = Location::normalize($group['location'] ?? null);
+        $merged   = is_array($display) ? array_intersect_key($display, self::DISPLAY_DEFAULTS) + self::DISPLAY_DEFAULTS : self::DISPLAY_DEFAULTS;
+        $title    = is_string($group['title'] ?? null) ? $group['title'] : '';
+
+        if ($title === '' && $merged['position'] !== 'content') {
+            $title = ucfirst($id);
+        }
+
+        $normalised = [
+            'id'         => $id,
+            'prefix'     => $prefix,
+            'owner'      => "{$prefix}/{$id}",
+            'title'      => $title,
+            'location'   => $location,
+            'post_types' => $location === null ? [] : (Location::postTypes($location) ?? []),
+            'display'    => $merged,
+            'config'     => self::configSlug($prefix, $id, $group['config'] ?? null),
+        ];
+
+        return [$normalised, self::shapeProblem($group, $normalised)];
     }
 
     /**
-     * Get the site-wide owner key for a group.
+     * Register a raw config array under the group's slug, or pass a slug through.
      */
-    private static function owner(array $group): string
+    private static function configSlug(string $prefix, string $id, mixed $config): string
     {
-        return $group['prefix'] . '/' . $group['id'];
+        $slug = preg_replace('/[^a-z0-9_-]/i', '-', "{$prefix}-group-{$id}") ?: 'settings';
+
+        if (is_array($config)) {
+            ConfigLoader::register($slug, $config);
+
+            return $slug;
+        }
+
+        return is_string($config) && $config !== '' ? $config : $slug;
     }
 
     /**
-     * Describe why a group's config is unusable, or null when it is fine.
+     * Describe why a group's own keys are unusable, or null when they are fine.
+     */
+    private static function shapeProblem(array $raw, array $group): ?string
+    {
+        $display = $group['display'];
+
+        return match (true) {
+            $group['id'] === ''                                    => 'a field group needs a non-empty "id".',
+            $group['location'] === null                            => '"location" must be a post type, a list of post types, or a rule tree.',
+            $group['post_types'] === []                            => 'every branch of "location" must pin "post_type" with "equals" or "in".',
+            !is_array($raw['display'] ?? [])                       => '"display" must be an array.',
+            !in_array($display['position'], self::POSITIONS, true) => '"display.position" must be one of: ' . implode(', ', self::POSITIONS) . '.',
+            !is_bool($display['collapsed'])                        => '"display.collapsed" must be a boolean.',
+            !is_int($display['order'])                             => '"display.order" must be an integer.',
+            default                                                => null,
+        };
+    }
+
+    /**
+     * Report unknown keys and a missing title under WP_DEBUG; they never skip the group.
+     */
+    private static function lintShape(array $group, array $raw): void
+    {
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return;
+        }
+
+        $issues  = [];
+        $display = is_array($raw['display'] ?? null) ? $raw['display'] : [];
+
+        foreach (array_diff(array_keys($raw), self::KEYS) as $key) {
+            $issues[] = sprintf('unknown key "%s".', $key);
+        }
+
+        foreach (array_diff(array_keys($display), array_keys(self::DISPLAY_DEFAULTS)) as $key) {
+            $issues[] = sprintf('unknown key "display.%s".', $key);
+        }
+
+        $untitled = !is_string($raw['title'] ?? null) || $raw['title'] === '';
+
+        if ($untitled && in_array($group['display']['position'], ['meta_box', 'sidebar'], true)) {
+            $issues[] = sprintf('a "%s" group needs a "title"; using "%s".', $group['display']['position'], $group['title']);
+        }
+
+        foreach ($issues as $issue) {
+            self::report($group, 'config issue: ' . $issue);
+        }
+    }
+
+    /**
+     * Register post meta for the post types a late group attached to; `wp_loaded` has already registered the rest.
+     */
+    private static function registerMeta(array $group): void
+    {
+        foreach ($group['post_types'] as $postType) {
+            if (in_array($group['owner'], array_column(self::$attached[$postType] ?? [], 'owner'), true)) {
+                MetaRegistrar::registerFor($postType);
+            }
+        }
+    }
+
+    /**
+     * Validate one group and attach it to its post types, releasing what it held before.
+     */
+    private static function bootGroup(array $group): void
+    {
+        self::release($group);
+        self::lint($group);
+
+        $problem = self::$problems[$group['owner']] ?? self::configProblem($group) ?? self::postTypeProblem($group);
+
+        if ($problem !== null) {
+            self::report($group, 'was skipped: ' . $problem);
+
+            return;
+        }
+
+        foreach ($group['post_types'] as $postType) {
+            self::attach($group, $postType);
+        }
+    }
+
+    /**
+     * Detach a group from every post type and drop its site-wide claims.
+     */
+    private static function release(array $group): void
+    {
+        $owner = $group['owner'];
+
+        foreach (self::$attached as $postType => $groups) {
+            self::$attached[$postType] = array_values(array_filter($groups, static fn (array $g): bool => $g['owner'] !== $owner));
+
+            if (self::$attached[$postType] === []) {
+                unset(self::$attached[$postType]);
+            }
+
+            if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? null) === $owner) {
+                unset($GLOBALS['wireframe_field_group_owners'][$postType]);
+            }
+        }
+    }
+
+    /**
+     * Describe why a group's fields are unusable, or null when they are fine.
      */
     private static function configProblem(array $group): ?string
     {
-        if ($group['id'] === '') {
-            return 'a field group needs a non-empty "id".';
-        }
-
-        if ($group['post_types'] === []) {
-            return 'it needs at least one entry in "post_types".';
-        }
-
         $fields = ConfigLoader::flatFields($group['config']);
 
         if ($fields === []) {
@@ -215,7 +326,7 @@ final class FieldGroups
     }
 
     /**
-     * Describe why any of a group's post types cannot be attached, or null when all can.
+     * Describe why any of a group's post types cannot take it, or null when all can.
      */
     private static function postTypeProblem(array $group): ?string
     {
@@ -230,8 +341,10 @@ final class FieldGroups
                 return sprintf('post type "%s" must be registered with show_in_rest => true.', $postType);
             }
 
-            if (isset(self::$claimed[$postType])) {
-                return sprintf('post type "%s" already has the field group "%s".', $postType, self::$claimed[$postType]['id']);
+            $problem = self::conflict($group, $postType);
+
+            if ($problem !== null) {
+                return $problem;
             }
         }
 
@@ -239,18 +352,56 @@ final class FieldGroups
     }
 
     /**
-     * Claim a post type for a group, unless another bundled copy already owns it.
+     * Describe a clash with a group already on the post type: a second `content` group, or a shared field id.
      */
-    private static function claim(array $group, string $postType): void
+    private static function conflict(array $group, string $postType): ?string
     {
-        $owner = self::owner($group);
+        $ids = self::topLevelIds($group);
 
-        if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? $owner) !== $owner) {
-            return;
+        foreach (self::$attached[$postType] ?? [] as $other) {
+            if ($group['display']['position'] === 'content' && $other['display']['position'] === 'content') {
+                return sprintf('post type "%s" already has the content group "%s".', $postType, $other['id']);
+            }
+
+            $shared = array_values(array_intersect($ids, self::topLevelIds($other)));
+
+            if ($shared !== []) {
+                return sprintf('field "%s" is already used by the group "%s" on post type "%s".', $shared[0], $other['id'], $postType);
+            }
         }
 
-        $GLOBALS['wireframe_field_group_owners'][$postType] = $owner;
-        self::$claimed[$postType] = $group;
+        return null;
+    }
+
+    /**
+     * Get a group's top-level field ids, which are its meta keys.
+     *
+     * @return list<string>
+     */
+    private static function topLevelIds(array $group): array
+    {
+        $keys = array_map('strval', array_keys(ConfigLoader::flatFields($group['config'])));
+
+        return array_values(array_filter($keys, static fn (string $key): bool => !str_contains($key, '.')));
+    }
+
+    /**
+     * Attach a group to a post type; a `content` group first claims the post type site-wide.
+     */
+    private static function attach(array $group, string $postType): void
+    {
+        if ($group['display']['position'] === 'content') {
+            $owner = $group['owner'];
+
+            // Two bundled copies can't both replace the canvas; the first copy to boot keeps it.
+            if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? $owner) !== $owner) {
+                return;
+            }
+
+            $GLOBALS['wireframe_field_group_owners'][$postType] = $owner;
+        }
+
+        self::$attached[$postType][] = $group;
         add_post_type_support($postType, 'custom-fields');
     }
 
@@ -266,19 +417,15 @@ final class FieldGroups
         $config = ConfigLoader::load($group['config']);
 
         foreach (ConfigValidator::validate($config, $group['config']) as $issue) {
-            _doing_it_wrong(__CLASS__ . '::boot', sprintf('Field group "%s" (%s) config issue: %s', $group['id'], $group['prefix'], $issue), '1.2.0');
+            self::report($group, 'config issue: ' . $issue);
         }
     }
 
     /**
-     * Report a skipped group.
+     * Report a problem with a group through `_doing_it_wrong`.
      */
-    private static function reject(array $group, string $reason): void
+    private static function report(array $group, string $message): void
     {
-        _doing_it_wrong(
-            __CLASS__ . '::boot',
-            sprintf('Field group "%s" (%s) was skipped: %s', $group['id'], $group['prefix'], $reason),
-            '1.2.0'
-        );
+        _doing_it_wrong(__CLASS__ . '::boot', sprintf('Field group "%s" (%s) %s', $group['id'], $group['prefix'], $message), '1.2.0');
     }
 }
