@@ -87,23 +87,34 @@ final class EditorIntegration
      * Register an empty container box per applicable `meta_box` group; React renders into it.
      *
      * @param string $postType Post type, or `comment`/`link` on those screens.
-     * @param object $post     Object being edited; only posts get boxes.
+     * @param object $post     Object being edited; only posts on the block editor get boxes here.
      */
     public static function registerMetaBoxes(string $postType, object $post): void
     {
-        if (!$post instanceof WP_Post) {
+        if (!$post instanceof WP_Post || !use_block_editor_for_post($post)) {
             return;
         }
 
         foreach (self::data($post)['groups'] as $group) {
-            if ($group['position'] !== 'meta_box') {
-                continue;
+            if ($group['position'] === 'meta_box') {
+                self::addBox($group, $postType, 'normal', [self::class, 'renderMetaBox']);
             }
-
-            add_meta_box(self::BOX_PREFIX . $group['id'], $group['title'], [self::class, 'renderMetaBox'], $postType, 'normal', self::priority($group['order']));
         }
 
         add_filter("get_user_option_closedpostboxes_{$postType}", [self::class, 'seedClosedBoxes'], 10, 2);
+    }
+
+    /**
+     * Register a group's container box, titled and prioritised from its display settings.
+     *
+     * @param array    $group    Group entry from data().
+     * @param string   $postType Post type slug.
+     * @param string   $context  Box context: `normal` or `side`.
+     * @param callable $callback Prints the box's mount point; receives the group id as `$box['args']['group']`.
+     */
+    public static function addBox(array $group, string $postType, string $context, callable $callback): void
+    {
+        add_meta_box(self::BOX_PREFIX . $group['id'], $group['title'], $callback, $postType, $context, self::priority($group['order']), ['group' => $group['id']]);
     }
 
     /**
@@ -123,6 +134,19 @@ final class EditorIntegration
      */
     public static function seedClosedBoxes(mixed $result, string $option): mixed
     {
+        return self::closedBoxes($result, $option, ['meta_box']);
+    }
+
+    /**
+     * Seed a user's closed boxes with the `collapsed` groups in the given positions, unless they saved their own state.
+     *
+     * @param mixed        $result    Saved closed box ids, or false when the user has none.
+     * @param string       $option    Option name, `closedpostboxes_{$postType}`.
+     * @param list<string> $positions Positions rendered as boxes.
+     * @return mixed
+     */
+    public static function closedBoxes(mixed $result, string $option, array $positions): mixed
+    {
         if ($result !== false) {
             return $result;
         }
@@ -130,7 +154,7 @@ final class EditorIntegration
         $closed = [];
 
         foreach (FieldGroups::groupsFor(substr($option, strlen('closedpostboxes_'))) as $group) {
-            if ($group['display']['position'] === 'meta_box' && $group['display']['collapsed']) {
+            if (in_array($group['display']['position'], $positions, true) && $group['display']['collapsed']) {
                 $closed[] = self::BOX_PREFIX . $group['id'];
             }
         }

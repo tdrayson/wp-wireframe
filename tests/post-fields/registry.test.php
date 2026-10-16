@@ -42,7 +42,7 @@ check('normalised keys', ['id', 'prefix', 'owner', 'title', 'location', 'post_ty
 check('normalised display', ['position' => 'sidebar', 'collapsed' => true, 'order' => 20], $seo['display'] ?? null);
 check('title kept', 'SEO', $seo['title'] ?? null);
 check('owner is prefix/id', 'wf-fixture/event_seo', $seo['owner'] ?? null);
-check('post types resolved from the location', ['event'], $seo['post_types'] ?? null);
+check('post types resolved from the location', ['event', 'classic_event'], $seo['post_types'] ?? null);
 check('config is a slug', 'wf-fixture-group-event_seo', $seo['config'] ?? null);
 check(
     'shorthand location expanded',

@@ -17,6 +17,13 @@ add_action('init', static function (): void {
         'supports'     => ['title', 'thumbnail', 'revisions'],
     ]);
 
+    register_post_type('classic_event', [
+        'label'        => 'Classic events',
+        'public'       => true,
+        'show_in_rest' => true,
+        'supports'     => ['title', 'thumbnail', 'revisions'],
+    ]);
+
     register_taxonomy('event_type', 'event', [
         'label'        => 'Event types',
         'hierarchical' => true,
@@ -29,14 +36,14 @@ add_action('init', static function (): void {
         'field_groups' => [
             [
                 'id'       => 'event_details',
-                'location' => ['event'],
+                'location' => ['event', 'classic_event'],
                 'display'  => ['position' => 'content'],
                 'config'   => __DIR__ . '/config/event.php',
             ],
             [
                 'id'       => 'event_seo',
                 'title'    => 'SEO',
-                'location' => ['all' => [['field' => 'post_type', 'operator' => 'equals', 'value' => 'event']]],
+                'location' => ['all' => [['field' => 'post_type', 'operator' => 'in', 'value' => ['event', 'classic_event']]]],
                 'display'  => ['position' => 'sidebar', 'collapsed' => true, 'order' => 20],
                 'config'   => __DIR__ . '/config/seo.php',
             ],
@@ -44,7 +51,7 @@ add_action('init', static function (): void {
                 'id'       => 'event_extras',
                 'title'    => 'Extras',
                 'location' => ['all' => [
-                    ['field' => 'post_type', 'operator' => 'equals', 'value' => 'event'],
+                    ['field' => 'post_type', 'operator' => 'in', 'value' => ['event', 'classic_event']],
                     ['field' => 'user_role', 'operator' => 'contains', 'value' => 'administrator'],
                 ]],
                 'display'  => ['position' => 'meta_box'],
@@ -60,3 +67,5 @@ add_action('init', static function (): void {
         ],
     ]);
 });
+
+add_filter('use_block_editor_for_post_type', static fn (bool $use, string $postType): bool => $postType === 'classic_event' ? false : $use, 10, 2);

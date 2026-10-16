@@ -274,6 +274,39 @@ final class MetaRegistrar
     }
 
     /**
+     * Get the meta keys a user may write on a post, each mapped to its owning group's id; the bulk form of the REST write gate.
+     *
+     * @param string  $postType Post type slug.
+     * @param int     $postId   Post being saved.
+     * @param WP_User $user     User saving.
+     * @return array<string, string> Owning group id by meta key.
+     */
+    public static function writableKeys(string $postType, int $postId, WP_User $user): array
+    {
+        if (!$user->exists() || !user_can($user, 'edit_post', $postId)) {
+            return [];
+        }
+
+        $keys = [];
+
+        foreach (FieldGroups::groupsFor($postType) as $group) {
+            if (!Location::applies($group, $postId, $user)) {
+                continue;
+            }
+
+            $map = self::accessMap($postType, $group, $user);
+
+            foreach (array_keys(self::stored(ConfigLoader::flatFields($group['config']))) as $key) {
+                if ($map->canEdit((string) $key)) {
+                    $keys[(string) $key] = $group['id'];
+                }
+            }
+        }
+
+        return $keys;
+    }
+
+    /**
      * Resolve a group's field access for a user, inherited from sections and tabs as on settings pages.
      *
      * Fields with no rule anywhere above them defer to post capabilities, so public fields stay readable logged out;

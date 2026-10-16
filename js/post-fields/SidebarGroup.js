@@ -9,6 +9,7 @@ import {
 } from '@wordpress/editor';
 import { FieldStoreContext, useFieldStore } from '../hooks/useFieldStore';
 import GroupTabs from './GroupTabs';
+import fullWidth from './fullWidth';
 
 // WP 6.5 only exports the panel from edit-post.
 const PluginDocumentSettingPanel =
@@ -18,27 +19,6 @@ const PLUGIN_NAME = 'wireframe-post-fields';
 const PREFERENCES_STORE = 'core/preferences';
 const PREFERENCE_SCOPE = 'wp-wireframe';
 const SEEDED_KEY = 'seededPanels';
-
-/**
- * Drop `columns` from every field, since the panel is too narrow for a grid.
- *
- * @param {Object} config Normalised config.
- * @return {Object} The config without `columns`.
- */
-function fullWidth( config ) {
-	return {
-		...config,
-		tabs: ( config.tabs || [] ).map( ( tab ) => ( {
-			...tab,
-			sections: ( tab.sections || [] ).map( ( section ) => ( {
-				...section,
-				fields: ( section.fields || [] ).map(
-					( { columns, ...field } ) => field
-				),
-			} ) ),
-		} ) ),
-	};
-}
 
 /**
  * Open a non-collapsed panel the first time this user sees it; afterwards their own open state is kept.

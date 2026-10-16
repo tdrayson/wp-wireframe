@@ -6,6 +6,8 @@ namespace Wireframe;
 
 use Wireframe\Admin\AdminPage;
 use Wireframe\Framework\ConfigValidator;
+use Wireframe\PostFields\ClassicEditor;
+use Wireframe\PostFields\ClassicSave;
 use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\MetaRegistrar;
@@ -56,6 +58,8 @@ final class Plugin
         add_filter('block_editor_settings_all', [EditorIntegration::class, 'filterEditorSettings'], 10, 2);
         add_action('enqueue_block_editor_assets', [EditorIntegration::class, 'enqueue']);
         add_action('add_meta_boxes', [EditorIntegration::class, 'registerMetaBoxes'], 10, 2);
+        ClassicEditor::register();
+        ClassicSave::register();
         add_filter('admin_body_class', [$this, 'addBodyClass']);
         add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
 

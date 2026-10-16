@@ -42,20 +42,9 @@ final class SaveValidator
 
         $postType = (string) ($prepared->post_type ?? '');
         $postId   = (int) ($prepared->ID ?? 0);
-        $user     = wp_get_current_user();
-        $groups   = self::applicableGroups($postType, $postId, $user);
-        $fields   = self::editableFields($groups, $postType, $user);
-
-        if ($fields === []) {
-            return $prepared;
-        }
-
-        if (!self::enforcesRequired($postId, $request)) {
-            $fields = self::withoutRequired($fields);
-        }
-
-        $values = self::mergedValues($postId, $postType, $request);
-        $errors = Validator::validate($values, $fields, self::visibility($groups, $values))['errors'];
+        $status   = (string) ($request['status'] ?? ($postId > 0 ? get_post_status($postId) : 'draft'));
+        $incoming = is_array($request['meta'] ?? null) ? $request['meta'] : [];
+        $errors   = self::validate($postId, $postType, $incoming, $status);
 
         if ($errors === []) {
             return $prepared;
@@ -63,9 +52,63 @@ final class SaveValidator
 
         return new WP_Error(
             'validation_failed',
-            __('Some fields need attention.', App::textDomain($groups[0]['prefix'])),
+            self::message($postType, $postId),
             ['status' => 400, 'errors' => $errors]
         );
+    }
+
+    /**
+     * Validate a post's stored values merged with incoming ones, for every applicable field the user may edit.
+     *
+     * @param int                  $postId       Post ID; 0 for one not yet created.
+     * @param string               $postType     Post type slug.
+     * @param array<string, mixed> $incoming     Values being saved, by meta key.
+     * @param string               $targetStatus Status the save leaves the post in; `required` applies to publish and future only.
+     * @param WP_User|null         $user         User saving; defaults to the current user.
+     * @return array<string, mixed> Errors by field id, in the settings `data.errors` shape; empty when valid.
+     */
+    public static function validate(int $postId, string $postType, array $incoming, string $targetStatus, ?WP_User $user = null): array
+    {
+        $user ??= wp_get_current_user();
+        $groups = self::applicableGroups($postType, $postId, $user);
+        $fields = self::editableFields($groups, $postType, $user);
+
+        if ($fields === []) {
+            return [];
+        }
+
+        if (!self::enforces($targetStatus)) {
+            $fields = self::withoutRequired($fields);
+        }
+
+        $values = self::mergedValues($postId, $postType, $incoming);
+
+        return Validator::validate($values, $fields, self::visibility($groups, $values))['errors'];
+    }
+
+    /**
+     * Whether a post status enforces `required`.
+     *
+     * @param string $status Post status.
+     * @return bool
+     */
+    public static function enforces(string $status): bool
+    {
+        return in_array($status, self::ENFORCED_STATUSES, true);
+    }
+
+    /**
+     * Get the failed-validation message, in the text domain of the first group that applies to the post.
+     *
+     * @param string $postType Post type slug.
+     * @param int    $postId   Post ID; 0 for one not yet created.
+     * @return string
+     */
+    public static function message(string $postType, int $postId): string
+    {
+        $groups = self::applicableGroups($postType, $postId, wp_get_current_user());
+
+        return __('Some fields need attention.', App::textDomain($groups[0]['prefix'] ?? ''));
     }
 
     /**
@@ -142,26 +185,15 @@ final class SaveValidator
     }
 
     /**
-     * Whether the save leaves the post published or scheduled: the request's status, else the post's own.
-     */
-    private static function enforcesRequired(int $postId, WP_REST_Request $request): bool
-    {
-        $status = $request['status'] ?? ($postId > 0 ? get_post_status($postId) : 'draft');
-
-        return in_array($status, self::ENFORCED_STATUSES, true);
-    }
-
-    /**
-     * Get the post's values as the editor shows them (stored, else default), overlaid with the request's meta.
+     * Get the post's values as the editor shows them (stored, else default), overlaid with the incoming ones.
      *
      * @return array<string, mixed>
      */
-    private static function mergedValues(int $postId, string $postType, WP_REST_Request $request): array
+    private static function mergedValues(int $postId, string $postType, array $incoming): array
     {
-        $saved  = $postId > 0 ? Meta::resolved($postId) : self::defaults($postType);
-        $posted = is_array($request['meta'] ?? null) ? $request['meta'] : [];
+        $saved = $postId > 0 ? Meta::resolved($postId) : self::defaults($postType);
 
-        return array_replace($saved, $posted);
+        return array_replace($saved, $incoming);
     }
 
     /**
