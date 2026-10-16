@@ -27,14 +27,18 @@ final class EditorIntegration
     /** @var array<string, array> Payloads by post and user ID, as the classic editor asks once per box. */
     private static array $data = [];
 
+    /** @var array<string, string|false> The lock a `content` post type had before its template was emptied, by post type. */
+    private static array $nativeLocks = [];
+
     /**
      * Build the `window.wireframePostFields` payload: the groups whose static params match, with access-filtered, populated configs.
      *
-     * `context` holds the location params JS can't read from the editor; `taxonomies` the REST bases live terms come from.
+     * `context` holds the location params JS can't read from the editor, `post_terms` there being the non-REST taxonomies'
+     * terms; `taxonomies` the REST bases live terms come from; `nativeLock` the canvas lock when no `content` group applies.
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
-     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, context: array, taxonomies: list<array>, groups: list<array>}
+     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, context: array, taxonomies: list<array>, nativeLock: string|false, groups: list<array>}
      */
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
@@ -94,10 +98,49 @@ final class EditorIntegration
             'postType'      => $post->post_type,
             'supportsTitle' => post_type_supports($post->post_type, 'title'),
             'debug'         => defined('SCRIPT_DEBUG') && SCRIPT_DEBUG,
-            'context'       => array_diff_key($context, array_flip(Location::LIVE_PARAMS)),
+            'context'       => self::staticContext($context, $post, $taxonomies),
             'taxonomies'    => array_map(static fn (string $slug, string $base): array => ['slug' => $slug, 'restBase' => $base], array_keys($taxonomies), $taxonomies),
+            'nativeLock'    => self::nativeLock($post->post_type),
             'groups'        => $groups,
         ];
+    }
+
+    /**
+     * Get the context params JS can't read from the editor: the static ones, filter-added ones, and non-REST taxonomies' terms.
+     *
+     * @param array<string, string> $restTaxonomies REST base by taxonomy slug.
+     */
+    private static function staticContext(array $context, WP_Post $post, array $restTaxonomies): array
+    {
+        $static = array_diff_key($context, array_flip(Location::LIVE_PARAMS));
+        $fixed  = Location::terms($post->ID, $post->post_type, array_fill_keys(array_keys($restTaxonomies), []));
+
+        return $static + ['post_terms' => $fixed];
+    }
+
+    /**
+     * Get the canvas lock a post type has of its own: core only applies `template_lock` with a non-empty template.
+     *
+     * @param string $postType Post type slug.
+     * @return string|false
+     */
+    public static function nativeLock(string $postType): string|false
+    {
+        if (array_key_exists($postType, self::$nativeLocks)) {
+            return self::$nativeLocks[$postType];
+        }
+
+        $object = get_post_type_object($postType);
+
+        return self::lockOf((array) ($object->template ?? []), $object->template_lock ?? false);
+    }
+
+    /**
+     * Resolve the lock core would apply for a template and its `template_lock`.
+     */
+    private static function lockOf(array $template, mixed $lock): string|false
+    {
+        return $template !== [] && is_string($lock) && $lock !== '' ? $lock : false;
     }
 
     /**
@@ -250,6 +293,8 @@ final class EditorIntegration
             return;
         }
 
+        self::$nativeLocks[$postType] ??= self::lockOf((array) $wp_post_types[$postType]->template, $wp_post_types[$postType]->template_lock);
+
         $wp_post_types[$postType]->template      = [];
         $wp_post_types[$postType]->template_lock = 'all';
     }
@@ -267,6 +312,8 @@ final class EditorIntegration
             return $args;
         }
 
+        self::$nativeLocks[$postType] = self::lockOf((array) ($args['template'] ?? []), $args['template_lock'] ?? false);
+
         $args['template']      = [];
         $args['template_lock'] = 'all';
 
@@ -278,9 +325,8 @@ final class EditorIntegration
     }
 
     /**
-     * Filter `block_editor_settings_all`: lock the canvas when the post's `content` group applies to the stored post; JS takes over live.
-     *
-     * Core only passes `template_lock` on when the template is non-empty, so an empty template needs this.
+     * Filter `block_editor_settings_all`: lock the canvas while the post's `content` group applies to the stored post, else
+     * give it the post type's own lock; JS takes over live. Core only passes `template_lock` on with a non-empty template.
      *
      * @param array                   $settings Block editor settings.
      * @param WP_Block_Editor_Context $context  Editor context.
@@ -292,12 +338,10 @@ final class EditorIntegration
             return $settings;
         }
 
-        if (!in_array('content', array_column(self::applicable($context->post), 'position'), true)) {
-            return $settings;
-        }
+        $applies = in_array('content', array_column(self::applicable($context->post), 'position'), true);
 
         $settings['template']     = [];
-        $settings['templateLock'] = 'all';
+        $settings['templateLock'] = $applies ? 'all' : self::nativeLock($context->post->post_type);
 
         return $settings;
     }

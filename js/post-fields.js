@@ -11,7 +11,9 @@ import SidebarGroup from './post-fields/SidebarGroup';
 import useLiveContext from './post-fields/useLiveContext';
 import useGroupApplies from './post-fields/useGroupApplies';
 import useCanvasLock from './post-fields/useCanvasLock';
-import stripHiddenMeta from './post-fields/stripHiddenMeta';
+import stripHiddenMeta, {
+	useRevertHiddenEdits,
+} from './post-fields/stripHiddenMeta';
 import './styles/post-fields.scss';
 
 const PLUGIN_NAME = 'wireframe-post-fields';
@@ -30,7 +32,11 @@ function Root() {
 	const context = useLiveContext( data );
 	const groups = useGroupApplies( data.groups, context );
 
-	useCanvasLock( groups.some( ( group ) => group.position === 'content' ) );
+	useCanvasLock(
+		data,
+		groups.some( ( group ) => group.position === 'content' )
+	);
+	useRevertHiddenEdits( groups );
 
 	return groups.map( ( group ) => {
 		const Position = POSITIONS[ group.position ];

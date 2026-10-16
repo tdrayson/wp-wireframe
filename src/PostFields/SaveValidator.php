@@ -43,8 +43,11 @@ final class SaveValidator
         $postType = (string) ($prepared->post_type ?? '');
         $postId   = (int) ($prepared->ID ?? 0);
         $status   = (string) ($request['status'] ?? ($postId > 0 ? get_post_status($postId) : 'draft'));
-        $incoming = is_array($request['meta'] ?? null) ? $request['meta'] : [];
         $live     = self::requestLive($prepared, $request, $postType, $postId);
+
+        MetaRegistrar::dropEchoes($request, $postType, $postId, $live);
+
+        $incoming = is_array($request['meta'] ?? null) ? $request['meta'] : [];
         $errors   = self::validate($postId, $postType, $incoming, $status, null, $live);
 
         if ($errors === []) {

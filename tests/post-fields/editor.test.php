@@ -44,7 +44,7 @@ $admin = as_user('administrator');
 $event = get_post(make_event());
 $data  = EditorIntegration::data($event);
 
-check('payload keys', ['postId', 'postType', 'supportsTitle', 'debug', 'context', 'taxonomies', 'groups'], array_keys($data));
+check('payload keys', ['postId', 'postType', 'supportsTitle', 'debug', 'context', 'taxonomies', 'nativeLock', 'groups'], array_keys($data));
 check('debug follows SCRIPT_DEBUG', defined('SCRIPT_DEBUG') && SCRIPT_DEBUG, $data['debug']);
 check('post id', $event->ID, $data['postId']);
 check('post type', 'event', $data['postType']);
@@ -104,12 +104,12 @@ FieldGroups::register('wf-test', [
     'display'  => ['position' => 'content'],
     'config'   => ['fields' => [['id' => 'lock_note', 'type' => 'text', 'access' => 'administrator']]],
 ]);
-$lockOf = static fn (WP_Post $post): ?string => apply_filters('block_editor_settings_all', [], new WP_Block_Editor_Context(['post' => $post]))['templateLock'] ?? null;
+$lockOf = static fn (WP_Post $post): mixed => apply_filters('block_editor_settings_all', [], new WP_Block_Editor_Context(['post' => $post]))['templateLock'] ?? null;
 as_user('administrator');
 check('canvas locked where the content group applies', 'all', $lockOf($lockedPost));
-check('canvas left alone on a post the location excludes', null, $lockOf($skippedPost));
+check('canvas gets the native lock on a post the location excludes', false, $lockOf($skippedPost));
 as_user('editor');
-check('canvas left alone for a user who can view none of its fields', null, $lockOf($lockedPost));
+check('canvas gets the native lock for a user who can view none of its fields', false, $lockOf($lockedPost));
 
 $notices = [];
 register_post_type('untitled_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['custom-fields']]);

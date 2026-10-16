@@ -83,7 +83,7 @@ $entry = $entryOf($data, 'event_featured_extras');
 check('data sends a group that only statically matches', true, $entry !== null);
 check('the entry carries its normalised location', $group['location'], $entry['location'] ?? null);
 check('data lists the REST taxonomies', [['slug' => 'event_type', 'restBase' => 'event_type']], $data['taxonomies'] ?? null);
-check('data carries the static location context', ['post_type' => 'event', 'post_id' => $plain, 'user_role' => ['administrator']], $data['context'] ?? null);
+check('data carries the static location context', ['post_type' => 'event', 'post_id' => $plain, 'user_role' => ['administrator'], 'post_terms' => []], $data['context'] ?? null);
 
 global $wp_meta_boxes;
 $wp_meta_boxes = [];
@@ -106,7 +106,7 @@ check('the value is stored', 'Hi', get_post_meta($plain, 'featured_blurb', true)
 $response = rest('POST', "/wp/v2/event/$plain", ['event_type' => []]);
 check('removing the term saves', 200, $response->get_status());
 check('a group that stops applying keeps its values', 'Hi', get_post_meta($plain, 'featured_blurb', true));
-check('its field is no longer readable', false, array_key_exists('featured_blurb', $response->get_data()['meta'] ?? []));
+check('an edit-context read still carries it, for live toggling', 'Hi', $response->get_data()['meta']['featured_blurb'] ?? null);
 
 FieldGroups::register('wf-test', [
     'id'       => 'featured_required',
@@ -192,8 +192,132 @@ $created      = [...$created, $draftDoc, $publishedDoc];
 $lock         = static fn (int $id): mixed => apply_filters('block_editor_settings_all', [], new WP_Block_Editor_Context(['post' => get_post($id)]))['templateLock'] ?? null;
 
 check('a content group that applies locks the canvas', 'all', $lock($draftDoc));
-check('a content group that only statically matches leaves it unlocked', null, $lock($publishedDoc));
+check('a content group that only statically matches leaves it unlocked', false, $lock($publishedDoc));
 check('the published post still gets the group for live toggling', true, $entryOf(EditorIntegration::data(get_post($publishedDoc)), 'live_doc_content') !== null);
+
+// R25: edit-context reads relax live rules; view reads and access still gate.
+FieldGroups::register('wf-test', [
+    'id'       => 'featured_public',
+    'title'    => 'Featured public',
+    'location' => ['all' => [
+        ['field' => 'post_type', 'operator' => 'equals', 'value' => 'event'],
+        ['field' => 'post_terms', 'operator' => 'contains', 'value' => $featuredId],
+    ]],
+    'config'   => ['fields' => [
+        ['id' => 'featured_tagline', 'type' => 'text', 'public' => true],
+        ['id' => 'featured_secret', 'type' => 'text', 'access' => ['view' => 'administrator', 'edit' => 'administrator']],
+    ]],
+]);
+EditorIntegration::flush();
+
+$stored = $event($valid + ['featured_blurb' => 'Kept', 'featured_tagline' => 'Shown', 'featured_secret' => 'Hush'], 'publish');
+as_user('editor');
+$editMeta = rest('GET', "/wp/v2/event/$stored", [], ['context' => 'edit'])->get_data()['meta'] ?? [];
+check('edit read: a stored value of a group that does not apply yet is sent', 'Kept', $editMeta['featured_blurb'] ?? null);
+check('edit read: a field the user cannot view is still withheld', false, array_key_exists('featured_secret', $editMeta));
+as_user('guest');
+$viewMeta = rest('GET', "/wp/v2/event/$stored")->get_data()['meta'] ?? [];
+check('view read: a public field of a group that does not apply is withheld', false, array_key_exists('featured_tagline', $viewMeta));
+wp_set_object_terms($stored, [$featuredId], 'event_type');
+$viewMeta = rest('GET', "/wp/v2/event/$stored")->get_data()['meta'] ?? [];
+check('view read: it is public once the group applies', 'Shown', $viewMeta['featured_tagline'] ?? null);
+wp_set_object_terms($stored, [], 'event_type');
+as_user('administrator');
+check('edit read: an admin gets the access-gated field', 'Hush', rest('GET', "/wp/v2/event/$stored", [], ['context' => 'edit'])->get_data()['meta']['featured_secret'] ?? null);
+
+$echo = rest('POST', "/wp/v2/event/$stored", ['meta' => ['featured_blurb' => 'Kept', 'featured_secret' => 'Hush', 'price' => 5]]);
+check('echoing the stored values of a group that does not apply saves', 200, $echo->get_status());
+check('the rest of the save is written', '5', get_post_meta($stored, 'price', true));
+$unset = $event();
+$echo  = rest('POST', "/wp/v2/event/$unset", ['meta' => ['featured_blurb' => null, 'price' => 6]]);
+check('echoing the null of a never-stored field that does not apply saves', 200, $echo->get_status());
+check('and writes no row for it', false, metadata_exists('post', $unset, 'featured_blurb'));
+
+// Native template lock, restored when the content group stops applying.
+register_post_type('native_doc', ['label' => 'Native docs', 'public' => true, 'show_in_rest' => true, 'supports' => ['title', 'editor'], 'template' => [['core/paragraph']], 'template_lock' => 'insert']);
+FieldGroups::register('wf-test', [
+    'id'       => 'native_doc_content',
+    'location' => ['all' => [
+        ['field' => 'post_type', 'operator' => 'equals', 'value' => 'native_doc'],
+        ['field' => 'post_status', 'operator' => 'equals', 'value' => 'draft'],
+    ]],
+    'display'  => ['position' => 'content'],
+    'config'   => ['fields' => [['id' => 'native_body', 'type' => 'textarea']]],
+]);
+register_post_type('boxed_doc', ['label' => 'Boxed docs', 'public' => true, 'show_in_rest' => true, 'supports' => ['title', 'editor'], 'template' => [['core/paragraph']], 'template_lock' => 'all']);
+FieldGroups::register('wf-test', ['id' => 'boxed_doc_box', 'location' => ['boxed_doc'], 'config' => ['fields' => [['id' => 'boxed_note', 'type' => 'text']]]]);
+$nativeDraft     = (int) wp_insert_post(['post_type' => 'native_doc', 'post_status' => 'draft', 'post_title' => 'Doc']);
+$nativePublished = (int) wp_insert_post(['post_type' => 'native_doc', 'post_status' => 'publish', 'post_title' => 'Doc']);
+$boxed           = (int) wp_insert_post(['post_type' => 'boxed_doc', 'post_status' => 'draft', 'post_title' => 'Doc']);
+$created         = [...$created, $nativeDraft, $nativePublished, $boxed];
+check('the payload carries the native lock of a content post type', 'insert', EditorIntegration::data(get_post($nativePublished))['nativeLock'] ?? null);
+check('an applying content group still locks fully', 'all', $lock($nativeDraft));
+check('a content group that stops applying restores the native lock', 'insert', $lock($nativePublished));
+check('the payload carries the native lock of a post type without a content group', 'all', EditorIntegration::data(get_post($boxed))['nativeLock'] ?? null);
+check('without a content group the lock is left alone', 'untouched', apply_filters('block_editor_settings_all', ['templateLock' => 'untouched'], new WP_Block_Editor_Context(['post' => get_post($boxed)]))['templateLock'] ?? null);
+
+// Non-REST taxonomies: their stored terms ride along in the static context.
+register_taxonomy('event_private', 'event', ['label' => 'Private', 'show_in_rest' => false]);
+$private   = wp_insert_term('Hidden tag', 'event_private');
+$privateId = (int) $private['term_id'];
+$withPrivate = $event();
+wp_set_object_terms($withPrivate, [$privateId], 'event_private');
+wp_set_object_terms($withPrivate, [$featuredId], 'event_type');
+EditorIntegration::flush();
+$payload = EditorIntegration::data(get_post($withPrivate));
+check('context carries the stored terms of non-REST taxonomies only', [$privateId], $payload['context']['post_terms'] ?? null);
+check('non-REST taxonomies are not listed for live terms', ['event_type'], array_column($payload['taxonomies'], 'slug'));
+
+// REST live overrides through rest_pre_insert.
+register_post_type('live_page', ['label' => 'Live pages', 'public' => true, 'hierarchical' => true, 'show_in_rest' => true, 'supports' => ['title', 'page-attributes', 'post-formats']]);
+$liveRule = static fn (string $id, string $param, mixed $value): array => [
+    'id'       => $id,
+    'location' => ['all' => [['field' => 'post_type', 'operator' => 'equals', 'value' => 'live_page'], ['field' => $param, 'operator' => 'equals', 'value' => $value]]],
+    'config'   => ['fields' => [['id' => "{$id}_field", 'type' => 'text', 'required' => true]]],
+];
+$parentPage = (int) wp_insert_post(['post_type' => 'live_page', 'post_status' => 'publish', 'post_title' => 'Parent']);
+$livePage   = (int) wp_insert_post(['post_type' => 'live_page', 'post_status' => 'draft', 'post_title' => 'Child']);
+$created    = [...$created, $livePage, $parentPage];
+FieldGroups::register('wf-test', $liveRule('by_status', 'post_status', 'publish'));
+FieldGroups::register('wf-test', $liveRule('by_template', 'post_template', 'tpl-wide'));
+FieldGroups::register('wf-test', $liveRule('by_parent', 'post_parent', $parentPage));
+FieldGroups::register('wf-test', $liveRule('by_format', 'post_format', 'aside'));
+$preInsert = static function (array $prepared, array $params) use ($livePage): array {
+    $request = new WP_REST_Request('POST', "/wp/v2/live_page/$livePage");
+    $request->set_body_params($params);
+    $result = apply_filters('rest_pre_insert_live_page', (object) (['ID' => $livePage, 'post_type' => 'live_page'] + $prepared), $request);
+
+    return is_wp_error($result) ? array_keys($result->get_error_data()['errors']) : [];
+};
+check('rest: publishing alone brings in the status group', ['by_status_field'], $preInsert(['post_status' => 'publish'], ['status' => 'publish']));
+check(
+    'rest: the submitted template, parent and format bring in their groups',
+    ['by_status_field', 'by_template_field', 'by_parent_field', 'by_format_field'],
+    $preInsert(['post_status' => 'publish', 'post_parent' => $parentPage], ['status' => 'publish', 'template' => 'tpl-wide', 'parent' => $parentPage, 'format' => 'aside'])
+);
+
+// Classic guard: submitted page_template, post_format and post_parent.
+foreach (['by_template' => ['post_template', 'tpl-wide'], 'by_parent' => ['post_parent', $parentPage], 'by_format' => ['post_format', 'aside']] as $id => [$param, $value]) {
+    $rule = $liveRule("classic_$id", $param, $value);
+    $rule['location']['all'][0]['value'] = 'classic_event';
+    FieldGroups::register('wf-test', $rule);
+}
+EditorIntegration::flush();
+$plainClassic = (int) wp_insert_post(['post_type' => 'classic_event', 'post_status' => 'draft', 'post_title' => 'Classic', 'meta_input' => $valid]);
+$created[]    = $plainClassic;
+$classicGuard = static fn (array $data, array $extra): string => ClassicSave::guardStatus(['post_status' => 'publish', 'post_type' => 'classic_event'] + $data, wp_slash([
+    'ID'               => $plainClassic,
+    'post_ID'          => $plainClassic,
+    '_wireframe_nonce' => wp_create_nonce('wireframe_classic_save'),
+    'wireframe_fields' => [],
+] + $extra))['post_status'];
+check('classic: no live changes publishes', 'publish', $classicGuard([], []));
+check('classic: a submitted page_template brings in its group', 'draft', $classicGuard([], ['page_template' => 'tpl-wide']));
+check('classic: the default template does not', 'publish', $classicGuard([], ['page_template' => 'default']));
+check('classic: a submitted post_format brings in its group', 'draft', $classicGuard([], ['post_format' => 'aside']));
+check('classic: a submitted post_parent brings in its group', 'draft', $classicGuard(['post_parent' => $parentPage], []));
+
+wp_delete_term($privateId, 'event_private');
 
 foreach ($created as $id) {
     wp_delete_post($id, true);

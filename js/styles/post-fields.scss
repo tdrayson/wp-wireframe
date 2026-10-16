@@ -21,6 +21,11 @@
 @use 'responsive';
 
 body.wireframe-content-mode {
+  // Ahead of the content area's `order: -1`, so notices stay under the editor header as on a normal screen.
+  .interface-interface-skeleton__content .editor-notices {
+    order: -2;
+  }
+
   .editor-visual-editor,
   .editor-text-editor,
   .editor-document-tools__left > .editor-document-tools__inserter-toggle,

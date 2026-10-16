@@ -6,7 +6,7 @@ import { useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 
 /**
- * Build the location context from the editor's edited post and the static params PHP localised.
+ * Build the location context from the editor's edited post and the params PHP localised, non-REST taxonomies' terms included.
  *
  * @param {Function} select Registry `select`.
  * @param {Object}   data   `window.wireframePostFields`.
@@ -14,9 +14,10 @@ import { store as editorStore } from '@wordpress/editor';
  */
 export function buildLiveContext( select, data ) {
 	const { getEditedPostAttribute } = select( editorStore );
-	const terms = ( data.taxonomies || [] ).flatMap(
+	const liveTerms = ( data.taxonomies || [] ).flatMap(
 		( { restBase } ) => getEditedPostAttribute( restBase ) || []
 	);
+	const terms = [ ...( data.context?.post_terms || [] ), ...liveTerms ];
 
 	return {
 		...data.context,

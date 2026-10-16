@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\PostFields;
 
 use WP_Post;
+use WP_REST_Post_Meta_Fields;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_User;
@@ -144,6 +145,8 @@ final class MetaRegistrar
     /**
      * Remove meta the current user may not read, or whose group doesn't apply, from a post, revision or autosave response.
      *
+     * Edit reads by users who can edit the post relax live rules, so a group that starts applying in the editor has its values.
+     *
      * @param WP_REST_Response $response Prepared response.
      * @param WP_Post          $post     Post, revision or autosave being prepared.
      * @param WP_REST_Request  $request  Current request.
@@ -161,10 +164,12 @@ final class MetaRegistrar
         $postType = (string) get_post_type($postId);
         $context  = (string) ($request['context'] ?? 'view');
         $user     = wp_get_current_user();
+        $current  = $user->exists() ? $user : null;
+        $relaxed  = $context === 'edit' && $current !== null && user_can($current, 'edit_post', $postId);
 
         foreach (FieldGroups::groupsFor($postType) as $group) {
-            $applies  = Location::applies($group, $postId, $user->exists() ? $user : null);
-            $viewable = $applies ? self::accessMap($postType, $group, $user)->viewableFieldIds() : [];
+            $matches  = $relaxed ? Location::staticMatch($group, $postId, $current) : Location::applies($group, $postId, $current);
+            $viewable = $matches ? self::accessMap($postType, $group, $user)->viewableFieldIds() : [];
 
             foreach (self::stored(ConfigLoader::flatFields($group['config'])) as $key => $field) {
                 if (!self::readable((string) $key, $field, $context, $viewable)) {
@@ -401,6 +406,56 @@ final class MetaRegistrar
         }
 
         return $keys;
+    }
+
+    /**
+     * Drop from a REST save the meta the user may not write that only echoes the stored value, as the editor sends every key it read.
+     *
+     * Real changes stay in, so the write gate still refuses them.
+     *
+     * @param WP_REST_Request      $request  Save request; its `meta` param is narrowed in place.
+     * @param string               $postType Post type slug.
+     * @param int                  $postId   Post being saved.
+     * @param array<string, mixed> $live     Live location params the save sets, before core stores them.
+     */
+    public static function dropEchoes(WP_REST_Request $request, string $postType, int $postId, array $live): void
+    {
+        $meta = $request['meta'];
+
+        if ($postId <= 0 || !is_array($meta) || $meta === []) {
+            return;
+        }
+
+        $writable = self::writableKeys($postType, $postId, wp_get_current_user(), $live);
+        $stored   = (new WP_REST_Post_Meta_Fields($postType))->get_value($postId, $request);
+        $fields   = get_registered_meta_keys('post', $postType);
+
+        foreach ($meta as $key => $value) {
+            if (isset($writable[$key]) || !isset($fields[$key]) || !array_key_exists($key, $stored)) {
+                continue;
+            }
+
+            $isEcho = $value === null
+                ? !metadata_exists('post', $postId, (string) $key)
+                : self::restValue($fields[$key], $value) === $stored[$key];
+
+            if ($isEcho) {
+                unset($meta[$key]);
+            }
+        }
+
+        $request->set_param('meta', $meta);
+    }
+
+    /**
+     * Normalise an incoming meta value the way REST prepares a stored one, so the two compare strictly.
+     */
+    private static function restValue(array $args, mixed $value): mixed
+    {
+        $schema = $args['show_in_rest']['schema'] ?? ['type' => $args['type']];
+        $schema = $args['single'] ? $schema : ['type' => 'array', 'items' => $schema];
+
+        return rest_sanitize_value_from_schema($value, $schema);
     }
 
     /**
