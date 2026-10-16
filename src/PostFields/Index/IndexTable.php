@@ -56,9 +56,26 @@ final class IndexTable
             KEY lookup_date (field,subfield,value_date)
         ) {$collate};");
 
+        // Left unbumped on failure, so the next request retries.
+        if (!self::exists()) {
+            return;
+        }
+
         // Another copy may have installed a newer schema while dbDelta ran.
         if ((int) get_option(self::OPTION, 0) < self::VERSION) {
             update_option(self::OPTION, self::VERSION);
         }
+    }
+
+    /**
+     * Whether the current site's table exists.
+     */
+    public static function exists(): bool
+    {
+        global $wpdb;
+
+        $table = self::name();
+
+        return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) === $table;
     }
 }

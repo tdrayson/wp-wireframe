@@ -123,6 +123,18 @@ IndexTable::install();
 check('install never lowers the stored version', 99, (int) get_option('wireframe_index_db_version'));
 update_option('wireframe_index_db_version', IndexTable::VERSION);
 
+$wpdb->query("RENAME TABLE {$table} TO {$table}_kept");
+update_option('wireframe_index_db_version', 0);
+$blockCreate = static fn (string $sql): string => str_contains($sql, "CREATE TABLE {$table} ") ? 'SELECT 1' : $sql;
+add_filter('query', $blockCreate);
+IndexTable::install();
+remove_filter('query', $blockCreate);
+check('a failed install leaves the version, so it is retried', 0, (int) get_option('wireframe_index_db_version'));
+IndexTable::install();
+check('the retry installs the table', [IndexTable::VERSION, $table], [(int) get_option('wireframe_index_db_version'), $wpdb->get_var("SHOW TABLES LIKE '{$table}'")]);
+$wpdb->query("DROP TABLE {$table}");
+$wpdb->query("RENAME TABLE {$table}_kept TO {$table}");
+
 $lastChanged = wp_cache_get_last_changed('posts');
 Meta::reindex('event');
 check('reindex invalidates cached post queries', true, $lastChanged !== wp_cache_get_last_changed('posts'));
