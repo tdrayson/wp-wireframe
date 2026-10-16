@@ -24,7 +24,7 @@ final class FieldGroups
     private static array $claimed = [];
 
     /**
-     * Register a field group, replacing one with the same prefix and id; boots at once after `wp_loaded`.
+     * Register a field group, replacing one with the same prefix and id; validates it at once after `wp_loaded`.
      *
      * @param string $prefix Consumer prefix from `App::boot()`.
      * @param array  $group  `id`, `post_types`, and `config` (a ConfigLoader slug or a raw config array).
@@ -48,7 +48,7 @@ final class FieldGroups
         ];
 
         if (did_action('wp_loaded') > 0) {
-            self::boot();
+            self::bootGroup(self::$groups[self::owner(['prefix' => $prefix, 'id' => $id])]);
         }
     }
 
@@ -62,15 +62,47 @@ final class FieldGroups
         self::$claimed = [];
 
         foreach (self::$groups as $group) {
-            $problem = self::configProblem($group) ?? self::postTypeProblem($group);
+            self::bootGroup($group);
+        }
+    }
 
-            if ($problem !== null) {
-                self::reject($group, $problem);
+    /**
+     * Validate one group and claim its post types, releasing any claims it held before.
+     */
+    private static function bootGroup(array $group): void
+    {
+        self::release($group);
+        self::lint($group);
+
+        $problem = self::configProblem($group) ?? self::postTypeProblem($group);
+
+        if ($problem !== null) {
+            self::reject($group, $problem);
+
+            return;
+        }
+
+        foreach ($group['post_types'] as $postType) {
+            self::claim($group, $postType);
+        }
+    }
+
+    /**
+     * Drop the claims a group holds, here and site-wide.
+     */
+    private static function release(array $group): void
+    {
+        $owner = self::owner($group);
+
+        foreach (self::$claimed as $postType => $claimedGroup) {
+            if (self::owner($claimedGroup) !== $owner) {
                 continue;
             }
 
-            foreach ($group['post_types'] as $postType) {
-                self::claim($group, $postType);
+            unset(self::$claimed[$postType]);
+
+            if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? null) === $owner) {
+                unset($GLOBALS['wireframe_field_group_owners'][$postType]);
             }
         }
     }
@@ -114,10 +146,8 @@ final class FieldGroups
      */
     public static function reset(): void
     {
-        foreach (self::$claimed as $postType => $group) {
-            if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? null) === self::owner($group)) {
-                unset($GLOBALS['wireframe_field_group_owners'][$postType]);
-            }
+        foreach (self::$groups as $group) {
+            self::release($group);
         }
 
         self::$groups  = [];
@@ -145,8 +175,6 @@ final class FieldGroups
      */
     private static function configProblem(array $group): ?string
     {
-        self::lint($group);
-
         if ($group['id'] === '') {
             return 'a field group needs a non-empty "id".';
         }
