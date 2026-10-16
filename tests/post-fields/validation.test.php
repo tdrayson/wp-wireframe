@@ -15,6 +15,14 @@ App::boot(['prefix' => 'note', 'field_groups' => [[
     'location' => ['note_cpt'],
     'config'   => ['fields' => [['id' => 'note_source', 'type' => 'url', 'required' => true]]],
 ]]]);
+App::boot(['prefix' => 'wf-settings', 'config' => ['sections' => [
+    ['id' => 'main', 'fields' => [['id' => 'use_api', 'type' => 'toggle']]],
+    [
+        'id'         => 'api',
+        'conditions' => ['all' => [['field' => 'use_api', 'operator' => 'truthy']]],
+        'fields'     => [['id' => 'api_key', 'type' => 'text', 'required' => true]],
+    ],
+]]]);
 
 $save   = static fn (int $id, array $body): WP_REST_Response => rest('POST', "/wp/v2/event/$id", $body);
 $errors = static fn (WP_REST_Response $response): array => (array) ($response->as_error()?->get_error_data()['errors'] ?? []);
@@ -137,5 +145,9 @@ $note = (int) wp_insert_post(['post_type' => 'note_cpt', 'post_status' => 'publi
 $response = rest('POST', "/wp/v2/note_cpt/$note/autosaves", ['title' => 'Note, autosaved', 'meta' => ['note_source' => '']]);
 check('autosaves are not validated', 200, $response->get_status());
 check('the autosave is stored', 'Note, autosaved', wp_get_post_autosave($note)->post_title ?? null);
+
+$settingsSave = static fn (array $values): int => rest('POST', '/wf-settings/v1/settings/default', $values)->get_status();
+check('settings page: a required field in a hidden section does not block saving', 200, $settingsSave(['use_api' => false]));
+check('settings page: the same field is enforced once its section shows', 400, $settingsSave(['use_api' => true]));
 
 finish();

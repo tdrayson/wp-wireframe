@@ -194,7 +194,11 @@ final class SettingsController
 
         $savedValues   = Settings::allFor($optionKey);
         $mergedValues  = array_merge($savedValues, $payload);
-        $visibilityMap = Conditions::visibilityMap($editableFields, $mergedValues);
+        $visibilityMap = Conditions::withContainers(
+            Conditions::visibilityMap($editableFields, $mergedValues),
+            ConfigLoader::load($configSlug),
+            $mergedValues,
+        );
 
         $validationResult = Validator::validate($payload, $editableFields, $visibilityMap);
 
