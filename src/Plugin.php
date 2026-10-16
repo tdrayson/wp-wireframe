@@ -7,6 +7,7 @@ namespace Wireframe;
 use Wireframe\Admin\AdminPage;
 use Wireframe\Framework\ConfigValidator;
 use Wireframe\PostFields\FieldGroups;
+use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\Rest\ActionController;
 use Wireframe\Rest\SettingsController;
 use Wireframe\Rest\TableController;
@@ -49,6 +50,7 @@ final class Plugin
         add_action('rest_api_init', [TableController::class, 'register']);
         add_action('rest_api_init', [ActionController::class, 'register']);
         add_action('wp_loaded', [FieldGroups::class, 'boot'], 0);
+        add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
         add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
 

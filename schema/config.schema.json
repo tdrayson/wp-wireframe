@@ -114,6 +114,14 @@
         },
         "access": { "$ref": "#/$defs/access" },
         "conditions": { "$ref": "#/$defs/conditionNode" },
+        "public": {
+          "type": "boolean",
+          "description": "Post fields only: include the value in public (view context) REST responses. Default false."
+        },
+        "indexed": {
+          "type": "boolean",
+          "description": "Repeater subfields on post fields only: write the value to the index table so `wireframe_query` can match it."
+        },
         "args": {
           "type": "object",
           "description": "Type-specific options. Keys vary by `type`; see the per-type constraints."
