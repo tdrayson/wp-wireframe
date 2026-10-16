@@ -13,6 +13,7 @@ use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\Index\IndexSync;
 use Wireframe\PostFields\Index\IndexTable;
+use Wireframe\PostFields\Index\QueryClauses;
 use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\Rest\ActionController;
 use Wireframe\Rest\SettingsController;
@@ -59,6 +60,7 @@ final class Plugin
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
         add_action('wp_loaded', [IndexTable::class, 'install'], 2);
         IndexSync::register();
+        add_filter('posts_clauses', [QueryClauses::class, 'apply'], 10, 2);
         ReindexCommand::register();
         add_filter('is_protected_meta', [MetaRegistrar::class, 'protect'], 10, 3);
         add_filter('register_post_type_args', [EditorIntegration::class, 'filterPostTypeArgs'], 10, 2);

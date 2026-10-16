@@ -267,7 +267,7 @@ final class IndexSync
     /**
      * Normalise a `Y-m-d[ H:i[:s]]` string to a DATETIME, or null when it isn't a real date.
      */
-    private static function date(string $value): ?string
+    public static function date(string $value): ?string
     {
         if (preg_match(self::DATE_PATTERN, $value) !== 1) {
             return null;
