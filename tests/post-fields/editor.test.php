@@ -44,7 +44,8 @@ $admin = as_user('administrator');
 $event = get_post(make_event());
 $data  = EditorIntegration::data($event);
 
-check('payload keys', ['postId', 'postType', 'supportsTitle', 'groups'], array_keys($data));
+check('payload keys', ['postId', 'postType', 'supportsTitle', 'debug', 'groups'], array_keys($data));
+check('debug follows SCRIPT_DEBUG', defined('SCRIPT_DEBUG') && SCRIPT_DEBUG, $data['debug']);
 check('post id', $event->ID, $data['postId']);
 check('post type', 'event', $data['postType']);
 check('event supports title', true, $data['supportsTitle']);

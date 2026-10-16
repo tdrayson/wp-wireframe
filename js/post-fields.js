@@ -40,6 +40,7 @@ function Root() {
 				<Position
 					group={ group }
 					supportsTitle={ data.supportsTitle }
+					debug={ data.debug }
 				/>
 			</PostFieldsProvider>
 		);

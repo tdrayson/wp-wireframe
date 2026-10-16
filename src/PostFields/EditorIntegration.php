@@ -26,7 +26,7 @@ final class EditorIntegration
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
-     * @return array{postId: int, postType: string, supportsTitle: bool, groups: list<array>}
+     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, groups: list<array>}
      */
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
@@ -45,6 +45,7 @@ final class EditorIntegration
             'postId'        => $post->ID,
             'postType'      => $post->post_type,
             'supportsTitle' => post_type_supports($post->post_type, 'title'),
+            'debug'         => defined('SCRIPT_DEBUG') && SCRIPT_DEBUG,
             'groups'        => $groups,
         ];
     }

@@ -21,9 +21,10 @@ const BODY_CLASS = 'wireframe-content-mode';
 /**
  * Find where to mount: the canvas region, else the meta box area.
  *
+ * @param {boolean} debug Whether to warn when falling back (the site's SCRIPT_DEBUG).
  * @return {{ node: Element|null, isCanvas: boolean }} The mount node, and whether it is the canvas.
  */
-function findTarget() {
+function findTarget( debug ) {
 	const canvas = document.querySelector( CANVAS_REGION );
 
 	if ( canvas ) {
@@ -34,7 +35,7 @@ function findTarget() {
 		document.querySelector( selector )
 	).find( Boolean );
 
-	if ( SCRIPT_DEBUG ) {
+	if ( debug ) {
 		// eslint-disable-next-line no-console
 		console.warn(
 			`wp-wireframe: ${ CANVAS_REGION } not found; rendering the content group in the meta box area.`
@@ -83,16 +84,19 @@ function TitleField() {
 }
 
 /**
+ * Render a `content` group in place of the block canvas, with the post title and tab bar in a sticky header.
+ *
  * @param {Object}  props
  * @param {Object}  props.group         Group from `window.wireframePostFields.groups`.
  * @param {boolean} props.supportsTitle Whether the post type supports a title.
+ * @param {boolean} props.debug         Whether the site runs with SCRIPT_DEBUG.
  */
-export default function ContentArea( { group, supportsTitle } ) {
+export default function ContentArea( { group, supportsTitle, debug } ) {
 	const [ target, setTarget ] = useState( null );
 	const { tabs, active, current, select } = useActiveTab( group.config );
 	const { setIsListViewOpened } = useDispatch( editorStore );
 
-	useEffect( () => setTarget( findTarget() ), [] );
+	useEffect( () => setTarget( findTarget( debug ) ), [ debug ] );
 
 	useEffect( () => {
 		if ( ! target?.isCanvas ) {
