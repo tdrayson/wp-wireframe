@@ -6,6 +6,7 @@ namespace Wireframe;
 
 use Wireframe\Admin\AdminPage;
 use Wireframe\Framework\ConfigValidator;
+use Wireframe\PostFields\EditScreen;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\Rest\ActionController;
@@ -51,6 +52,7 @@ final class Plugin
         add_action('rest_api_init', [ActionController::class, 'register']);
         add_action('wp_loaded', [FieldGroups::class, 'boot'], 0);
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
+        add_filter('replace_editor', [EditScreen::class, 'maybeReplace'], 10, 2);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
         add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
 
@@ -77,7 +79,7 @@ final class Plugin
     {
         $screen = get_current_screen();
 
-        if (! $screen || ! AdminPage::isWireframeScreen($screen->id)) {
+        if (! $screen || ! self::isWireframeScreen($screen)) {
             return;
         }
 
@@ -121,10 +123,18 @@ final class Plugin
             return $classes;
         }
 
-        if (AdminPage::isWireframeScreen($screen->id)) {
+        if (self::isWireframeScreen($screen)) {
             $classes .= ' wireframe-admin';
         }
 
         return $classes;
+    }
+
+    /**
+     * Whether a screen is a settings page or a post edit screen Wireframe renders.
+     */
+    private static function isWireframeScreen(\WP_Screen $screen): bool
+    {
+        return AdminPage::isWireframeScreen($screen->id) || EditScreen::isTakenOver($screen);
     }
 }

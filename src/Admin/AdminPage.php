@@ -307,7 +307,7 @@ final class AdminPage
     /**
      * Enqueue WordPress editor assets (TinyMCE, CodeMirror, Media Library).
      */
-    private static function enqueueWordPressEditors(): void
+    public static function enqueueWordPressEditors(): void
     {
         wp_enqueue_editor();
 
