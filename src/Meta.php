@@ -6,6 +6,7 @@ namespace Wireframe;
 
 use Wireframe\Framework\Fields\FieldRegistry;
 use Wireframe\PostFields\FieldGroups;
+use Wireframe\PostFields\Index\IndexSync;
 use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\PostFields\StorageKind;
 
@@ -330,6 +331,17 @@ final class Meta
         self::forget($postId, $key);
 
         return $value;
+    }
+
+    /**
+     * Rebuild the repeater index rows, needed after marking a subfield `indexed` on existing posts.
+     *
+     * @param string|null $postType Post type slug, or null for every post type with groups.
+     * @return int Posts processed.
+     */
+    public static function reindex(?string $postType = null): int
+    {
+        return IndexSync::reindex($postType);
     }
 
     // ─── Internals ────────────────────────────────────
