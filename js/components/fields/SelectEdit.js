@@ -88,12 +88,22 @@ export default function SelectEdit( { data, field, onChange, error } ) {
 }
 
 /**
+ * Get the debounce for a search: none for the empty one a focus starts, so the first page shows at once.
+ *
+ * @param {string} search Search term.
+ * @return {number} Delay in milliseconds.
+ */
+function delayFor( search ) {
+	return search === '' ? 0 : SEARCH_DELAY;
+}
+
+/**
  * Search a `fetch` field's options as the user types, debounced, keeping every option seen so far.
  *
  * Starts from the field's elements, which hold the labels of the stored values.
  *
  * @param {Object} field Mapped field descriptor.
- * @return {{ known: Array, results: Array, loading: boolean, failure: (string|undefined), setSearch: Function }} Options seen, the latest results, a failed search's message, and a search setter.
+ * @return {{ known: Array, results: Array, loading: boolean, pending: boolean, failure: (string|undefined), setSearch: Function }} Options seen, the latest results, whether no search has settled, a failed search's message, and a search setter.
  */
 function useOptionSearch( field ) {
 	const { populate: endpoint } = useFieldStore();
@@ -110,8 +120,11 @@ function useOptionSearch( field ) {
 		}
 
 		let active = true;
+
+		// Loading from the keystroke, so the empty state never shows for a search still pending.
+		setLoading( true );
+
 		const timer = setTimeout( () => {
-			setLoading( true );
 			searchOptions( { ...endpoint, field: path, search } )
 				.then( ( found ) => {
 					if ( active ) {
@@ -129,7 +142,7 @@ function useOptionSearch( field ) {
 					}
 				} )
 				.finally( () => active && setLoading( false ) );
-		}, SEARCH_DELAY );
+		}, delayFor( search ) );
 
 		return () => {
 			active = false;
@@ -141,7 +154,31 @@ function useOptionSearch( field ) {
 		? __( 'Search failed. Try again.', 'wp-wireframe' )
 		: undefined;
 
-	return { known, results, loading, failure, setSearch };
+	return {
+		known,
+		results,
+		loading,
+		pending: loading || search === null,
+		failure,
+		setSearch,
+	};
+}
+
+/**
+ * Get the classes of a token field's wrapper: its own label is screen-reader only, and the empty state waits for a search.
+ *
+ * @param {string}  [error] Validation error message.
+ * @param {boolean} pending Whether no search has settled yet.
+ * @return {string} Class names.
+ */
+function tokenFieldClass( error, pending ) {
+	return [
+		'wireframe-token-field',
+		error && 'has-error',
+		pending && 'is-pending',
+	]
+		.filter( Boolean )
+		.join( ' ' );
 }
 
 /**
@@ -190,7 +227,8 @@ function SingleSearch( { data, field, onChange, error } ) {
  * @param {string}   [props.error]  Validation error message.
  */
 function MultiSearch( { data, field, onChange, error } ) {
-	const { known, results, failure, setSearch } = useOptionSearch( field );
+	const { known, results, pending, failure, setSearch } =
+		useOptionSearch( field );
 	const disabled = !! field.readOnly;
 	const selected = Array.isArray( data[ field.id ] )
 		? data[ field.id ]
@@ -222,13 +260,14 @@ function MultiSearch( { data, field, onChange, error } ) {
 			label={ field.label }
 			help={ getFieldHelp( field.description, error || failure, data ) }
 			id={ `wireframe-multiselect-${ field.id }` }
-			className={ error ? 'has-error' : undefined }
+			className={ tokenFieldClass( error, pending ) }
 		>
 			<FormTokenField
 				__next40pxDefaultSize
 				__experimentalShowHowTo={ false }
 				__experimentalExpandOnFocus
 				__experimentalAutoSelectFirstMatch
+				label={ field.label }
 				__experimentalValidateInput={ ( token ) =>
 					valueOf( token ) !== undefined
 				}
@@ -298,13 +337,14 @@ function MultiSelect( { data, field, onChange, error } ) {
 			label={ field.label }
 			help={ getFieldHelp( field.description, error, data ) }
 			id={ `wireframe-multiselect-${ field.id }` }
-			className={ error ? 'has-error' : undefined }
+			className={ tokenFieldClass( error, false ) }
 		>
 			<FormTokenField
 				__next40pxDefaultSize
 				__experimentalShowHowTo={ false }
 				__experimentalExpandOnFocus
 				__experimentalAutoSelectFirstMatch
+				label={ field.label }
 				value={ displayTokens }
 				suggestions={ disabled ? [] : allLabels }
 				onChange={ disabled ? () => {} : handleChange }

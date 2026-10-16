@@ -48,6 +48,10 @@ $field    = static fn (string $id): array => FieldGroups::flatFields('event')[$i
 $save     = static fn (int $id, array $meta): WP_REST_Response => rest('POST', "/wp/v2/event/$id", ['meta' => $meta]);
 $errors   = static fn (WP_REST_Response $response): array => (array) ($response->as_error()?->get_error_data()['errors'] ?? []);
 $search   = static fn (array $query, string $prefix = 'wf-fixture'): WP_REST_Response => rest('GET', "/$prefix/v1/populate", [], $query);
+// Only this test's posts, as the site may hold other speakers.
+$ours     = static function (array $options) use (&$created): array {
+    return array_values(array_filter($options, static fn (array $option): bool => in_array($option['value'], $created, true)));
+};
 $byId     = static function (array $config, string $id): ?array {
     foreach ($config['tabs'] ?? [] as $tab) {
         foreach ($tab['sections'] ?? [] as $section) {
@@ -191,7 +195,7 @@ check('the browser config encodes', true, is_string(wp_json_encode($browser)));
 
 // Search route.
 $response = $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Gra']);
-check('search finds Grace', [['value' => $grace, 'label' => 'Grace']], $response->get_data());
+check('search finds Grace', [['value' => $grace, 'label' => 'Grace']], $ours($response->get_data()));
 $described = $speaker('Plain title');
 wp_update_post(['ID' => $described, 'post_content' => 'Zanzibar keynote']);
 check('search matches titles only', [], $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Zanzibar'])->get_data());
@@ -200,15 +204,19 @@ check('search on a field without fetch is refused', 403, $search(['context' => '
 check('search on an unknown context is refused', 403, $search(['context' => 'nope:event', 'field' => 'speakers'])->get_status());
 check('search under another prefix is refused', 403, $search(['context' => 'post:event', 'field' => 'speakers'], 'wf-populate')->get_status());
 
+$browse = $search(['context' => 'post:event', 'field' => 'speakers', 'search' => '']);
+check('an empty search returns the first page to browse', [200, true], [$browse->get_status(), in_array(['value' => $grace, 'label' => 'Grace'], (array) $browse->get_data(), true)]);
+
 for ($i = 0; $i < 22; $i++) {
     $speaker("Bulk speaker $i");
 }
 check('search is capped at 20', 20, count((array) $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Bulk'])->get_data()));
 check('Populate::search caps the limit too', 20, count(Populate::search($field('speakers'), 'Bulk', 100)));
+check('an empty search is capped at 20', 20, count((array) $search(['context' => 'post:event', 'field' => 'speakers', 'search' => ''])->get_data()));
 
 check('an admin may search a gated field', 200, $search(['context' => 'post:pop_cpt', 'field' => 'secret_pick', 'search' => 'Ada'], 'wf-populate')->get_status());
 as_user('editor');
-check('an editor may search an open field', [['value' => $ada, 'label' => 'Ada']], $search(['context' => 'post:pop_cpt', 'field' => 'open_pick', 'search' => 'Ada'], 'wf-populate')->get_data());
+check('an editor may search an open field', [['value' => $ada, 'label' => 'Ada']], $ours($search(['context' => 'post:pop_cpt', 'field' => 'open_pick', 'search' => 'Ada'], 'wf-populate')->get_data()));
 check('an editor may not search a field they cannot view', 403, $search(['context' => 'post:pop_cpt', 'field' => 'secret_pick', 'search' => 'Ada'], 'wf-populate')->get_status());
 check('an editor may not search a settings page they cannot view', 403, $search(['context' => 'settings:default', 'field' => 'featured_speaker'], 'wf-populate')->get_status());
 as_user('subscriber');
@@ -229,7 +237,7 @@ $issues     = ConfigValidator::validate(['tabs' => [['id' => 't', 'sections' => 
 check('fetch on a radio is flagged', true, (bool) preg_grep('/"fetch" only applies to select/', $issues));
 
 // Settings page.
-check('settings search finds Ada', [['value' => $ada, 'label' => 'Ada']], $search(['context' => 'settings:default', 'field' => 'featured_speaker', 'search' => 'Ada'], 'wf-populate')->get_data());
+check('settings search finds Ada', [['value' => $ada, 'label' => 'Ada']], $ours($search(['context' => 'settings:default', 'field' => 'featured_speaker', 'search' => 'Ada'], 'wf-populate')->get_data()));
 $response = rest('POST', '/wf-populate/v1/settings/default', ['featured_speaker' => $post]);
 check('settings refuse an ID the query does not return', true, !empty($errors($response)['featured_speaker']));
 $response = rest('POST', '/wf-populate/v1/settings/default', ['featured_speaker' => (string) $ada, 'lineup' => [$grace]]);
