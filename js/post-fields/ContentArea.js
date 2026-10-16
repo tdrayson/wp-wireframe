@@ -84,7 +84,7 @@ function TitleField() {
 }
 
 /**
- * Render a `content` group in place of the block canvas, with the post title and tab bar in a sticky header.
+ * Render a `content` group in place of the block canvas, with the post title and tab bar in a sticky header; unmounting gives the canvas back.
  *
  * @param {Object}  props
  * @param {Object}  props.group         Group from `window.wireframePostFields.groups`.
@@ -94,7 +94,8 @@ function TitleField() {
 export default function ContentArea( { group, supportsTitle, debug } ) {
 	const [ target, setTarget ] = useState( null );
 	const { tabs, active, current, select } = useActiveTab( group.config );
-	const { setIsListViewOpened } = useDispatch( editorStore );
+	const { setIsListViewOpened, setIsInserterOpened } =
+		useDispatch( editorStore );
 
 	useEffect( () => setTarget( findTarget( debug ) ), [ debug ] );
 
@@ -103,12 +104,13 @@ export default function ContentArea( { group, supportsTitle, debug } ) {
 			return;
 		}
 
-		// The list view's toggle is hidden in content mode, so a saved open state would strand it open.
+		// Their toggles are hidden in content mode, so an open list view or inserter would be stranded open.
 		setIsListViewOpened( false );
+		setIsInserterOpened( false );
 		document.body.classList.add( BODY_CLASS );
 
 		return () => document.body.classList.remove( BODY_CLASS );
-	}, [ target, setIsListViewOpened ] );
+	}, [ target, setIsListViewOpened, setIsInserterOpened ] );
 
 	if ( ! target?.node ) {
 		return null;

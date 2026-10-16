@@ -44,7 +44,8 @@ final class SaveValidator
         $postId   = (int) ($prepared->ID ?? 0);
         $status   = (string) ($request['status'] ?? ($postId > 0 ? get_post_status($postId) : 'draft'));
         $incoming = is_array($request['meta'] ?? null) ? $request['meta'] : [];
-        $errors   = self::validate($postId, $postType, $incoming, $status);
+        $live     = self::requestLive($prepared, $request, $postType, $postId);
+        $errors   = self::validate($postId, $postType, $incoming, $status, null, $live);
 
         if ($errors === []) {
             return $prepared;
@@ -65,12 +66,13 @@ final class SaveValidator
      * @param array<string, mixed> $incoming     Values being saved, by meta key.
      * @param string               $targetStatus Status the save leaves the post in; `required` applies to publish and future only.
      * @param WP_User|null         $user         User saving; defaults to the current user.
+     * @param array<string, mixed> $live         Live location params the save sets, before core stores them.
      * @return array<string, mixed> Errors by field id, in the settings `data.errors` shape; empty when valid.
      */
-    public static function validate(int $postId, string $postType, array $incoming, string $targetStatus, ?WP_User $user = null): array
+    public static function validate(int $postId, string $postType, array $incoming, string $targetStatus, ?WP_User $user = null, array $live = []): array
     {
         $user ??= wp_get_current_user();
-        $groups = self::applicableGroups($postType, $postId, $user);
+        $groups = self::applicableGroups($postType, $postId, $user, $live);
         $fields = self::editableFields($groups, $postType, $user);
 
         if ($fields === []) {
@@ -147,17 +149,55 @@ final class SaveValidator
     }
 
     /**
-     * Get the post type's groups whose location applies to this post and user.
+     * Get the live location params a REST save sets; core stores the template, format and terms only after this filter runs.
+     */
+    private static function requestLive(stdClass $prepared, WP_REST_Request $request, string $postType, int $postId): array
+    {
+        $live = [];
+
+        if (isset($prepared->post_status)) {
+            $live['post_status'] = (string) $prepared->post_status;
+        }
+
+        if (isset($prepared->post_parent)) {
+            $live['post_parent'] = (int) $prepared->post_parent;
+        }
+
+        if (isset($request['template'])) {
+            $live['post_template'] = (string) $request['template'];
+        }
+
+        if (!empty($request['format'])) {
+            $live['post_format'] = (string) $request['format'];
+        }
+
+        $terms = [];
+
+        foreach (Location::restTaxonomies($postType) as $taxonomy => $base) {
+            if (isset($request[$base])) {
+                $terms[$taxonomy] = array_map('intval', (array) $request[$base]);
+            }
+        }
+
+        if ($terms !== []) {
+            $live['post_terms'] = Location::terms($postId, $postType, $terms);
+        }
+
+        return $live;
+    }
+
+    /**
+     * Get the post type's groups whose location applies to this post and user, in the given live state.
      *
      * @return list<array>
      */
-    private static function applicableGroups(string $postType, int $postId, WP_User $user): array
+    private static function applicableGroups(string $postType, int $postId, WP_User $user, array $live = []): array
     {
-        $current = $user->exists() ? $user : null;
+        $context = Location::context($postId, $user->exists() ? $user : null, $postType, $live);
 
         return array_values(array_filter(
             FieldGroups::groupsFor($postType),
-            static fn (array $group): bool => Location::applies($group, $postId, $current, $postType)
+            static fn (array $group): bool => Location::matches($group, $context)
         ));
     }
 

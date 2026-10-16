@@ -22,15 +22,19 @@ final class EditorIntegration
 
     private const BOX_PREFIX = 'wireframe-group-';
 
+    private const HIDDEN_BOX_CLASS = 'wireframe-group-inapplicable';
+
     /** @var array<string, array> Payloads by post and user ID, as the classic editor asks once per box. */
     private static array $data = [];
 
     /**
-     * Build the `window.wireframePostFields` payload: the groups that apply to a post, with access-filtered, populated configs.
+     * Build the `window.wireframePostFields` payload: the groups whose static params match, with access-filtered, populated configs.
+     *
+     * `context` holds the location params JS can't read from the editor; `taxonomies` the REST bases live terms come from.
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
-     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, groups: list<array>}
+     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, context: array, taxonomies: list<array>, groups: list<array>}
      */
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
@@ -38,6 +42,24 @@ final class EditorIntegration
         $key    = "{$post->ID}:{$user->ID}";
 
         return self::$data[$key] ??= self::build($post, $user);
+    }
+
+    /**
+     * Get the groups from data() whose location applies to the stored post.
+     *
+     * @param WP_Post      $post Post being edited.
+     * @param WP_User|null $user User to resolve for; defaults to the current user.
+     * @return list<array> Group entries from data().
+     */
+    public static function applicable(WP_Post $post, ?WP_User $user = null): array
+    {
+        $user ??= wp_get_current_user();
+        $context = Location::context($post->ID, $user->exists() ? $user : null);
+
+        return array_values(array_filter(
+            self::data($post, $user)['groups'],
+            static fn (array $group): bool => Location::matches($group, $context)
+        ));
     }
 
     /**
@@ -64,11 +86,16 @@ final class EditorIntegration
             }
         }
 
+        $context    = Location::context($post->ID, $user->exists() ? $user : null);
+        $taxonomies = Location::restTaxonomies($post->post_type);
+
         return [
             'postId'        => $post->ID,
             'postType'      => $post->post_type,
             'supportsTitle' => post_type_supports($post->post_type, 'title'),
             'debug'         => defined('SCRIPT_DEBUG') && SCRIPT_DEBUG,
+            'context'       => array_diff_key($context, array_flip(Location::LIVE_PARAMS)),
+            'taxonomies'    => array_map(static fn (string $slug, string $base): array => ['slug' => $slug, 'restBase' => $base], array_keys($taxonomies), $taxonomies),
             'groups'        => $groups,
         ];
     }
@@ -108,7 +135,7 @@ final class EditorIntegration
     }
 
     /**
-     * Register an empty container box per applicable `meta_box` group; React renders into it.
+     * Register an empty container box per `meta_box` group, hidden while its live rules don't match; React renders into it.
      *
      * @param string $postType Post type, or `comment`/`link` on those screens.
      * @param object $post     Object being edited; only posts on the block editor get boxes here.
@@ -119,9 +146,20 @@ final class EditorIntegration
             return;
         }
 
+        $applicable = array_column(self::applicable($post), 'id');
+
         foreach (self::data($post)['groups'] as $group) {
-            if ($group['position'] === 'meta_box') {
-                self::addBox($group, $postType, 'normal', [self::class, 'renderMetaBox']);
+            if ($group['position'] !== 'meta_box') {
+                continue;
+            }
+
+            self::addBox($group, $postType, 'normal', [self::class, 'renderMetaBox']);
+
+            $hook = 'postbox_classes_' . $postType . '_' . self::BOX_PREFIX . $group['id'];
+            remove_filter($hook, [self::class, 'hideBox']);
+
+            if (!in_array($group['id'], $applicable, true)) {
+                add_filter($hook, [self::class, 'hideBox']);
             }
         }
 
@@ -139,6 +177,17 @@ final class EditorIntegration
     public static function addBox(array $group, string $postType, string $context, callable $callback): void
     {
         add_meta_box(self::BOX_PREFIX . $group['id'], $group['title'], $callback, $postType, $context, self::priority($group['order']), ['group' => $group['id']]);
+    }
+
+    /**
+     * Filter `postbox_classes_{$screen}_{$box}`: hide a group's box until JS finds its live rules met.
+     *
+     * @param array $classes Box classes.
+     * @return array
+     */
+    public static function hideBox(array $classes): array
+    {
+        return [...$classes, self::HIDDEN_BOX_CLASS];
     }
 
     /**
@@ -229,7 +278,7 @@ final class EditorIntegration
     }
 
     /**
-     * Filter `block_editor_settings_all`: lock the canvas when the current user gets the post's `content` group.
+     * Filter `block_editor_settings_all`: lock the canvas when the post's `content` group applies to the stored post; JS takes over live.
      *
      * Core only passes `template_lock` on when the template is non-empty, so an empty template needs this.
      *
@@ -243,7 +292,7 @@ final class EditorIntegration
             return $settings;
         }
 
-        if (!in_array('content', array_column(self::data($context->post)['groups'], 'position'), true)) {
+        if (!in_array('content', array_column(self::applicable($context->post), 'position'), true)) {
             return $settings;
         }
 
@@ -254,11 +303,11 @@ final class EditorIntegration
     }
 
     /**
-     * Get a group's payload entry, or null when it doesn't apply or the user can see none of its fields.
+     * Get a group's payload entry, or null when its static params don't match or the user can see none of its fields.
      */
     private static function groupData(array $group, WP_Post $post, WP_User $user, array $values): ?array
     {
-        if (!Location::applies($group, $post->ID, $user->exists() ? $user : null)) {
+        if (!Location::staticMatch($group, $post->ID, $user->exists() ? $user : null)) {
             return null;
         }
 
@@ -275,6 +324,7 @@ final class EditorIntegration
             'position'  => $group['display']['position'],
             'collapsed' => $group['display']['collapsed'],
             'order'     => $group['display']['order'],
+            'location'  => $group['location'],
             'config'    => Populate::resolveConfig($config, $values),
         ];
     }

@@ -42,9 +42,8 @@ final class ClassicEditor
     }
 
     /**
-     * Build the classic payload: the block editor's, plus each group's values and the last failed save's errors and rejected values.
-     *
-     * Rejected values replace the stored ones, so fields show what the user typed beside its error.
+     * Build the classic payload: the block editor's, with only the groups that apply on load, each group's values, and the
+     * last failed save's errors and rejected values. Rejected values replace stored ones, so fields show what the user typed.
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
@@ -58,7 +57,7 @@ final class ClassicEditor
 
         $data['groups'] = array_map(
             static fn (array $group): array => $group + ['values' => self::groupValues($group['config'], $values)],
-            $data['groups']
+            EditorIntegration::applicable($post, $user)
         );
         $data['isNew']    = $post->post_status === 'auto-draft';
         $data['errors']   = $failure['errors'];
@@ -79,7 +78,7 @@ final class ClassicEditor
             return;
         }
 
-        foreach (EditorIntegration::data($post)['groups'] as $group) {
+        foreach (EditorIntegration::applicable($post) as $group) {
             $context = self::BOX_CONTEXTS[$group['position']] ?? null;
 
             if ($context !== null) {
@@ -112,7 +111,7 @@ final class ClassicEditor
             return;
         }
 
-        $groups = EditorIntegration::data($post)['groups'];
+        $groups = EditorIntegration::applicable($post);
 
         if ($groups === []) {
             return;

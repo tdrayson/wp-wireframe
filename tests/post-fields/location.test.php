@@ -57,7 +57,16 @@ $admin  = get_userdata(as_user('administrator'));
 $event  = make_event();
 $editor = get_userdata(as_user('editor'));
 
-check('context shape', ['post_type' => 'event', 'post_id' => $event, 'user_role' => ['editor']], Location::context($event, $editor));
+check('context shape', [
+    'post_type'     => 'event',
+    'post_id'       => $event,
+    'user_role'     => ['editor'],
+    'post_status'   => 'draft',
+    'post_template' => '',
+    'post_terms'    => [],
+    'post_parent'   => 0,
+    'post_format'   => 'standard',
+], Location::context($event, $editor));
 check('context without a user has no roles', [], Location::context($event, null)['user_role']);
 check('applies for administrator', true, Location::applies($extras, $event, $admin));
 check('does not apply for editor', false, Location::applies($extras, $event, $editor));
@@ -78,13 +87,13 @@ check('post_id in', true, Location::applies($byPostId, $event, $admin));
 check('post_id in misses other posts', false, Location::applies($byPostId, $post, $admin));
 
 add_filter('wp-wireframe/location_context', static function (array $context, int $postId, ?WP_User $user): array {
-    $context['post_status'] = get_post_status($postId);
+    $context['filtered_status'] = get_post_status($postId);
 
     return $context;
 }, 10, 3);
 
-$draftOnly = ['location' => ['all' => [['field' => 'post_status', 'operator' => 'equals', 'value' => 'draft']]]];
-check('filter adds a param to the context', 'draft', Location::context($event, $admin)['post_status'] ?? null);
+$draftOnly = ['location' => ['all' => [['field' => 'filtered_status', 'operator' => 'equals', 'value' => 'draft']]]];
+check('filter adds a param to the context', 'draft', Location::context($event, $admin)['filtered_status'] ?? null);
 check('a rule on a filtered param evaluates', true, Location::applies($draftOnly, $event, $admin));
 wp_update_post(['ID' => $event, 'post_status' => 'publish']);
 check('a rule on a filtered param can fail', false, Location::applies($draftOnly, $event, $admin));

@@ -1,13 +1,17 @@
 /**
  * WP Wireframe — post field groups in the block editor.
  *
- * Reads `window.wireframePostFields` and renders each group in its position.
+ * Reads `window.wireframePostFields` and renders each group whose location matches the edited post, in its position.
  */
 import { registerPlugin } from '@wordpress/plugins';
 import PostFieldsProvider from './post-fields/PostFieldsProvider';
 import ContentArea from './post-fields/ContentArea';
 import MetaBoxGroup from './post-fields/MetaBoxGroup';
 import SidebarGroup from './post-fields/SidebarGroup';
+import useLiveContext from './post-fields/useLiveContext';
+import useGroupApplies from './post-fields/useGroupApplies';
+import useCanvasLock from './post-fields/useCanvasLock';
+import stripHiddenMeta from './post-fields/stripHiddenMeta';
 import './styles/post-fields.scss';
 
 const PLUGIN_NAME = 'wireframe-post-fields';
@@ -19,16 +23,16 @@ const POSITIONS = {
 };
 
 /**
- * Render every group the server sent, each in its own field store.
+ * Render every group that applies to the edited post, each in its own field store.
  */
 function Root() {
 	const data = window.wireframePostFields;
+	const context = useLiveContext( data );
+	const groups = useGroupApplies( data.groups, context );
 
-	if ( ! data?.groups ) {
-		return null;
-	}
+	useCanvasLock( groups.some( ( group ) => group.position === 'content' ) );
 
-	return data.groups.map( ( group ) => {
+	return groups.map( ( group ) => {
 		const Position = POSITIONS[ group.position ];
 
 		if ( ! Position ) {
@@ -47,4 +51,7 @@ function Root() {
 	} );
 }
 
-registerPlugin( PLUGIN_NAME, { render: Root } );
+if ( window.wireframePostFields?.groups ) {
+	stripHiddenMeta( window.wireframePostFields );
+	registerPlugin( PLUGIN_NAME, { render: Root } );
+}

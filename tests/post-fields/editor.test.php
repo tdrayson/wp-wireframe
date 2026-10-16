@@ -44,23 +44,23 @@ $admin = as_user('administrator');
 $event = get_post(make_event());
 $data  = EditorIntegration::data($event);
 
-check('payload keys', ['postId', 'postType', 'supportsTitle', 'debug', 'groups'], array_keys($data));
+check('payload keys', ['postId', 'postType', 'supportsTitle', 'debug', 'context', 'taxonomies', 'groups'], array_keys($data));
 check('debug follows SCRIPT_DEBUG', defined('SCRIPT_DEBUG') && SCRIPT_DEBUG, $data['debug']);
 check('post id', $event->ID, $data['postId']);
 check('post type', 'event', $data['postType']);
 check('event supports title', true, $data['supportsTitle']);
-check('admin gets every event group, sorted', ['event_details', 'event_extras', 'event_seo'], array_column($data['groups'], 'id'));
-check('positions', ['content', 'meta_box', 'sidebar'], array_column($data['groups'], 'position'));
-check('group keys', ['id', 'prefix', 'title', 'position', 'collapsed', 'order', 'config'], array_keys($data['groups'][0]));
-check('seo display', ['SEO', true, 20], [$data['groups'][2]['title'], $data['groups'][2]['collapsed'], $data['groups'][2]['order']]);
+check('admin gets every event group, sorted', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], array_column($data['groups'], 'id'));
+check('positions', ['content', 'meta_box', 'meta_box', 'sidebar'], array_column($data['groups'], 'position'));
+check('group keys', ['id', 'prefix', 'title', 'position', 'collapsed', 'order', 'location', 'config'], array_keys($data['groups'][0]));
+check('seo display', ['SEO', true, 20], [$data['groups'][3]['title'], $data['groups'][3]['collapsed'], $data['groups'][3]['order']]);
 check('admin config has admin_notes', true, in_array('admin_notes', $fieldIds($groupOf($data, 'event_details')['config']), true));
 
 as_user('editor');
 $data = EditorIntegration::data($event);
-check('editor does not get event_extras', ['event_details', 'event_seo'], array_column($data['groups'], 'id'));
+check('editor does not get event_extras', ['event_details', 'event_featured_extras', 'event_seo'], array_column($data['groups'], 'id'));
 check('editor config has no admin_notes', false, in_array('admin_notes', $fieldIds($groupOf($data, 'event_details')['config']), true));
 check('editor config keeps public fields', true, in_array('public_tagline', $fieldIds($groupOf($data, 'event_details')['config']), true));
-check('explicit user wins over the current one', 3, count(EditorIntegration::data($event, get_userdata($admin))['groups']));
+check('explicit user wins over the current one', 4, count(EditorIntegration::data($event, get_userdata($admin))['groups']));
 
 FieldGroups::register('wf-test', [
     'id'       => 'locked_away',

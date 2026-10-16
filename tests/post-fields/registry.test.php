@@ -34,7 +34,7 @@ $find = static function (string $postType, string $id): ?array {
 };
 
 check('fixture group boots with no notices (lint clean)', [], $notices);
-check('event groups sorted by order, then registration', ['event_details', 'event_extras', 'event_seo'], $ids('event'));
+check('event groups sorted by order, then registration', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], $ids('event'));
 check('post gets its shorthand group', ['post_extras'], $ids('post'));
 
 $seo = $find('event', 'event_seo');
@@ -67,11 +67,11 @@ check('no settings page registered', [], array_filter(App::pages(), static fn ($
 
 $GLOBALS['wireframe_field_group_owners']['event'] = 'foreign/group';
 FieldGroups::boot();
-check('foreign claim blocks the content group only', ['event_extras', 'event_seo'], $ids('event'));
+check('foreign claim blocks the content group only', ['event_extras', 'event_featured_extras', 'event_seo'], $ids('event'));
 check('foreign claim is silent', 0, $mentions('event_details'));
 unset($GLOBALS['wireframe_field_group_owners']['event']);
 FieldGroups::boot();
-check('released claim restores the content group', ['event_details', 'event_extras', 'event_seo'], $ids('event'));
+check('released claim restores the content group', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], $ids('event'));
 
 register_post_type('defaults_cpt', ['public' => true, 'show_in_rest' => true]);
 FieldGroups::register('other', ['id' => 'defaults', 'title' => 'D', 'location' => ['defaults_cpt'], 'config' => ['fields' => [['id' => 'd', 'type' => 'text']]]]);
@@ -79,7 +79,7 @@ check('display defaults', ['position' => 'meta_box', 'collapsed' => false, 'orde
 
 $notices = [];
 FieldGroups::register('other', $group('dupe', ['event'], [['id' => 'x', 'type' => 'text']], ['display' => ['position' => 'content']]));
-check('second content group skipped', ['event_details', 'event_extras', 'event_seo'], $ids('event'));
+check('second content group skipped', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], $ids('event'));
 check('second content group reported', 1, $mentions('"dupe"'));
 
 $notices = [];
@@ -166,7 +166,7 @@ $notices = [];
 $eventGroup = ['id' => 'event_details', 'location' => ['event'], 'display' => ['position' => 'content'], 'config' => __DIR__ . '/fixture/config/event.php'];
 App::boot(['prefix' => 'wf-fixture', 'field_groups' => [$eventGroup]]);
 App::boot(['prefix' => 'wf-fixture', 'field_groups' => [$eventGroup]]);
-check('second boot keeps the group and its place', ['event_details', 'event_extras', 'event_seo'], $ids('event'));
+check('second boot keeps the group and its place', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], $ids('event'));
 check('second boot raises no notice for the group', 0, $mentions('"event_details" (wf-fixture)'));
 
 register_post_type('lint_cpt', ['public' => true, 'show_in_rest' => true]);
@@ -188,6 +188,6 @@ check('late rejection reported once', 1, $mentions('"late_bad_a_group"'));
 check('second late registration does not repeat earlier notices', 1, $mentions('"late_bad_b_group"'));
 check('late registration leaves existing groups alone', 0, $mentions('"bad_group"'));
 
-check('valid groups survive every re-boot', ['event_details', 'event_extras', 'event_seo'], $ids('event'));
+check('valid groups survive every re-boot', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], $ids('event'));
 
 finish();

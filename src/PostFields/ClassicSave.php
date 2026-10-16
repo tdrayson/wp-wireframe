@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Wireframe\PostFields;
 
 use WP_Post;
+use WP_Taxonomy;
+use WP_Term;
 use Wireframe\Meta;
 
 /**
@@ -53,9 +55,10 @@ final class ClassicSave
         }
 
         $postType = (string) ($data['post_type'] ?? '');
-        $incoming = self::incoming($postId, $postType, $postarr);
+        $live     = self::submittedLive($postId, $postType, $data, $postarr);
+        $incoming = self::incoming($postId, $postType, $postarr, $live);
 
-        if (SaveValidator::validate($postId, $postType, $incoming, $status) === []) {
+        if (SaveValidator::validate($postId, $postType, $incoming, $status, null, $live) === []) {
             return $data;
         }
 
@@ -156,15 +159,96 @@ final class ClassicSave
     }
 
     /**
+     * Get the live location params the form submits; core stores the template and terms only after `wp_insert_post_data`.
+     *
+     * @param array $data    Post data about to be stored.
+     * @param array $postarr Posted form, slashed.
+     * @return array<string, mixed>
+     */
+    private static function submittedLive(int $postId, string $postType, array $data, array $postarr): array
+    {
+        $live = [
+            'post_status' => (string) $data['post_status'],
+            'post_parent' => (int) ($data['post_parent'] ?? 0),
+        ];
+
+        if (isset($postarr['page_template'])) {
+            $template              = sanitize_text_field(wp_unslash((string) $postarr['page_template']));
+            $live['post_template'] = $template === 'default' ? '' : $template;
+        }
+
+        if (isset($postarr['post_format'])) {
+            $format              = sanitize_key(wp_unslash((string) $postarr['post_format']));
+            $live['post_format'] = in_array($format, ['', '0'], true) ? 'standard' : $format;
+        }
+
+        $terms = self::submittedTerms(is_array($postarr['tax_input'] ?? null) ? $postarr['tax_input'] : []);
+
+        if ($terms !== []) {
+            $live['post_terms'] = Location::terms($postId, $postType, $terms);
+        }
+
+        return $live;
+    }
+
+    /**
+     * Get the term IDs the form assigns, by taxonomy, for the taxonomies the current user may assign.
+     *
+     * @param array $taxInput Posted `tax_input`, slashed.
+     * @return array<string, list<int>>
+     */
+    private static function submittedTerms(array $taxInput): array
+    {
+        $terms = [];
+
+        foreach ($taxInput as $slug => $value) {
+            $taxonomy = get_taxonomy((string) $slug);
+
+            if ($taxonomy instanceof WP_Taxonomy && current_user_can($taxonomy->cap->assign_terms)) {
+                $terms[$taxonomy->name] = self::termIds($taxonomy, wp_unslash($value));
+            }
+        }
+
+        return $terms;
+    }
+
+    /**
+     * Resolve one taxonomy's posted terms to IDs: hierarchical boxes post IDs, tag boxes post comma-separated names.
+     *
+     * @return list<int>
+     */
+    private static function termIds(WP_Taxonomy $taxonomy, mixed $value): array
+    {
+        $values = is_array($value) ? $value : explode(',', (string) $value);
+
+        if ($taxonomy->hierarchical) {
+            return array_values(array_filter(array_map('intval', $values)));
+        }
+
+        $ids = [];
+
+        foreach ($values as $name) {
+            $term = get_term_by('name', trim((string) $name), $taxonomy->name);
+
+            if ($term instanceof WP_Term) {
+                $ids[] = $term->term_id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * Decode each group's posted JSON, keeping only the keys the current user may write that the group owns.
      *
-     * @param array $request Posted form, slashed.
+     * @param array                $request Posted form, slashed.
+     * @param array<string, mixed> $live    Live location params the save sets, before core stores them.
      * @return array<string, mixed> Values by meta key.
      */
-    private static function incoming(int $postId, string $postType, array $request): array
+    private static function incoming(int $postId, string $postType, array $request, array $live = []): array
     {
         $posted   = $request[ClassicEditor::INPUT] ?? [];
-        $writable = MetaRegistrar::writableKeys($postType, $postId, wp_get_current_user());
+        $writable = MetaRegistrar::writableKeys($postType, $postId, wp_get_current_user(), $live);
         $incoming = [];
 
         if (!is_array($posted)) {

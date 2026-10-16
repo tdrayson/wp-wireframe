@@ -29,6 +29,10 @@ body.wireframe-content-mode {
   }
 }
 
+.postbox.wireframe-group-inapplicable {
+  display: none;
+}
+
 .wireframe-post-fields {
   --page-width: var(--wpds-dimension-surface-width-2xl);
   font-family: var(--wpds-typography-font-family-body);

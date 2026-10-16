@@ -371,21 +371,23 @@ final class MetaRegistrar
     /**
      * Get the meta keys a user may write on a post, each mapped to its owning group's id; the bulk form of the REST write gate.
      *
-     * @param string  $postType Post type slug.
-     * @param int     $postId   Post being saved.
-     * @param WP_User $user     User saving.
+     * @param string               $postType Post type slug.
+     * @param int                  $postId   Post being saved.
+     * @param WP_User              $user     User saving.
+     * @param array<string, mixed> $live     Live location params the save sets, before core stores them.
      * @return array<string, string> Owning group id by meta key.
      */
-    public static function writableKeys(string $postType, int $postId, WP_User $user): array
+    public static function writableKeys(string $postType, int $postId, WP_User $user, array $live = []): array
     {
         if (!$user->exists() || !user_can($user, 'edit_post', $postId)) {
             return [];
         }
 
-        $keys = [];
+        $keys    = [];
+        $context = Location::context($postId, $user, $postType, $live);
 
         foreach (FieldGroups::groupsFor($postType) as $group) {
-            if (!Location::applies($group, $postId, $user)) {
+            if (!Location::matches($group, $context)) {
                 continue;
             }
 

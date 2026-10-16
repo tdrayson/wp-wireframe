@@ -37,6 +37,9 @@ add_action('init', static function (): void {
         'show_in_rest' => true,
     ]);
 
+    $featured   = term_exists('Featured', 'event_type') ?: wp_insert_term('Featured', 'event_type');
+    $featuredId = is_array($featured) ? (int) $featured['term_id'] : 0;
+
     Wireframe\App::boot([
         'prefix'       => 'wf-fixture',
         'assets_url'   => plugins_url('wp-wireframe/src/assets/'),
@@ -63,6 +66,16 @@ add_action('init', static function (): void {
                 ]],
                 'display'  => ['position' => 'meta_box'],
                 'config'   => ['fields' => [['id' => 'extra_note', 'type' => 'textarea', 'label' => 'Note']]],
+            ],
+            [
+                'id'       => 'event_featured_extras',
+                'title'    => 'Featured extras',
+                'location' => ['all' => [
+                    ['field' => 'post_type', 'operator' => 'equals', 'value' => 'event'],
+                    ['field' => 'post_terms', 'operator' => 'contains', 'value' => $featuredId],
+                ]],
+                'display'  => ['position' => 'meta_box'],
+                'config'   => ['fields' => [['id' => 'featured_blurb', 'type' => 'textarea', 'label' => 'Blurb']]],
             ],
             [
                 'id'       => 'post_extras',
