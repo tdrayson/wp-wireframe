@@ -22,6 +22,9 @@ final class EditorIntegration
 
     private const BOX_PREFIX = 'wireframe-group-';
 
+    /** @var array<string, array> Payloads by post and user ID, as the classic editor asks once per box. */
+    private static array $data = [];
+
     /**
      * Build the `window.wireframePostFields` payload: the groups that apply to a post, with access-filtered, populated configs.
      *
@@ -32,6 +35,24 @@ final class EditorIntegration
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
         $user ??= wp_get_current_user();
+        $key    = "{$post->ID}:{$user->ID}";
+
+        return self::$data[$key] ??= self::build($post, $user);
+    }
+
+    /**
+     * Forget built payloads, for when a post's groups, values or the user's access change within a request.
+     */
+    public static function flush(): void
+    {
+        self::$data = [];
+    }
+
+    /**
+     * Build the payload for a post and user.
+     */
+    private static function build(WP_Post $post, WP_User $user): array
+    {
         $groups = [];
         $values = Meta::resolved($post->ID);
 

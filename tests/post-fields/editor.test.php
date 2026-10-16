@@ -68,6 +68,7 @@ FieldGroups::register('wf-test', [
     'location' => ['event'],
     'config'   => ['fields' => [['id' => 'locked_note', 'type' => 'text', 'access' => 'administrator']]],
 ]);
+EditorIntegration::flush();
 check('a group with no viewable field is not sent', false, in_array('locked_away', array_column(EditorIntegration::data($event)['groups'], 'id'), true));
 check('the same group is sent to admin', true, in_array('locked_away', array_column(EditorIntegration::data($event, get_userdata($admin))['groups'], 'id'), true));
 
@@ -141,6 +142,7 @@ FieldGroups::register('wf-test', [
 
 global $wp_meta_boxes;
 $wp_meta_boxes = [];
+EditorIntegration::flush();
 do_action('add_meta_boxes', 'event', $event);
 
 $box = $wp_meta_boxes['event']['normal']['default']['wireframe-group-event_extras'] ?? null;
@@ -282,7 +284,11 @@ $gatePost = (int) wp_insert_post([
     'post_title'  => 'Gate',
     'meta_input'  => array_fill_keys(['g_open', ...array_keys($gatedCases)], 'v'),
 ]);
-$gatedConfig = static fn (): array => $groupOf(EditorIntegration::data(get_post($gatePost)), 'gated')['config'] ?? [];
+$gatedConfig = static function () use ($groupOf, $gatePost): array {
+    EditorIntegration::flush();
+
+    return $groupOf(EditorIntegration::data(get_post($gatePost)), 'gated')['config'] ?? [];
+};
 $readOnly    = static function (array $config): array {
     $flags = [];
 

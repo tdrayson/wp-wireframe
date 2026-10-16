@@ -63,12 +63,4 @@ class CheckboxesField extends BaseField
             array_filter($value, static fn (mixed $selectedValue): bool => self::isOption($selectedValue, $options))
         ));
     }
-
-    /**
-     * Whether a value is a key of the options map.
-     */
-    private static function isOption(mixed $value, array $options): bool
-    {
-        return (is_int($value) || is_string($value)) && array_key_exists($value, $options);
-    }
 }

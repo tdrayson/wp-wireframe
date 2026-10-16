@@ -95,16 +95,4 @@ class SelectField extends BaseField
 
         return self::isOption($value, $options) ? Populate::typed($args, $value) : ($args['default'] ?? '');
     }
-
-    /**
-     * Whether a value is a key of the options map.
-     *
-     * @param mixed $value   Submitted value.
-     * @param array $options Options map.
-     * @return bool
-     */
-    protected static function isOption(mixed $value, array $options): bool
-    {
-        return (is_int($value) || is_string($value)) && array_key_exists($value, $options);
-    }
 }
