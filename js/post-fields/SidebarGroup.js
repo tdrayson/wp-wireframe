@@ -73,6 +73,8 @@ function useSeedPanel( panelName, collapsed ) {
 }
 
 /**
+ * Render a `sidebar` group as a document settings panel, in a single column.
+ *
  * @param {Object} props
  * @param {Object} props.group Group from `window.wireframePostFields.groups`.
  */

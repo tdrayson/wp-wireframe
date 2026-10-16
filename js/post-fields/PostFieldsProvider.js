@@ -27,7 +27,7 @@ export default function PostFieldsProvider( { group, children } ) {
 
 	const setMultiple = useCallback(
 		( edits ) => {
-			editPost( { meta: { ...coerce( edits, group.config ) } } );
+			editPost( { meta: coerce( edits, group.config ) } );
 			clear( Object.keys( edits ) );
 		},
 		[ editPost, clear, group.config ]

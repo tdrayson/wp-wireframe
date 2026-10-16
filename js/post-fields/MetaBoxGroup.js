@@ -5,6 +5,8 @@ import { createPortal, useEffect, useState } from '@wordpress/element';
 import GroupTabs from './GroupTabs';
 
 /**
+ * Render a `meta_box` group into its container box once the box is in the DOM.
+ *
  * @param {Object} props
  * @param {Object} props.group Group from `window.wireframePostFields.groups`.
  */
