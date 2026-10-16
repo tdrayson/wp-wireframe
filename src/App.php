@@ -159,6 +159,7 @@ final class App
     {
         foreach ((array) ($config['field_groups'] ?? []) as $group) {
             if (!is_array($group)) {
+                _doing_it_wrong(__METHOD__, sprintf('Each "field_groups" entry for "%s" must be an array.', $prefix), '1.2.0');
                 continue;
             }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\PostFields;
 
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\Framework\ConfigValidator;
 
 /**
  * Registry of field groups attached to post types.
@@ -16,19 +17,17 @@ final class FieldGroups
     /** Field types with no stored value, or no meaning, on a post screen. */
     private const EXCLUDED_TYPES = ['action', 'table', 'import', 'export', 'upload'];
 
-    /** @var list<array{id: string, prefix: string, post_types: list<string>, config: string}> Groups in registration order. */
+    /** @var array<string, array{id: string, prefix: string, post_types: list<string>, config: string}> Groups by owner key, in registration order. */
     private static array $groups = [];
 
     /** @var array<string, array{id: string, prefix: string, post_types: list<string>, config: string}> Valid groups by post type. */
     private static array $claimed = [];
 
     /**
-     * Register a field group; validation waits for `boot()`.
-     *
-     * `config` is a slug already known to ConfigLoader, or a raw config array that is registered under `{prefix}-group-{id}`.
+     * Register a field group, replacing one with the same prefix and id; boots at once after `wp_loaded`.
      *
      * @param string $prefix Consumer prefix from `App::boot()`.
-     * @param array  $group  `id`, `post_types` and `config`.
+     * @param array  $group  `id`, `post_types`, and `config` (a ConfigLoader slug or a raw config array).
      */
     public static function register(string $prefix, array $group): void
     {
@@ -41,12 +40,16 @@ final class FieldGroups
             $slug = $group['config'];
         }
 
-        self::$groups[] = [
+        self::$groups[self::owner(['prefix' => $prefix, 'id' => $id])] = [
             'id'         => $id,
             'prefix'     => $prefix,
-            'post_types' => array_values(array_filter((array) ($group['post_types'] ?? []), 'is_string')),
+            'post_types' => array_values(array_unique(array_filter((array) ($group['post_types'] ?? []), 'is_string'))),
             'config'     => $slug,
         ];
+
+        if (did_action('wp_loaded') > 0) {
+            self::boot();
+        }
     }
 
     /**
@@ -59,7 +62,7 @@ final class FieldGroups
         self::$claimed = [];
 
         foreach (self::$groups as $group) {
-            $problem = self::configProblem($group);
+            $problem = self::configProblem($group) ?? self::postTypeProblem($group);
 
             if ($problem !== null) {
                 self::reject($group, $problem);
@@ -142,6 +145,8 @@ final class FieldGroups
      */
     private static function configProblem(array $group): ?string
     {
+        self::lint($group);
+
         if ($group['id'] === '') {
             return 'a field group needs a non-empty "id".';
         }
@@ -168,24 +173,34 @@ final class FieldGroups
     }
 
     /**
-     * Claim a post type for a group, unless it is unusable or already taken.
+     * Describe why any of a group's post types cannot be attached, or null when all can.
+     */
+    private static function postTypeProblem(array $group): ?string
+    {
+        foreach ($group['post_types'] as $postType) {
+            $type = get_post_type_object($postType);
+
+            if ($type === null) {
+                return sprintf('post type "%s" is not registered.', $postType);
+            }
+
+            if (empty($type->show_in_rest)) {
+                return sprintf('post type "%s" must be registered with show_in_rest => true.', $postType);
+            }
+
+            if (isset(self::$claimed[$postType])) {
+                return sprintf('post type "%s" already has the field group "%s".', $postType, self::$claimed[$postType]['id']);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Claim a post type for a group, unless another bundled copy already owns it.
      */
     private static function claim(array $group, string $postType): void
     {
-        $type = get_post_type_object($postType);
-
-        if ($type === null || empty($type->show_in_rest)) {
-            self::reject($group, sprintf('post type "%s" must be registered with show_in_rest => true.', $postType));
-
-            return;
-        }
-
-        if (isset(self::$claimed[$postType])) {
-            self::reject($group, sprintf('post type "%s" already has the field group "%s".', $postType, self::$claimed[$postType]['id']));
-
-            return;
-        }
-
         $owner = self::owner($group);
 
         if (($GLOBALS['wireframe_field_group_owners'][$postType] ?? $owner) !== $owner) {
@@ -195,6 +210,22 @@ final class FieldGroups
         $GLOBALS['wireframe_field_group_owners'][$postType] = $owner;
         self::$claimed[$postType] = $group;
         add_post_type_support($postType, 'custom-fields');
+    }
+
+    /**
+     * Report config linter findings under WP_DEBUG; they never skip the group.
+     */
+    private static function lint(array $group): void
+    {
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return;
+        }
+
+        $config = ConfigLoader::load($group['config']);
+
+        foreach (ConfigValidator::validate($config, $group['config']) as $issue) {
+            _doing_it_wrong(__CLASS__ . '::boot', sprintf('Field group "%s" (%s) config issue: %s', $group['id'], $group['prefix'], $issue), '1.2.0');
+        }
     }
 
     /**
