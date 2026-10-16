@@ -1,0 +1,369 @@
+---
+title: Post Fields
+description: ACF-style field groups on any post type, stored as native post meta and queryable with plain WP_Query.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A **field group** attaches a page config (`fields`, `sections` or `tabs`) to one or more post types. The block editor still loads, so core and third-party plugins keep working.
+
+Everything is reachable through native WordPress, so page builders and other plugins need no integration: values are plain post meta, and repeater subfields get dotted keys that work in `meta_query`, `orderby` and `get_post_meta()`. See [`examples/events`](https://github.com/tdrayson/wp-wireframe/tree/main/examples/events) for a working plugin.
+
+## Register a group
+
+Pass `field_groups` to `App::boot()`. A boot with only `field_groups` registers no settings page.
+
+```php
+Wireframe\App::boot([
+    'prefix'       => 'my-plugin',
+    'field_groups' => [
+        [
+            'id'       => 'event_details',
+            'title'    => __('Event details', 'my-plugin'),
+            'location' => ['event'],
+            'display'  => ['position' => 'content'],
+            'config'   => __DIR__ . '/config/event.php',   // or an inline array
+        ],
+    ],
+]);
+```
+
+| Key        | Purpose                                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------------------- |
+| `id`       | Required. Unique per prefix.                                                                              |
+| `title`    | Meta box or panel heading. Falls back to the capitalised `id` (with a `WP_DEBUG` notice) for those positions. |
+| `location` | Which posts the group applies to. See below.                                                              |
+| `display`  | `position`, `collapsed`, `order`.                                                                         |
+| `config`   | The fields: an inline array or a file path, in any of the three config formats.                           |
+
+`display` options:
+
+| Option      | Values                                    | Default    |
+| ----------- | ----------------------------------------- | ---------- |
+| `position`  | `content`, `meta_box`, `sidebar`          | `meta_box` |
+| `collapsed` | `true` / `false`; a user's own state wins | `false`    |
+| `order`     | int; lower renders first                  | `10`       |
+
+Unknown keys are reported under `WP_DEBUG` and otherwise ignored. A group with a problem is skipped, with a `_doing_it_wrong` notice naming the reason.
+
+## Display positions
+
+| Position   | Renders                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------- |
+| `content`  | Replaces the block canvas. The template is locked and `post_content` stays empty.                   |
+| `meta_box` | In the bottom meta box area. `order` maps to priority: 5 or below `high`, 10 `default`, 20+ `low`.  |
+| `sidebar`  | A panel in the Post sidebar. Tabs are merged into one stacked list; fields are full width.          |
+
+- A post type can have any number of `meta_box` and `sidebar` groups, and at most one `content` group.
+- A `content` group adds `editor` and `title` support to the post type, since the block editor can't save a post without one of them. `custom-fields` support is added for every group.
+- The post type must be registered with `show_in_rest => true`, or the group is skipped.
+- Field ids are the meta keys and must be unique across every group on a post type. Rejected types: `action`, `table`, `import`, `export`, `upload`. `html` is allowed.
+
+### Classic editor
+
+When `use_block_editor_for_post()` is false (the Classic Editor plugin, a filter, or a post type without `show_in_rest`) the groups render on the classic screen:
+
+- `content`: in place of the content editor, right after the title. The native title input stays.
+- `meta_box`: a box in the `normal` context.
+- `sidebar`: a box in the `side` context, using the same single-tab layout.
+
+The form posts the values with a nonce and they are written through `Meta::set()`. Validation runs on the merged values; if it fails, a post being published is kept as a draft, invalid values are not written, and the errors show as a notice and inline on the fields. Location rules are evaluated on page load only: changing terms or the template takes a save.
+
+## Location rules
+
+`location` uses the same `all` / `any` rule grammar as [conditions](/wp-wireframe/docs/features/conditional-visibility/), with a location param as `field`.
+
+```php
+'location' => ['event'],                       // shorthand for post_type in ['event']
+
+'location' => [
+    'all' => [
+        ['field' => 'post_type',     'operator' => 'in',       'value' => ['event', 'post']],
+        ['field' => 'user_role',     'operator' => 'contains', 'value' => 'editor'],
+        ['field' => 'post_template', 'operator' => 'equals',   'value' => 'templates/wide.php'],
+    ],
+],
+```
+
+| Param           | Operators                                   | Notes                                                   |
+| --------------- | ------------------------------------------- | ------------------------------------------------------- |
+| `post_type`     | `equals`, `not_equals`, `in`, `not_in`      | Required in every branch with `equals` or `in`.         |
+| `post_id`       | `equals`, `in`, `not_in`                    | Cast to int.                                            |
+| `user_role`     | `contains`, `not_contains`, `in`            | Matches the current user's roles.                       |
+| `post_status`   | `equals`, `not_equals`, `in`, `not_in`      | Live.                                                   |
+| `post_template` | `equals`, `not_equals`, `in`, `not_in`      | `''` is the default template. Live.                     |
+| `post_terms`    | `contains`, `not_contains`                  | A term ID, across all taxonomies. Live.                 |
+| `post_parent`   | `equals`, `not_equals`, `in`, `not_in`      | `0` is top level. Live.                                 |
+| `post_format`   | `equals`, `not_equals`, `in`, `not_in`      | `standard` is the default. Live.                        |
+
+Meta is registered per post type, so every branch must pin `post_type`; otherwise the group is skipped. The other rules decide per post and user whether the group renders and whether its fields can be written or read through REST.
+
+**Live rules** are re-evaluated in the block editor as the post changes, so groups show and hide with no reload; a `content` group that stops applying hands the canvas back. The server uses the same params on save, so validation and write gates see the new state. Values of a group that stops applying are kept, not deleted.
+
+Add your own params with the `wp-wireframe/location_context` filter, called with `($context, $postId, $user, $postType)`.
+
+## Storage
+
+Every field `id` is its meta key, verbatim. There is no automatic prefix.
+
+| Field kind                                                                          | Stored as                                     |
+| ----------------------------------------------------------------------------------- | --------------------------------------------- |
+| Single value: text, number, select, radio, toggle, date, color, single file, …      | One meta row                                  |
+| `checkboxes`, `image_checkboxes`, `select` with `multiple`                          | One meta row **per selected value**, same key |
+| `file` with `multiple`                                                              | One meta row holding an array of IDs          |
+| `repeater`                                                                          | One meta row holding an array of row arrays   |
+
+Per-value rows keep `meta_query` `IN` and `=` working natively; galleries and repeaters keep their order in one row. Each key gets `show_in_rest` with a generated schema, a sanitiser, an `auth_callback` (`edit_post` plus the field's `access` rules) and `revisions_enabled` when the post type supports revisions. A field `default` is registered for single-row fields only.
+
+### REST visibility
+
+Values are `edit`-context only by default, so they never appear in public responses. Opt a field in with `'public' => true`. Fields the current user can't view under their `access` rules, or whose group doesn't apply to the post, are stripped from post, revision and autosave responses.
+
+## Read and write
+
+```php
+use Wireframe\Meta;
+
+Meta::get($postId, 'event_price');
+Meta::get($postId, 'sessions.0.venue');              // dot notation into repeaters
+Meta::bool($postId, 'event_featured');
+Meta::set($postId, 'event_price', 25);               // sanitised through the field class
+
+get_post_meta($postId, 'sessions.0.venue', true);    // the same cell, natively
+```
+
+`Meta` mirrors the `Settings` facade (`get`, `set`, `has`, `forget`, typed getters, `only`, `except`, …) with `$postId` in place of the option key; defaults resolve from the field config. Dotted keys for repeater subfields are covered under [Query with `meta_query`](#query-with-meta_query).
+
+## Populate
+
+`select`, `checkboxes` and `radio` fields can take their options from the site, in post groups and settings pages alike.
+
+```php
+'args' => [
+    'multiple' => true,
+    'populate' => [
+        'type'          => 'query',      // query | function | custom
+        'query'         => 'posts',      // posts | users | terms
+        'arguments'     => ['post_type' => 'speaker', 'posts_per_page' => -1],
+        'return_format' => ['value' => 'ID', 'label' => 'post_title'],
+        'position'      => 'after',      // before | after the static `options`
+        'fetch'         => false,        // select only: search as you type
+    ],
+],
+```
+
+| `type`     | Source                                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `query`    | `arguments` go to `WP_Query`, `WP_User_Query` or `WP_Term_Query`, picked by `query`.                           |
+| `function` | `'function' => $callable`, called as `fn(array $field): array` and returning a `value => label` map.          |
+| `custom`   | `'custom' => 'speakers'`; the map comes from `apply_filters('wp-wireframe/populate/speakers', [], $field)`.     |
+
+- `return_format` names properties of the returned object. Defaults: `ID`/`post_title` for posts, `ID`/`display_name` for users, `term_id`/`name` for terms.
+- `position` merges the populated options `before` or `after` the static `options` (default `after`).
+- `fetch => true` (select only) ships just the labels of the stored values and searches through `GET {prefix}/v1/populate` as you type, 20 results at a time.
+- Options resolve on the server, so callables never reach the browser. Submitted values are checked against the same source: a value the query wouldn't return is rejected.
+
+## Validation and access
+
+- Editor saves are validated on the server in `rest_pre_insert_{$post_type}`, with the settings `data.errors` shape, including nested repeater errors. `required` is enforced only when the post ends up `publish` or `future`; drafts save with gaps.
+- Fields hidden by `conditions` (field, section or tab) are skipped, as on settings pages.
+- Only groups whose location applies to the post and user are validated or writable.
+- [Role-based access](/wp-wireframe/docs/features/role-based-access/) works on fields, sections and tabs as on settings pages.
+
+## Query with `meta_query`
+
+Mark the subfields you want to query with `'indexed' => true`. A `meta_query` clause whose key is `{repeater}.{subfield}` then matches when **any row** satisfies it.
+
+```php
+'subfields' => [
+    ['id' => 'starts', 'type' => 'date',   'label' => 'Starts', 'indexed' => true],
+    ['id' => 'venue',  'type' => 'text',   'label' => 'Venue',  'indexed' => true],
+    ['id' => 'seats',  'type' => 'number', 'label' => 'Seats',  'indexed' => true],
+    ['id' => 'notes',  'type' => 'textarea', 'label' => 'Notes'],      // not queryable
+],
+```
+
+```php
+new WP_Query([
+    'post_type'  => 'event',
+    'meta_query' => [
+        'relation' => 'AND',
+        ['key' => 'sessions.starts', 'compare' => '>=', 'value' => wp_date('Y-m-d'), 'type' => 'DATE'],
+        ['key' => 'event_price',     'compare' => '<',  'value' => 50, 'type' => 'NUMERIC'],
+    ],
+]);
+```
+
+- Dotted clauses mix freely with normal ones and nested relations, and work under `get_posts()`.
+- `type`: `CHAR` (default), `NUMERIC`, `DECIMAL`, `SIGNED`, `DATE` or `DATETIME`. `DATE` compares whole days.
+- A dotted key that isn't an indexed subfield is left to core, so it matches nothing, as an unknown meta key would.
+- Subfields with several values (checkboxes inside a repeater) index one row per value.
+
+### Order by a subfield
+
+```php
+// Events by their next session. A named clause sorts by the rows it matches.
+new WP_Query([
+    'post_type'  => 'event',
+    'meta_query' => [
+        'next' => ['key' => 'sessions.starts', 'compare' => '>=', 'value' => wp_date('Y-m-d'), 'type' => 'DATE'],
+    ],
+    'orderby'    => ['next' => 'ASC'],
+]);
+
+// Or by a dotted meta_key.
+new WP_Query(['meta_key' => 'sessions.starts', 'orderby' => 'meta_value', 'order' => 'ASC']);
+```
+
+`ASC` sorts by each post's lowest value, `DESC` by its highest; posts with no value sort last. A bare `meta_key` considers **every** row, past sessions included. Use a named clause to sort by the matching rows only. Use `meta_value_num` for numbers.
+
+### Read with `get_post_meta()`
+
+```php
+get_post_meta($id, 'sessions.0.venue', true);   // one cell
+get_post_meta($id, 'sessions.venue');           // that subfield in every row
+get_post_meta($id, 'sessions.venue', true);     // the first row's value
+```
+
+Dotted reads work for any subfield, indexed or not, on post types with a group. Out-of-range rows are empty. `Meta::get($id, 'sessions.0.venue')` returns the same cell, typed and with defaults. Like `get_post_meta()`, server-side reads are not access-gated; REST responses are.
+
+## Match within one row with `wireframe_query`
+
+`meta_query` can't say "the same row must satisfy both". For that, `wireframe_query` takes a `same_row` group:
+
+```php
+new WP_Query([
+    'post_type'       => 'event',
+    'wireframe_query' => [
+        'relation' => 'AND',
+        ['field' => 'sessions', 'subfield' => 'starts', 'compare' => '>=', 'value' => '2026-11-01', 'type' => 'DATE'],
+        [
+            'same_row' => true,     // both must match in one row
+            ['field' => 'sessions', 'subfield' => 'venue', 'value' => 'Leeds'],
+            ['field' => 'sessions', 'subfield' => 'seats', 'compare' => '>', 'value' => 0, 'type' => 'NUMERIC'],
+        ],
+    ],
+]);
+```
+
+- Clauses are `field`, `subfield`, `compare`, `value`, `type`; groups nest with `relation`.
+- Compares: `=`, `!=`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`, `LIKE`, `BETWEEN`, `EXISTS`, `NOT EXISTS`.
+- A `same_row` group is `AND`, covers one repeater, and holds plain clauses. A group that spans repeaters or nests another group matches nothing and reports `_doing_it_wrong`.
+- A subfield that isn't indexed matches nothing.
+
+## Reindex
+
+Index rows follow the repeater meta, so writes through the editor, `update_post_meta()`, REST and `Meta::set()` all keep them current. After marking a subfield `indexed` on **existing** posts, rebuild:
+
+```bash
+wp wireframe reindex                  # every post type with groups
+wp wireframe reindex --post_type=event
+```
+
+```php
+Wireframe\Meta::reindex('event');     // returns the posts processed
+```
+
+## Admin list columns
+
+Add `column` to any stored top-level field to show it on the post type's list table. It's `true` or an array:
+
+```php
+['id' => 'event_price', 'type' => 'number', 'column' => ['label' => 'Price', 'sortable' => true, 'after' => 'title']],
+['id' => 'event_featured', 'type' => 'toggle', 'column' => true],
+```
+
+| Option     | Default        | Notes                                                                                 |
+| ---------- | -------------- | ------------------------------------------------------------------------------------- |
+| `label`    | field label    |                                                                                       |
+| `after`    | `title`        | A column id. Field columns are `wireframe_{field_id}`.                                |
+| `sortable` | `false`        | Single-row fields only. Numeric for `number` and `range`. Posts without a value stay in the list. |
+
+A column shows only to users who can view the field, and its cell is blank for posts whose group doesn't apply.
+
+| Type                               | Cell                                                   |
+| ---------------------------------- | ------------------------------------------------------ |
+| `file`                             | 40px thumbnail (icon for non-images), first plus "+N"  |
+| `date`, `time`                     | The site's date or time format                         |
+| `toggle`, `checkbox`               | ✓ or blank                                             |
+| `select`, `radio`, `checkboxes`    | Option labels joined with ", "                         |
+| Choices populated from posts       | Linked titles                                          |
+| `color`                            | Swatch plus hex                                        |
+| `password`                         | Masked                                                 |
+| `repeater`                         | "N rows"                                               |
+| Everything else                    | Escaped text, cut to 80 characters                     |
+
+Override a cell with two filters, run in this order, both called with `($html, $value, int $postId, array $field)`. The output is echoed as returned, so escape it.
+
+```php
+add_filter('my-plugin/column/event/event_price', function ($html, $value) {
+    return $value ? esc_html('£' . number_format_i18n((float) $value, 2)) : '';
+}, 10, 2);
+
+add_filter('my-plugin/column', fn ($html, $value, $postId, $field) => $html, 10, 4);
+```
+
+`my-plugin` is the group's boot prefix. Columns go through `manage_{$post_type}_posts_columns` and `manage_{$post_type}_posts_custom_column`, so core hooks still apply.
+
+## Block bindings
+
+The `wireframe/field` source shows a field in a core block, on WP 6.5+.
+
+```html
+<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"wireframe/field","args":{"key":"sessions.0.venue"}}}}} -->
+<p></p>
+<!-- /wp:paragraph -->
+```
+
+`args.key` is a field id or a dot path. `args.format` is an optional PHP date format for `date` fields.
+
+Bindings render publicly, so only fields marked `'public' => true` resolve, and only on posts the viewer can see (published, or readable by them, and not password-protected), when the field's group applies and the viewer can view the field. Anything else renders empty, with a `_doing_it_wrong` under `WP_DEBUG`; an invisible post leaves the block's own content in place.
+
+| Field               | Output                                                                  |
+| ------------------- | ----------------------------------------------------------------------- |
+| `file`              | The URL; the first one for a `url` attribute (an image's `url`)         |
+| `date`              | The site's format, or `args.format`                                     |
+| `time`              | The site's time format                                                  |
+| Choice fields       | Option labels joined with ", "                                          |
+| `toggle`            | Yes / No                                                                |
+| `repeater`          | "N rows"                                                                |
+| Everything else     | The value as text                                                       |
+
+On WP 6.7+ the block editor registers the same source, so bound blocks preview live.
+
+## Renaming fields
+
+Keep old data readable when a field id changes with `previous_ids`:
+
+```php
+['id' => 'event_price', 'type' => 'number', 'previous_ids' => ['cost']],
+```
+
+- **Reads:** when the new key has no value, `get_post_meta()`, `Meta::get()` and REST return the first previous key that does.
+- **Writes:** writing or deleting the new key removes the previous keys on that post.
+- **Bulk:** copy every old value across, then delete the old keys:
+
+```bash
+wp wireframe migrate                  # every post type with groups
+wp wireframe migrate --post_type=event
+```
+
+```php
+Wireframe\Meta::migrate('event');     // returns the posts changed
+```
+
+Renamed repeaters are reindexed. A `previous_ids` entry that collides with another field's id or previous id is a config error and the group is skipped.
+
+## Limits
+
+- Post meta only: no term, user, comment or option storage, and no admin UI for building groups. Config is PHP.
+- Autosaves are not validated, and an autosave can never publish a draft.
+- Programmatic writes (`update_post_meta`, `Meta::set`) are sanitised but not validated. Quick Edit and bulk edit don't touch field values.
+- A `content` group locks the canvas and leaves `post_content` empty. Use `meta_box` or `sidebar` groups to keep block editing.
+- A `sidebar` group ignores tabs: tab titles and tab conditions are dropped (noted under `WP_DEBUG`).
+
+<Aside type="note">
+Several bundled copies of WP Wireframe can share one site. Each indexes only its own fields, one applies a given query, and only one copy takes over a post type's editor for a `content` group.
+</Aside>
