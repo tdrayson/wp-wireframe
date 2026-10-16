@@ -324,6 +324,20 @@ foreach ($gatedCases as $key => $label) {
 
 check('editor REST write: ungated field saves', 200, $restWrite('g_open'));
 
+$sectionContexts = [];
+$denyReadTab     = static function (bool $allowed, array $context) use (&$sectionContexts): bool {
+    if ($context['level'] === 'section') {
+        $sectionContexts[$context['id']] = $context['origin_tab'] ?? null;
+    }
+
+    return $context['level'] === 'tab' && $context['id'] === 'read_tab' ? false : $allowed;
+};
+add_filter('wp-wireframe/access/resolve', $denyReadTab, 10, 2);
+check('a filter denying the original tab id hides its field from the editor config', false, array_key_exists('g_read_only', $readOnly($gatedConfig())));
+check('a filter denying the original tab id hides its field from the editor REST read', false, array_key_exists('g_read_only', $restMeta()));
+check('section contexts carry the original tab id', 'admin_tab', $sectionContexts['bare'] ?? null);
+remove_filter('wp-wireframe/access/resolve', $denyReadTab, 10);
+
 check(
     'post_id values are cast to int',
     ['all' => [['field' => 'post_id', 'operator' => 'not_in', 'value' => [42]]]],

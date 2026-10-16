@@ -218,7 +218,7 @@ final class FieldGroups
     /**
      * Merge a sidebar group's tabs into one untitled tab, since a panel has no tab bar; returns the config slug to use.
      *
-     * Sections keep their order, titles and effective access; one whose access can't be kept is dropped.
+     * Sections keep their order, titles and effective access, plus their tab's id as `origin_tab`; one whose access can't be kept is dropped.
      */
     private static function flattenTabs(string $prefix, string $id, string $slug): string
     {
@@ -249,6 +249,7 @@ final class FieldGroups
                 }
 
                 $seen[$merged['id'] ?? ''] = true;
+                $merged['origin_tab']      = (string) ($tab['id'] ?? '');
                 $sections[]                = $merged;
             }
         }

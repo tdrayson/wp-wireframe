@@ -125,9 +125,9 @@ final class AccessResolver
     }
 
     /**
-     * View check for a tab or section with no `access` key of its own.
+     * View check for a tab or section with no `access` key of its own, or a flattened section's original tab.
      *
-     * Allowed by default (its children decide), but still passed through `wp-wireframe/access/resolve`.
+     * Allowed by default (its children, or the section, decide), but still passed through `wp-wireframe/access/resolve`.
      *
      * @param WP_User|null                     $user    User being checked; defaults to the current user.
      * @param array{level: string, id: string} $context Container level and id.
@@ -214,6 +214,12 @@ final class AccessResolver
                 }
 
                 $sectionHasOwnAccess = isset($section['access']);
+                $origin              = isset($section['origin_tab']) ? ['origin_tab' => (string) $section['origin_tab']] : [];
+
+                // A flattened sidebar section lost its tab, so the filter can still deny by the original tab id.
+                if ($origin !== [] && !$this->implicitContainerAllowed($user, ['level' => 'tab', 'id' => $origin['origin_tab']])) {
+                    continue;
+                }
 
                 // Sections inherit unspecified verbs from the tab.
                 $sectionSpec = self::inheritSpec(
@@ -225,7 +231,7 @@ final class AccessResolver
                 // top-down only when the section declares its own `access` key;
                 // otherwise its visibility is derived from its fields and the
                 // post-loop emptiness check decides whether it survives.
-                $sectionContext = ['level' => 'section', 'id' => $sectionId];
+                $sectionContext = ['level' => 'section', 'id' => $sectionId] + $origin;
                 $sectionAllowed = $sectionHasOwnAccess
                     ? $this->userCan('view', $sectionSpec, $user, $sectionContext)
                     : $this->implicitContainerAllowed($user, $sectionContext);
@@ -247,13 +253,15 @@ final class AccessResolver
                         $sectionSpec,
                     );
 
-                    if (!$this->userCan('view', $fieldSpec, $user, ['level' => 'field', 'id' => $fieldId])) {
+                    $fieldContext = ['level' => 'field', 'id' => $fieldId] + $origin;
+
+                    if (!$this->userCan('view', $fieldSpec, $user, $fieldContext)) {
                         continue;
                     }
 
                     $sectionFields[] = $fieldId;
 
-                    if ($this->userCan('edit', $fieldSpec, $user, ['level' => 'field', 'id' => $fieldId])) {
+                    if ($this->userCan('edit', $fieldSpec, $user, $fieldContext)) {
                         $editable[] = $fieldId;
 
                         // Repeater subfields share the parent's editability — they don't
