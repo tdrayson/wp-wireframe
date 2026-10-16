@@ -63,7 +63,7 @@ Unknown keys are reported under `WP_DEBUG` and otherwise ignored. A group with a
 
 ### Classic editor
 
-When `use_block_editor_for_post()` is false (the Classic Editor plugin, a filter, or a post type without `show_in_rest`) the groups render on the classic screen:
+When `use_block_editor_for_post()` is false (the Classic Editor plugin, or the `use_block_editor_for_post` / `use_block_editor_for_post_type` filters) the groups render on the classic screen:
 
 - `content`: in place of the content editor, right after the title. The native title input stays.
 - `meta_box`: a box in the `normal` context.
@@ -90,13 +90,15 @@ The form posts the values with a nonce and they are written through `Meta::set()
 | Param           | Operators                                   | Notes                                                   |
 | --------------- | ------------------------------------------- | ------------------------------------------------------- |
 | `post_type`     | `equals`, `not_equals`, `in`, `not_in`      | Required in every branch with `equals` or `in`.         |
-| `post_id`       | `equals`, `in`, `not_in`                    | Cast to int.                                            |
-| `user_role`     | `contains`, `not_contains`, `in`            | Matches the current user's roles.                       |
+| `post_id`       | `equals`, `not_equals`, `in`, `not_in`      | Cast to int.                                            |
+| `user_role`     | `contains`, `not_contains`, `in`, `not_in`  | Matches the current user's roles.                       |
 | `post_status`   | `equals`, `not_equals`, `in`, `not_in`      | Live.                                                   |
 | `post_template` | `equals`, `not_equals`, `in`, `not_in`      | `''` is the default template. Live.                     |
-| `post_terms`    | `contains`, `not_contains`                  | A term ID, across all taxonomies. Live.                 |
+| `post_terms`    | `contains`, `not_contains`, `in`, `not_in`  | Term IDs, across all taxonomies. Live.                  |
 | `post_parent`   | `equals`, `not_equals`, `in`, `not_in`      | `0` is top level. Live.                                 |
 | `post_format`   | `equals`, `not_equals`, `in`, `not_in`      | `standard` is the default. Live.                        |
+
+On the list params (`user_role`, `post_terms`), `in` means any of the values and `not_in` none of them. Other [conditions operators](/wp-wireframe/docs/features/conditional-visibility/) also evaluate.
 
 Meta is registered per post type, so every branch must pin `post_type`; otherwise the group is skipped. The other rules decide per post and user whether the group renders and whether its fields can be written or read through REST.
 
@@ -177,11 +179,18 @@ get_post_meta($postId, 'sessions.0.venue', true);    // the same cell, natively
 Mark the subfields you want to query with `'indexed' => true`. A `meta_query` clause whose key is `{repeater}.{subfield}` then matches when **any row** satisfies it.
 
 ```php
-'subfields' => [
-    ['id' => 'starts', 'type' => 'date',   'label' => 'Starts', 'indexed' => true],
-    ['id' => 'venue',  'type' => 'text',   'label' => 'Venue',  'indexed' => true],
-    ['id' => 'seats',  'type' => 'number', 'label' => 'Seats',  'indexed' => true],
-    ['id' => 'notes',  'type' => 'textarea', 'label' => 'Notes'],      // not queryable
+[
+    'id'     => 'sessions',
+    'type'   => 'repeater',
+    'public' => true,
+    'args'   => [
+        'subfields' => [
+            ['id' => 'starts', 'type' => 'date',     'label' => 'Starts', 'indexed' => true],
+            ['id' => 'venue',  'type' => 'text',     'label' => 'Venue',  'indexed' => true],
+            ['id' => 'seats',  'type' => 'number',   'label' => 'Seats',  'indexed' => true],
+            ['id' => 'notes',  'type' => 'textarea', 'label' => 'Notes'],   // not queryable
+        ],
+    ],
 ],
 ```
 
@@ -214,7 +223,7 @@ new WP_Query([
 ]);
 
 // Or by a dotted meta_key.
-new WP_Query(['meta_key' => 'sessions.starts', 'orderby' => 'meta_value', 'order' => 'ASC']);
+new WP_Query(['post_type' => 'event', 'meta_key' => 'sessions.starts', 'orderby' => 'meta_value', 'order' => 'ASC']);
 ```
 
 `ASC` sorts by each post's lowest value, `DESC` by its highest; posts with no value sort last. A bare `meta_key` considers **every** row, past sessions included. Use a named clause to sort by the matching rows only. Use `meta_value_num` for numbers.
@@ -227,7 +236,7 @@ get_post_meta($id, 'sessions.venue');           // that subfield in every row
 get_post_meta($id, 'sessions.venue', true);     // the first row's value
 ```
 
-Dotted reads work for any subfield, indexed or not, on post types with a group. Out-of-range rows are empty. `Meta::get($id, 'sessions.0.venue')` returns the same cell, typed and with defaults. Like `get_post_meta()`, server-side reads are not access-gated; REST responses are.
+Dotted reads work for any subfield, indexed or not, on post types with a group. Out-of-range rows are empty. `Meta::get($id, 'sessions.0.venue')` returns the same cell, typed and with defaults. Row `0` is the first row, not necessarily the next session; to find that, query with a named clause as above. Like `get_post_meta()`, server-side reads are not access-gated; REST responses are.
 
 ## Match within one row with `wireframe_query`
 
@@ -317,13 +326,13 @@ The `wireframe/field` source shows a field in a core block, on WP 6.5+.
 <!-- /wp:paragraph -->
 ```
 
-`args.key` is a field id or a dot path. `args.format` is an optional PHP date format for `date` fields.
+`args.key` is a field id or a dot path; a dot path resolves only when its top-level repeater is `public`. `args.format` is an optional PHP date format for `date` fields.
 
 Bindings render publicly, so only fields marked `'public' => true` resolve, and only on posts the viewer can see (published, or readable by them, and not password-protected), when the field's group applies and the viewer can view the field. Anything else renders empty, with a `_doing_it_wrong` under `WP_DEBUG`; an invisible post leaves the block's own content in place.
 
 | Field               | Output                                                                  |
 | ------------------- | ----------------------------------------------------------------------- |
-| `file`              | The URL; the first one for a `url` attribute (an image's `url`)         |
+| `file`              | The URLs, comma-joined; only the first for a `url` attribute (an image's `url`) |
 | `date`              | The site's format, or `args.format`                                     |
 | `time`              | The site's time format                                                  |
 | Choice fields       | Option labels joined with ", "                                          |

@@ -44,6 +44,7 @@ return [
                             'id'     => 'sessions',
                             'type'   => 'repeater',
                             'label'  => __('Sessions', 'events'),
+                            'public' => true,
                             'column' => true,
                             'args'   => [
                                 'subfields' => [
