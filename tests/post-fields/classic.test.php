@@ -186,4 +186,9 @@ ob_start();
 do_action('edit_form_after_title', $event);
 check('block editor post: nothing printed after the title', '', ob_get_clean());
 
+check('a registered field key is protected meta', true, is_protected_meta('admin_notes', 'post'));
+check('a sidebar group key is protected meta', true, is_protected_meta('seo_title', 'post'));
+check('an unregistered key stays unprotected', false, is_protected_meta('some_other_key', 'post'));
+check('other meta types are left alone', false, is_protected_meta('admin_notes', 'user'));
+
 finish();

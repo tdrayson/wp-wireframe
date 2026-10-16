@@ -49,6 +49,29 @@ final class MetaRegistrar
     }
 
     /**
+     * Filter `is_protected_meta`: hide registered field keys from the Custom Fields box and panel, which bypass field access.
+     *
+     * @param bool        $protected Whether the key is protected so far.
+     * @param string      $metaKey   Meta key.
+     * @param string|null $metaType  Object type, `post` for post meta.
+     * @return bool
+     */
+    public static function protect(bool $protected, string $metaKey, ?string $metaType = null): bool
+    {
+        if ($protected || $metaType !== 'post') {
+            return $protected;
+        }
+
+        foreach (array_keys(FieldGroups::all()) as $postType) {
+            if (isset(self::stored(FieldGroups::flatFields($postType))[$metaKey])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Get the REST schema of one field's stored value.
      *
      * @param array $field Field config.

@@ -54,6 +54,7 @@ final class Plugin
         add_action('rest_api_init', [ActionController::class, 'register']);
         add_action('wp_loaded', [FieldGroups::class, 'boot'], 0);
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
+        add_filter('is_protected_meta', [MetaRegistrar::class, 'protect'], 10, 3);
         add_filter('register_post_type_args', [EditorIntegration::class, 'filterPostTypeArgs'], 10, 2);
         add_filter('block_editor_settings_all', [EditorIntegration::class, 'filterEditorSettings'], 10, 2);
         add_action('enqueue_block_editor_assets', [EditorIntegration::class, 'enqueue']);
