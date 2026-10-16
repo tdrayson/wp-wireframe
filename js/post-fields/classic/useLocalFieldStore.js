@@ -32,26 +32,29 @@ function ownEntries( map, config ) {
 /**
  * Provide `config`, `values`, `setMultiple` and `errors` for a group, mirroring edited values as JSON into its hidden input.
  *
+ * Values start from everything the user can read, so conditions see other groups' fields as the block editor does.
  * Only edited keys are posted, as the block editor sends only changed meta; a new post posts everything it shows,
  * and values a failed save rejected start out edited.
  *
- * @param {Object}           group    Group from `window.wireframePostFields.groups`, with its `values`.
- * @param {HTMLInputElement} input    The group's `wireframe_fields[{id}]` input.
- * @param {boolean}          isNew    Whether the post is an auto-draft.
- * @param {Object}           errors   Errors by field id from the last failed save.
- * @param {Object}           rejected Values by field id the last failed save did not write.
- * @param {string}           postType Post type being edited.
+ * @param {Object}           group           Group from `window.wireframePostFields.groups`, with its `values`.
+ * @param {HTMLInputElement} input           The group's `wireframe_fields[{key}]` input.
+ * @param {Object}           screen          Screen-wide data from the payload.
+ * @param {Object}           screen.readable Every value the user can read, by field id.
+ * @param {boolean}          screen.isNew    Whether the post is an auto-draft.
+ * @param {Object}           screen.errors   Errors by field id from the last failed save.
+ * @param {Object}           screen.rejected Values by field id the last failed save did not write.
+ * @param {string}           screen.postType Post type being edited.
  * @return {{ config: Object, values: Object, setMultiple: Function, errors: Object, populate: Object }} The field store.
  */
 export default function useLocalFieldStore(
 	group,
 	input,
-	isNew,
-	errors,
-	rejected,
-	postType
+	{ readable, isNew, errors, rejected, postType }
 ) {
-	const [ values, setValues ] = useState( () => asObject( group.values ) );
+	const [ values, setValues ] = useState( () => ( {
+		...asObject( readable ),
+		...asObject( group.values ),
+	} ) );
 	const [ edits, setEdits ] = useState( () =>
 		isNew ? asObject( group.values ) : ownEntries( rejected, group.config )
 	);

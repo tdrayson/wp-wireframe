@@ -86,7 +86,7 @@ final class SaveValidator
             $fields = self::withoutRequired($fields);
         }
 
-        $values = self::mergedValues($postId, $postType, $incoming);
+        $values = self::mergedValues($postId, $postType, $incoming, $user, array_keys($fields));
         $stored = $postId > 0 ? Meta::all($postId) : [];
 
         return Validator::validate($values, $fields, self::visibility($groups, $values), $stored)['errors'];
@@ -229,15 +229,38 @@ final class SaveValidator
     }
 
     /**
-     * Get the post's values as the editor shows them (stored, else default), overlaid with the incoming ones.
+     * Get the post's values as the user's editor holds them (stored, else default, and only those they can read), overlaid with the incoming ones.
      *
+     * @param list<string> $editable Keys of the fields the user may edit.
      * @return array<string, mixed>
      */
-    private static function mergedValues(int $postId, string $postType, array $incoming): array
+    private static function mergedValues(int $postId, string $postType, array $incoming, WP_User $user, array $editable): array
     {
-        $saved = $postId > 0 ? Meta::resolved($postId) : self::defaults($postType);
+        if ($postId <= 0) {
+            return array_replace(self::defaults($postType), $incoming);
+        }
 
-        return array_replace($saved, $incoming);
+        $readable = array_flip([...self::readableKeys($postType, $postId, $user), ...$editable]);
+
+        return array_replace(array_intersect_key(Meta::resolved($postId), $readable), $incoming);
+    }
+
+    /**
+     * Get the keys REST gives the user's editor: the fields they may view in groups whose static rules match.
+     *
+     * @return list<string>
+     */
+    private static function readableKeys(string $postType, int $postId, WP_User $user): array
+    {
+        $keys = [];
+
+        foreach (FieldGroups::groupsFor($postType) as $group) {
+            if (Location::staticMatch($group, $postId, $user->exists() ? $user : null)) {
+                $keys = [...$keys, ...MetaRegistrar::accessMap($postType, $group, $user)->viewableFieldIds()];
+            }
+        }
+
+        return $keys;
     }
 
     /**

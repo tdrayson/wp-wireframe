@@ -161,6 +161,8 @@ check('errors are read once', false, $transient($id));
 check('groups carry their values', 1, $byId['event_details']['values']['price'] ?? null);
 check('a group\'s values hold only its own fields', false, array_key_exists('seo_title', $byId['event_details']['values'] ?? []));
 check('values default like the editor', true, $byId['event_details']['values']['is_featured'] ?? null);
+check('the payload carries readable values across groups', true, array_key_exists('seo_title', $data['values']) && array_key_exists('price', $data['values']));
+check('readable values include admin-only ones for an admin', true, array_key_exists('admin_notes', $data['values']));
 check('a saved post is not new', false, $data['isNew']);
 check('an auto-draft is new', true, ClassicEditor::data(get_post($make([], 'auto-draft')))['isNew']);
 
@@ -171,6 +173,7 @@ do_action('admin_notices');
 check('the failed save shows an admin notice', true, str_contains((string) ob_get_clean(), 'Some fields need attention.'));
 
 as_user('editor');
+check('editor: readable values hold no field they cannot view', false, array_key_exists('admin_notes', ClassicEditor::data($post)['values']));
 check('editor: values hold no field they cannot view', false, array_key_exists('admin_notes', array_column(ClassicEditor::data($post)['groups'], null, 'id')['event_details']['values']));
 as_user('administrator');
 

@@ -18,7 +18,8 @@ const POSITION_CLASSES = {
  *
  * @param {Object}           props
  * @param {Object}           props.group    Group from `window.wireframePostFields.groups`.
- * @param {HTMLInputElement} props.input    The group's hidden `wireframe_fields[{id}]` input.
+ * @param {HTMLInputElement} props.input    The group's hidden `wireframe_fields[{key}]` input.
+ * @param {Object}           props.readable Every value the user can read, by field id, for conditions across groups.
  * @param {boolean}          props.isNew    Whether the post is an auto-draft.
  * @param {Object}           props.errors   Errors by field id from the last failed save.
  * @param {Object}           props.rejected Values by field id the last failed save did not write.
@@ -27,19 +28,19 @@ const POSITION_CLASSES = {
 export default function ClassicGroup( {
 	group,
 	input,
+	readable,
 	isNew,
 	errors,
 	rejected,
 	postType,
 } ) {
-	const store = useLocalFieldStore(
-		group,
-		input,
+	const store = useLocalFieldStore( group, input, {
+		readable,
 		isNew,
 		errors,
 		rejected,
-		postType
-	);
+		postType,
+	} );
 	const isSidebar = group.position === 'sidebar';
 	const config = useMemo(
 		() => ( isSidebar ? fullWidth( group.config ) : group.config ),

@@ -25,6 +25,17 @@ App::boot(['prefix' => 'wf-settings', 'config' => ['sections' => [
     ],
 ]]]);
 
+register_post_type('gate_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['title']]);
+App::boot(['prefix' => 'gate', 'field_groups' => [[
+    'id'       => 'gate_group',
+    'title'    => 'Gate',
+    'location' => ['gate_cpt'],
+    'config'   => ['fields' => [
+        ['id' => 'gate_flag', 'type' => 'toggle', 'access' => 'administrator'],
+        ['id' => 'gate_reason', 'type' => 'text', 'required' => true, 'conditions' => ['all' => [['field' => 'gate_flag', 'operator' => 'truthy']]]],
+    ]],
+]]]);
+
 $save   = static fn (int $id, array $body): WP_REST_Response => rest('POST', "/wp/v2/event/$id", $body);
 $errors = static fn (WP_REST_Response $response): array => (array) ($response->as_error()?->get_error_data()['errors'] ?? []);
 $ticket = 'https://example.com/tickets';
@@ -32,6 +43,13 @@ $ticket = 'https://example.com/tickets';
 as_user('administrator');
 
 $draft = make_event();
+$gated = (int) wp_insert_post(['post_type' => 'gate_cpt', 'post_status' => 'draft', 'post_title' => 'Gated', 'meta_input' => ['gate_flag' => true]]);
+check('a required field shown by a value the user can read is enforced', ['gate_reason'], array_keys(SaveValidator::validate($gated, 'gate_cpt', [], 'publish')));
+as_user('editor');
+check('a condition on a value the user cannot read sees it empty, as their editor does', [], SaveValidator::validate($gated, 'gate_cpt', [], 'publish'));
+as_user('administrator');
+wp_delete_post($gated, true);
+
 check('draft without event_starts saves', 200, $save($draft, ['status' => 'draft', 'meta' => ['price' => 5]])->get_status());
 
 $response = $save(make_event(), ['status' => 'publish', 'meta' => ['ticket_url' => $ticket]]);

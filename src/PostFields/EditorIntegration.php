@@ -179,7 +179,7 @@ final class EditorIntegration
     /**
      * Build the inline script that adds a payload's groups to `window.wireframePostFields`, which every bundled copy shares.
      *
-     * The first copy's payload seeds the global; each copy's groups are appended, and one bundle renders them all.
+     * The first copy's payload seeds the global; each copy's groups (and classic readable values) are added, and one bundle renders them all.
      *
      * @param array $data Payload from data(), or the classic editor's.
      * @return string
@@ -190,7 +190,7 @@ final class EditorIntegration
         $json = wp_json_encode($data);
 
         return '(function(d){var w=window.wireframePostFields=window.wireframePostFields||Object.assign({},d,{groups:[]});'
-            . 'w.groups=w.groups.concat(d.groups);})(' . $json . ');';
+            . 'w.groups=w.groups.concat(d.groups);if(d.values){w.values=Object.assign({},w.values,d.values);}})(' . $json . ');';
     }
 
     /**

@@ -42,23 +42,30 @@ final class ClassicEditor
     }
 
     /**
-     * Build the classic payload: the block editor's, with only the groups that apply on load, each group's values, and the
-     * last failed save's errors and rejected values. Rejected values replace stored ones, so fields show what the user typed.
+     * Build the classic payload: the block editor's, with only the groups that apply on load, each group's values, every
+     * value the user can read for conditions, and the last failed save's errors and rejected values. Rejected values replace
+     * stored ones, so fields show what the user typed.
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
-     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, groups: list<array>, isNew: bool, errors: array, rejected: array}
+     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, groups: list<array>, values: array, isNew: bool, errors: array, rejected: array}
      */
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
-        $data    = EditorIntegration::data($post, $user);
-        $failure = self::failure($post->ID);
-        $values  = array_replace(Meta::resolved($post->ID), $failure['values']);
+        $data     = EditorIntegration::data($post, $user);
+        $failure  = self::failure($post->ID);
+        $values   = array_replace(Meta::resolved($post->ID), $failure['values']);
+        $readable = [];
+
+        foreach ($data['groups'] as $group) {
+            $readable += self::groupValues($group['config'], $values);
+        }
 
         $data['groups'] = array_map(
             static fn (array $group): array => $group + ['values' => self::groupValues($group['config'], $values)],
             EditorIntegration::applicable($post, $user)
         );
+        $data['values']   = $readable;
         $data['isNew']    = $post->post_status === 'auto-draft';
         $data['errors']   = $failure['errors'];
         $data['rejected'] = $failure['values'];

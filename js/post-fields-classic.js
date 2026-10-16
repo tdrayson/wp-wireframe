@@ -42,6 +42,7 @@ for ( const group of data?.groups || [] ) {
 			<ClassicGroup
 				group={ group }
 				input={ input }
+				readable={ data.values }
 				isNew={ Boolean( data.isNew ) }
 				errors={ data.errors }
 				rejected={ data.rejected }
