@@ -481,7 +481,8 @@ final class AccessResolver
             ];
         }
 
-        return null;
+        // A malformed rule still counts as a rule: it falls back to the page capability, never to unruled.
+        return ['view' => null, 'edit' => null];
     }
 
     /**

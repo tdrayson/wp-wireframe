@@ -366,4 +366,22 @@ FieldGroups::register('wf-test', ['id' => 'mixed', 'title' => 'Mixed', 'location
 check('a group with a mixed location is skipped', false, in_array('mixed', array_column(FieldGroups::groupsFor('event'), 'id'), true));
 check('a group with a mixed location is reported', 1, $mentions('"mixed"'));
 
+FieldGroups::register('wf-test', [
+    'id'       => 'malformed_access',
+    'title'    => 'Malformed access',
+    'location' => ['event'],
+    'config'   => ['fields' => [
+        ['id' => 'malformed_true', 'type' => 'text', 'public' => true, 'access' => true],
+        ['id' => 'malformed_int', 'type' => 'text', 'public' => true, 'access' => 5],
+    ]],
+]);
+as_user('administrator');
+$malformed = make_event(['malformed_true' => 'a', 'malformed_int' => 'b'], 'publish');
+$adminRead = rest('GET', "/wp/v2/event/$malformed", [], ['context' => 'edit'])->get_data()['meta'] ?? [];
+check('malformed access falls back to the post capability: admin reads', [true, true], [array_key_exists('malformed_true', $adminRead), array_key_exists('malformed_int', $adminRead)]);
+as_user('');
+$guestRead = rest('GET', "/wp/v2/event/$malformed")->get_data()['meta'] ?? [];
+check('malformed access is not unruled: logged out cannot read public fields', [false, false], [array_key_exists('malformed_true', $guestRead), array_key_exists('malformed_int', $guestRead)]);
+as_user('administrator');
+
 finish();
