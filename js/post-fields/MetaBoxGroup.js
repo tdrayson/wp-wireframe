@@ -16,7 +16,7 @@ export default function MetaBoxGroup( { group } ) {
 	const [ target, setTarget ] = useState( null );
 
 	useEffect( () => {
-		const box = document.getElementById( `wireframe-group-${ group.id }` );
+		const box = document.getElementById( `wireframe-group-${ group.key }` );
 
 		if ( ! box ) {
 			return;
@@ -26,7 +26,7 @@ export default function MetaBoxGroup( { group } ) {
 		setTarget( box.querySelector( '.wireframe-group' ) );
 
 		return () => box.classList.add( HIDDEN_CLASS );
-	}, [ group.id ] );
+	}, [ group.key ] );
 
 	if ( ! target ) {
 		return null;

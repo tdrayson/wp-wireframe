@@ -47,7 +47,7 @@ function Root() {
 		}
 
 		return (
-			<PostFieldsProvider key={ group.id } group={ group }>
+			<PostFieldsProvider key={ group.key } group={ group }>
 				<Position
 					group={ group }
 					supportsTitle={ data.supportsTitle }

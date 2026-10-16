@@ -38,7 +38,7 @@ check('event groups sorted by order, then registration', ['event_details', 'even
 check('post gets its shorthand group', ['post_extras'], $ids('post'));
 
 $seo = $find('event', 'event_seo');
-check('normalised keys', ['id', 'prefix', 'owner', 'title', 'location', 'post_types', 'display', 'config'], array_keys((array) $seo));
+check('normalised keys', ['id', 'prefix', 'owner', 'key', 'title', 'location', 'post_types', 'display', 'config'], array_keys((array) $seo));
 check('normalised display', ['position' => 'sidebar', 'collapsed' => true, 'order' => 20], $seo['display'] ?? null);
 check('title kept', 'SEO', $seo['title'] ?? null);
 check('owner is prefix/id', 'wf-fixture/event_seo', $seo['owner'] ?? null);

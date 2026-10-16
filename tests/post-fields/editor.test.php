@@ -51,7 +51,7 @@ check('post type', 'event', $data['postType']);
 check('event supports title', true, $data['supportsTitle']);
 check('admin gets every event group, sorted', ['event_details', 'event_extras', 'event_featured_extras', 'event_seo'], array_column($data['groups'], 'id'));
 check('positions', ['content', 'meta_box', 'meta_box', 'sidebar'], array_column($data['groups'], 'position'));
-check('group keys', ['id', 'prefix', 'title', 'position', 'collapsed', 'order', 'location', 'config'], array_keys($data['groups'][0]));
+check('group keys', ['id', 'key', 'prefix', 'title', 'position', 'collapsed', 'order', 'location', 'config'], array_keys($data['groups'][0]));
 check('seo display', ['SEO', true, 20], [$data['groups'][3]['title'], $data['groups'][3]['collapsed'], $data['groups'][3]['order']]);
 check('admin config has admin_notes', true, in_array('admin_notes', $fieldIds($groupOf($data, 'event_details')['config']), true));
 
@@ -145,13 +145,13 @@ $wp_meta_boxes = [];
 EditorIntegration::flush();
 do_action('add_meta_boxes', 'event', $event);
 
-$box = $wp_meta_boxes['event']['normal']['default']['wireframe-group-event_extras'] ?? null;
+$box = $wp_meta_boxes['event']['normal']['default']['wireframe-group-wf-fixture__event_extras'] ?? null;
 check('meta box title', 'Extras', $box['title'] ?? null);
-check('order 3 is high priority', 'Folded', $wp_meta_boxes['event']['normal']['high']['wireframe-group-folded']['title'] ?? null);
-check('order 20 is low priority', 'Trailing', $wp_meta_boxes['event']['normal']['low']['wireframe-group-trailing']['title'] ?? null);
+check('order 3 is high priority', 'Folded', $wp_meta_boxes['event']['normal']['high']['wireframe-group-wf-test__folded']['title'] ?? null);
+check('order 20 is low priority', 'Trailing', $wp_meta_boxes['event']['normal']['low']['wireframe-group-wf-test__trailing']['title'] ?? null);
 check('no meta box for content or sidebar groups', [false, false], [
-    isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-event_details']),
-    isset($wp_meta_boxes['event']['normal']['high']['wireframe-group-event_seo']),
+    isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-wf-fixture__event_details']),
+    isset($wp_meta_boxes['event']['normal']['high']['wireframe-group-wf-fixture__event_seo']),
 ]);
 
 ob_start();
@@ -160,18 +160,18 @@ check('meta box callback prints an empty mount', '<div class="wireframe-group"><
 
 $post = get_post((int) wp_insert_post(['post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'Plain']));
 do_action('add_meta_boxes', 'post', $post);
-check('post gets its own box', 'Post extras', $wp_meta_boxes['post']['normal']['default']['wireframe-group-post_extras']['title'] ?? null);
+check('post gets its own box', 'Post extras', $wp_meta_boxes['post']['normal']['default']['wireframe-group-wf-fixture__post_extras']['title'] ?? null);
 
 as_user('editor');
 $wp_meta_boxes = [];
 do_action('add_meta_boxes', 'event', $event);
-check('editor gets no Extras box', false, isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-event_extras']));
+check('editor gets no Extras box', false, isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-wf-fixture__event_extras']));
 do_action('add_meta_boxes', 'comment', get_comment((int) wp_insert_comment(['comment_post_ID' => $post->ID, 'comment_content' => 'Hi'])));
 check('comment screen is ignored', false, isset($wp_meta_boxes['comment']));
 
 $fresh = as_user('author');
 delete_user_option($fresh, 'closedpostboxes_event');
-check('collapsed box seeded closed for a user with no saved state', ['wireframe-group-folded'], get_user_option('closedpostboxes_event', $fresh));
+check('collapsed box seeded closed for a user with no saved state', ['wireframe-group-wf-test__folded'], get_user_option('closedpostboxes_event', $fresh));
 update_user_option($fresh, 'closedpostboxes_event', []);
 check('a saved state wins over collapsed', [], get_user_option('closedpostboxes_event', $fresh));
 

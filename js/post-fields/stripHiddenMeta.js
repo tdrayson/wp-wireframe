@@ -68,9 +68,9 @@ export function useRevertHiddenEdits( applying ) {
 	const previous = useRef( applying );
 
 	useEffect( () => {
-		const ids = applying.map( ( group ) => group.id );
+		const shown = applying.map( ( group ) => group.key );
 		const hidden = previous.current.filter(
-			( group ) => ! ids.includes( group.id )
+			( group ) => ! shown.includes( group.key )
 		);
 
 		previous.current = applying;

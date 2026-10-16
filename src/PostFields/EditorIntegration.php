@@ -189,7 +189,7 @@ final class EditorIntegration
             return;
         }
 
-        $applicable = array_column(self::applicable($post), 'id');
+        $applicable = array_column(self::applicable($post), 'key');
 
         foreach (self::data($post)['groups'] as $group) {
             if ($group['position'] !== 'meta_box') {
@@ -198,10 +198,10 @@ final class EditorIntegration
 
             self::addBox($group, $postType, 'normal', [self::class, 'renderMetaBox']);
 
-            $hook = 'postbox_classes_' . $postType . '_' . self::BOX_PREFIX . $group['id'];
+            $hook = 'postbox_classes_' . $postType . '_' . self::BOX_PREFIX . $group['key'];
             remove_filter($hook, [self::class, 'hideBox']);
 
-            if (!in_array($group['id'], $applicable, true)) {
+            if (!in_array($group['key'], $applicable, true)) {
                 add_filter($hook, [self::class, 'hideBox']);
             }
         }
@@ -215,11 +215,11 @@ final class EditorIntegration
      * @param array    $group    Group entry from data().
      * @param string   $postType Post type slug.
      * @param string   $context  Box context: `normal` or `side`.
-     * @param callable $callback Prints the box's mount point; receives the group id as `$box['args']['group']`.
+     * @param callable $callback Prints the box's mount point; receives the group key as `$box['args']['group']`.
      */
     public static function addBox(array $group, string $postType, string $context, callable $callback): void
     {
-        add_meta_box(self::BOX_PREFIX . $group['id'], $group['title'], $callback, $postType, $context, self::priority($group['order']), ['group' => $group['id']]);
+        add_meta_box(self::BOX_PREFIX . $group['key'], $group['title'], $callback, $postType, $context, self::priority($group['order']), ['group' => $group['key']]);
     }
 
     /**
@@ -271,7 +271,7 @@ final class EditorIntegration
 
         foreach (FieldGroups::groupsFor(substr($option, strlen('closedpostboxes_'))) as $group) {
             if (in_array($group['display']['position'], $positions, true) && $group['display']['collapsed']) {
-                $closed[] = self::BOX_PREFIX . $group['id'];
+                $closed[] = self::BOX_PREFIX . $group['key'];
             }
         }
 
@@ -363,6 +363,7 @@ final class EditorIntegration
 
         return [
             'id'        => $group['id'],
+            'key'       => $group['key'],
             'prefix'    => $group['prefix'],
             'title'     => $group['title'],
             'position'  => $group['display']['position'],

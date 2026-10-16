@@ -255,7 +255,7 @@ final class ClassicSave
             return [];
         }
 
-        foreach ($posted as $groupId => $json) {
+        foreach ($posted as $groupKey => $json) {
             $values = is_string($json) ? json_decode(wp_unslash($json), true) : null;
 
             if (!is_array($values)) {
@@ -263,7 +263,7 @@ final class ClassicSave
             }
 
             foreach ($values as $key => $value) {
-                if (($writable[(string) $key] ?? null) === (string) $groupId) {
+                if (($writable[(string) $key] ?? null) === (string) $groupKey) {
                     $incoming[(string) $key] = $value;
                 }
             }

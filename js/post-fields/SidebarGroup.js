@@ -59,7 +59,7 @@ function useSeedPanel( panelName, collapsed ) {
  * @param {Object} props.group Group from `window.wireframePostFields.groups`.
  */
 export default function SidebarGroup( { group } ) {
-	const name = `wireframe-${ group.id }`;
+	const name = `wireframe-${ group.key }`;
 	const store = useFieldStore();
 	const config = useMemo( () => fullWidth( group.config ), [ group.config ] );
 

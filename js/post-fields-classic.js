@@ -17,8 +17,8 @@ import './styles/post-fields-classic.scss';
 function containerOf( group ) {
 	const id =
 		group.position === 'content'
-			? `wireframe-content-${ group.id }`
-			: `wireframe-group-${ group.id }`;
+			? `wireframe-content-${ group.key }`
+			: `wireframe-group-${ group.key }`;
 
 	return document.getElementById( id );
 }
@@ -29,7 +29,7 @@ for ( const group of data?.groups || [] ) {
 	const container = containerOf( group );
 	const node = container?.querySelector( '.wireframe-group' );
 	const input = container?.querySelector(
-		`input[name="wireframe_fields[${ group.id }]"]`
+		`input[name="wireframe_fields[${ group.key }]"]`
 	);
 
 	// Fields mark `required` for display; the server enforces it only on publish, so drafts must still submit.

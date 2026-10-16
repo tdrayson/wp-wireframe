@@ -88,12 +88,12 @@ check('data carries the static location context', ['post_type' => 'event', 'post
 global $wp_meta_boxes;
 $wp_meta_boxes = [];
 do_action('add_meta_boxes', 'event', get_post($plain));
-check('the box is registered for live toggling', true, isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-event_featured_extras']));
-check('a box whose group does not apply starts hidden', ['wireframe-group-inapplicable'], apply_filters('postbox_classes_event_wireframe-group-event_featured_extras', []));
+check('the box is registered for live toggling', true, isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-wf-fixture__event_featured_extras']));
+check('a box whose group does not apply starts hidden', ['wireframe-group-inapplicable'], apply_filters('postbox_classes_event_wireframe-group-wf-fixture__event_featured_extras', []));
 EditorIntegration::flush();
 $wp_meta_boxes = [];
 do_action('add_meta_boxes', 'event', get_post($tagged));
-check('a box whose group applies starts shown', [], apply_filters('postbox_classes_event_wireframe-group-event_featured_extras', []));
+check('a box whose group applies starts shown', [], apply_filters('postbox_classes_event_wireframe-group-wf-fixture__event_featured_extras', []));
 
 $response = rest('POST', "/wp/v2/event/$plain", ['meta' => ['featured_blurb' => 'Hi']]);
 check('writing a field whose group does not apply is refused', 403, $response->get_status());
@@ -162,7 +162,7 @@ $postarr   = static fn (array $groups, array $extra = []): array => wp_slash(arr
     'ID'               => $classic,
     'post_ID'          => $classic,
     '_wireframe_nonce' => wp_create_nonce('wireframe_classic_save'),
-    'wireframe_fields' => array_map('wp_json_encode', $groups),
+    'wireframe_fields' => array_combine(array_map(static fn (string $id): string => "wf-test__$id", array_keys($groups)), array_map('wp_json_encode', $groups)),
 ], $extra));
 $guarded = static fn (array $postarr): string => ClassicSave::guardStatus(['post_status' => 'publish', 'post_type' => 'classic_event'], $postarr)['post_status'];
 

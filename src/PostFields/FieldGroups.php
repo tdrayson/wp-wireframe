@@ -182,6 +182,7 @@ final class FieldGroups
             'id'         => $id,
             'prefix'     => $prefix,
             'owner'      => "{$prefix}/{$id}",
+            'key'        => preg_replace('/[^a-z0-9_-]/i', '-', "{$prefix}__{$id}"),
             'title'      => $title,
             'location'   => $location,
             'post_types' => $location === null ? [] : (Location::postTypes($location) ?? []),

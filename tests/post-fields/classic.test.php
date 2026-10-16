@@ -1,6 +1,8 @@
 <?php
 
 use Wireframe\PostFields\ClassicEditor;
+use Wireframe\PostFields\EditorIntegration;
+use Wireframe\PostFields\FieldGroups;
 
 require __DIR__ . '/assert.php';
 require_once ABSPATH . 'wp-admin/includes/admin.php';
@@ -14,14 +16,21 @@ $make = static function (array $meta = [], string $status = 'draft'): int {
     ]);
 };
 
+// Keys posted values by group key; a bare id is one of the fixture's groups.
+$inputs = static function (array $groups): array {
+    $keys = array_map(static fn (string $id): string => str_contains($id, '__') ? $id : "wf-fixture__$id", array_keys($groups));
+
+    return array_combine($keys, array_map('wp_json_encode', $groups));
+};
+
 // Posts the classic edit form as core's post.php would, slashed, through edit_post().
-$classicSave = static function (int $id, array $groups, array $extra = [], ?string $nonce = null): void {
+$classicSave = static function (int $id, array $groups, array $extra = [], ?string $nonce = null) use ($inputs): void {
     $_POST = wp_slash(array_merge([
         'post_ID'          => $id,
         'post_title'       => 'Classic',
         'post_status'      => get_post_status($id),
         '_wireframe_nonce' => $nonce ?? wp_create_nonce('wireframe_classic_save'),
-        'wireframe_fields' => array_map('wp_json_encode', $groups),
+        'wireframe_fields' => $inputs($groups),
     ], $extra));
 
     edit_post();
@@ -65,7 +74,7 @@ $otherPost = $make();
 $_POST     = wp_slash([
     'post_ID'          => $formPost,
     '_wireframe_nonce' => wp_create_nonce('wireframe_classic_save'),
-    'wireframe_fields' => ['event_details' => wp_json_encode(['price' => 77])],
+    'wireframe_fields' => $inputs(['event_details' => ['price' => 77]]),
 ]);
 wp_update_post(['ID' => $otherPost, 'post_status' => 'publish']);
 $_POST = [];
@@ -168,38 +177,57 @@ as_user('administrator');
 global $wp_meta_boxes;
 $wp_meta_boxes = [];
 do_action('add_meta_boxes', 'classic_event', $post);
-check('a sidebar group registers a side box', 'SEO', $wp_meta_boxes['classic_event']['side']['low']['wireframe-group-event_seo']['title'] ?? null);
-check('a meta_box group registers a normal box', 'Extras', $wp_meta_boxes['classic_event']['normal']['default']['wireframe-group-event_extras']['title'] ?? null);
-check('a content group registers no box', false, in_array('wireframe-group-event_details', $boxIds('classic_event'), true));
+check('a sidebar group registers a side box', 'SEO', $wp_meta_boxes['classic_event']['side']['low']['wireframe-group-wf-fixture__event_seo']['title'] ?? null);
+check('a meta_box group registers a normal box', 'Extras', $wp_meta_boxes['classic_event']['normal']['default']['wireframe-group-wf-fixture__event_extras']['title'] ?? null);
+check('a content group registers no box', false, in_array('wireframe-group-wf-fixture__event_details', $boxIds('classic_event'), true));
 
-$box = $wp_meta_boxes['classic_event']['side']['low']['wireframe-group-event_seo'];
+$box = $wp_meta_boxes['classic_event']['side']['low']['wireframe-group-wf-fixture__event_seo'];
 ob_start();
 call_user_func($box['callback'], $post, $box);
 $boxHtml = (string) ob_get_clean();
 check('a box prints its mount', true, str_contains($boxHtml, 'class="wireframe-group"'));
-check('a box prints its hidden input', true, str_contains($boxHtml, 'name="wireframe_fields[event_seo]"'));
+check('a box prints its hidden input', true, str_contains($boxHtml, 'name="wireframe_fields[wf-fixture__event_seo]"'));
 
 ob_start();
 do_action('edit_form_after_title', $post);
 $afterTitle = (string) ob_get_clean();
-check('the content group prints after the title', true, str_contains($afterTitle, 'id="wireframe-content-event_details"'));
-check('the content group prints its hidden input', true, str_contains($afterTitle, 'name="wireframe_fields[event_details]"'));
+check('the content group prints after the title', true, str_contains($afterTitle, 'id="wireframe-content-wf-fixture__event_details"'));
+check('the content group prints its hidden input', true, str_contains($afterTitle, 'name="wireframe_fields[wf-fixture__event_details]"'));
 check('the nonce prints once', 1, substr_count($afterTitle, 'name="_wireframe_nonce"'));
 
 $fresh = as_user('author');
 delete_user_option($fresh, 'closedpostboxes_classic_event');
 do_action('add_meta_boxes', 'classic_event', get_post($make()));
-check('a collapsed sidebar box starts closed', ['wireframe-group-event_seo'], get_user_option('closedpostboxes_classic_event', $fresh));
+check('a collapsed sidebar box starts closed', ['wireframe-group-wf-fixture__event_seo'], get_user_option('closedpostboxes_classic_event', $fresh));
 
 as_user('administrator');
 $event = get_post(make_event());
 $wp_meta_boxes = [];
 do_action('add_meta_boxes', 'event', $event);
 check('block editor post: no side box', false, isset($wp_meta_boxes['event']['side']));
-check('block editor post: its meta box stays', true, isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-event_extras']));
+check('block editor post: its meta box stays', true, isset($wp_meta_boxes['event']['normal']['default']['wireframe-group-wf-fixture__event_extras']));
 ob_start();
 do_action('edit_form_after_title', $event);
 check('block editor post: nothing printed after the title', '', ob_get_clean());
+
+FieldGroups::register('wf-other', [
+    'id'       => 'event_seo',
+    'title'    => 'Other SEO',
+    'location' => ['classic_event'],
+    'display'  => ['position' => 'meta_box'],
+    'config'   => ['fields' => [['id' => 'other_seo_title', 'type' => 'text']]],
+]);
+EditorIntegration::flush();
+$id   = $make();
+$seos = array_values(array_filter(ClassicEditor::data(get_post($id))['groups'], static fn (array $g): bool => $g['id'] === 'event_seo'));
+check('same id from two prefixes: both groups are sent', 2, count($seos));
+check('same id from two prefixes: keys are distinct', ['wf-other__event_seo', 'wf-fixture__event_seo'], array_column($seos, 'key'));
+$classicSave($id, ['event_seo' => ['seo_title' => 'Mine'], 'wf-other__event_seo' => ['other_seo_title' => 'Theirs']]);
+check('same id from two prefixes: both groups save', ['Mine', 'Theirs'], [get_post_meta($id, 'seo_title', true), get_post_meta($id, 'other_seo_title', true)]);
+$wp_meta_boxes = [];
+do_action('add_meta_boxes', 'classic_event', get_post($id));
+$seoBoxes = array_values(array_filter($boxIds('classic_event'), static fn (string $box): bool => str_ends_with($box, '__event_seo')));
+check('same id from two prefixes: box ids are distinct', ['wireframe-group-wf-other__event_seo', 'wireframe-group-wf-fixture__event_seo'], $seoBoxes);
 
 check('a registered field key is protected meta', true, is_protected_meta('admin_notes', 'post'));
 check('a sidebar group key is protected meta', true, is_protected_meta('seo_title', 'post'));

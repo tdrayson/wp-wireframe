@@ -379,13 +379,13 @@ final class MetaRegistrar
     }
 
     /**
-     * Get the meta keys a user may write on a post, each mapped to its owning group's id; the bulk form of the REST write gate.
+     * Get the meta keys a user may write on a post, each mapped to its owning group's key; the bulk form of the REST write gate.
      *
      * @param string               $postType Post type slug.
      * @param int                  $postId   Post being saved.
      * @param WP_User              $user     User saving.
      * @param array<string, mixed> $live     Live location params the save sets, before core stores them.
-     * @return array<string, string> Owning group id by meta key.
+     * @return array<string, string> Owning group key by meta key.
      */
     public static function writableKeys(string $postType, int $postId, WP_User $user, array $live = []): array
     {
@@ -405,7 +405,7 @@ final class MetaRegistrar
 
             foreach (array_keys(self::stored(ConfigLoader::flatFields($group['config']))) as $key) {
                 if ($map->canEdit((string) $key)) {
-                    $keys[(string) $key] = $group['id'];
+                    $keys[(string) $key] = $group['key'];
                 }
             }
         }

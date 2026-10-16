@@ -93,7 +93,7 @@ final class ClassicEditor
      * Print a box's hidden input and mount point.
      *
      * @param WP_Post $post Post being edited.
-     * @param array   $box  Box registration; `args.group` is the group id.
+     * @param array   $box  Box registration; `args.group` is the group key.
      */
     public static function renderBox(WP_Post $post, array $box): void
     {
@@ -124,8 +124,8 @@ final class ClassicEditor
                 continue;
             }
 
-            printf('<div id="wireframe-content-%s" class="wireframe-classic-content">', esc_attr($group['id']));
-            self::printMount($group['id']);
+            printf('<div id="wireframe-content-%s" class="wireframe-classic-content">', esc_attr($group['key']));
+            self::printMount($group['key']);
             echo '</div>';
         }
     }
@@ -204,9 +204,9 @@ final class ClassicEditor
     /**
      * Print a group's hidden values input, left empty until the script fills it, and its mount point.
      */
-    private static function printMount(string $groupId): void
+    private static function printMount(string $groupKey): void
     {
-        printf('<input type="hidden" name="%s" value="" />', esc_attr(self::INPUT . "[{$groupId}]"));
+        printf('<input type="hidden" name="%s" value="" />', esc_attr(self::INPUT . "[{$groupKey}]"));
         echo '<div class="wireframe-group"></div>';
     }
 
