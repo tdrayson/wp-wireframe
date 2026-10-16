@@ -40,6 +40,14 @@ return [
                         ['id' => 'gallery', 'type' => 'file', 'label' => 'Gallery', 'args' => ['multiple' => true]],
                     ],
                 ],
+                [
+                    'id'     => 'internal',
+                    'title'  => 'Internal',
+                    'access' => 'administrator',
+                    'fields' => [
+                        ['id' => 'internal_ref', 'type' => 'text', 'label' => 'Internal reference'],
+                    ],
+                ],
             ],
         ],
         [

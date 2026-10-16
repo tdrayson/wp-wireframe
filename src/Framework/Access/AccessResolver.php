@@ -447,11 +447,8 @@ final class AccessResolver
     /**
      * Normalize the various accepted `access` shorthand forms into a spec
      * with explicit `view`/`edit` keys.
-     *
-     * @param mixed $raw An element's `access` value.
-     * @return array{view: mixed, edit: mixed}|null
      */
-    public static function normalizeSpec(mixed $raw): ?array
+    private static function normalizeSpec(mixed $raw): ?array
     {
         if ($raw === null) {
             return null;

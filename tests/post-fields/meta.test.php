@@ -1,9 +1,25 @@
 <?php
 
+use Wireframe\App;
 use Wireframe\Framework\Fields\NumberField;
 use Wireframe\PostFields\FieldGroups;
 
 require __DIR__ . '/assert.php';
+
+// The fixture CPT has no editor support, so autosaves need a type that has one. REST routes are built on the first request.
+register_post_type('memo', ['public' => true, 'show_in_rest' => true, 'supports' => ['title', 'editor', 'revisions']]);
+App::boot(['prefix' => 'memo', 'field_groups' => [[
+    'id'         => 'memo_group',
+    'post_types' => ['memo'],
+    'config'     => ['fields' => [['id' => 'memo_secret', 'type' => 'text', 'access' => 'administrator']]],
+]]]);
+
+$revisionsHave = static function (string $route, string $key): bool {
+    $items = (array) rest('GET', $route, [], ['context' => 'edit'])->get_data();
+    $hits  = array_filter($items, static fn ($item): bool => is_array($item) && array_key_exists($key, $item['meta'] ?? []));
+
+    return $hits !== [];
+};
 
 $save = static fn (int $id, array $meta): WP_REST_Response => rest('POST', "/wp/v2/event/$id", ['meta' => $meta]);
 
@@ -11,7 +27,7 @@ as_user('administrator');
 
 $registered = array_keys(get_registered_meta_keys('post', 'event'));
 sort($registered);
-$expected = ['admin_notes', 'event_starts', 'gallery', 'genres', 'is_featured', 'logo', 'price', 'public_tagline', 'secret_code', 'sessions', 'ticket_url'];
+$expected = ['admin_notes', 'event_starts', 'gallery', 'genres', 'internal_ref', 'is_featured', 'logo', 'price', 'public_tagline', 'secret_code', 'sessions', 'ticket_url'];
 check('every top-level field registered', $expected, $registered);
 
 check('scalar default via get_post_meta', true, (bool) get_post_meta(make_event(), 'is_featured', true));
@@ -45,7 +61,8 @@ update_post_meta($id, 'price', '12abc');
 $priceArgs = FieldGroups::flatFields('event')['price']['args'] ?? [];
 check('price sanitised by NumberField', (string) NumberField::sanitize('12abc', $priceArgs), get_post_meta($id, 'price', true));
 
-$published = make_event(['secret_code' => 's3cret', 'public_tagline' => 'Hi', 'genres' => 'jazz'], 'publish');
+$published = make_event(['secret_code' => 's3cret', 'public_tagline' => 'Hi', 'genres' => 'jazz', 'admin_notes' => 'private', 'internal_ref' => 'R1'], 'publish');
+wp_update_post(['ID' => $published, 'post_title' => 'Event, revised']);
 
 as_user('');
 $meta = rest('GET', "/wp/v2/event/$published")->get_data()['meta'] ?? [];
@@ -57,12 +74,32 @@ as_user('editor');
 $meta = rest('GET', "/wp/v2/event/$published", [], ['context' => 'edit'])->get_data()['meta'] ?? [];
 check('editor, edit context: secret_code present', 's3cret', $meta['secret_code'] ?? null);
 check('editor, edit context: admin_notes absent', false, array_key_exists('admin_notes', $meta));
+check('editor, edit context: field in admin-only section absent', false, array_key_exists('internal_ref', $meta));
 check('editor cannot write admin_notes', 403, $save($published, ['admin_notes' => 'x'])->get_status());
+check('editor cannot write a field in an admin-only section', 403, $save($published, ['internal_ref' => 'x'])->get_status());
+check('editor, revisions: admin_notes absent', false, $revisionsHave("/wp/v2/event/$published/revisions", 'admin_notes'));
 
 as_user('administrator');
 $meta = rest('GET', "/wp/v2/event/$published", [], ['context' => 'edit'])->get_data()['meta'] ?? [];
 check('administrator, edit context: admin_notes present', true, array_key_exists('admin_notes', $meta));
+check('administrator, edit context: internal_ref present', 'R1', $meta['internal_ref'] ?? null);
+check('administrator can write internal_ref', 200, $save($published, ['internal_ref' => 'R2'])->get_status());
+check('administrator, revisions: admin_notes present', true, $revisionsHave("/wp/v2/event/$published/revisions", 'admin_notes'));
 
 check('revisions track event_starts', true, in_array('event_starts', wp_post_revision_meta_keys('event'), true));
+
+register_post_type('late_meta', ['public' => true, 'show_in_rest' => true]);
+App::boot(['prefix' => 'late-meta', 'field_groups' => [[
+    'id'         => 'late_meta_group',
+    'post_types' => ['late_meta'],
+    'config'     => ['fields' => [['id' => 'late_field', 'type' => 'text']]],
+]]]);
+check('group claimed after wp_loaded gets its meta', true, array_key_exists('late_field', get_registered_meta_keys('post', 'late_meta')));
+
+$memo = wp_insert_post(['post_type' => 'memo', 'post_status' => 'publish', 'post_title' => 'Memo', 'meta_input' => ['memo_secret' => 'a']]);
+rest('POST', "/wp/v2/memo/$memo/autosaves", ['title' => 'Memo, autosaved', 'meta' => ['memo_secret' => 'b']]);
+check('administrator, autosaves: gated field present', true, $revisionsHave("/wp/v2/memo/$memo/autosaves", 'memo_secret'));
+as_user('editor');
+check('editor, autosaves: gated field absent', false, $revisionsHave("/wp/v2/memo/$memo/autosaves", 'memo_secret'));
 
 finish();

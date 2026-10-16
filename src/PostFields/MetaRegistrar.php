@@ -9,6 +9,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_User;
 use Wireframe\Framework\Access\AccessResolver;
+use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldInterface;
 use Wireframe\Framework\Fields\FieldRegistry;
 
@@ -25,12 +26,24 @@ final class MetaRegistrar
     public static function register(): void
     {
         foreach (array_keys(FieldGroups::all()) as $postType) {
-            foreach (self::storedFields($postType) as $key => $field) {
-                register_post_meta($postType, $key, self::metaArgs($postType, (string) $key, $field));
-            }
-
-            add_filter("rest_prepare_{$postType}", [self::class, 'filterResponse'], 10, 3);
+            self::registerFor($postType);
         }
+    }
+
+    /**
+     * Register one post type's top-level fields as post meta; safe to call again.
+     *
+     * @param string $postType Claimed post type slug.
+     */
+    public static function registerFor(string $postType): void
+    {
+        foreach (self::storedFields($postType) as $key => $field) {
+            register_post_meta($postType, $key, self::metaArgs($postType, (string) $key, $field));
+        }
+
+        add_filter("rest_prepare_{$postType}", [self::class, 'filterResponse'], 10, 3);
+        add_filter('rest_prepare_revision', [self::class, 'filterResponse'], 10, 3);
+        add_filter('rest_prepare_autosave', [self::class, 'filterResponse'], 10, 3);
     }
 
     /**
@@ -50,10 +63,10 @@ final class MetaRegistrar
     }
 
     /**
-     * Remove meta the current user may not read from a post's REST response.
+     * Remove meta the current user may not read from a post, revision or autosave REST response.
      *
      * @param WP_REST_Response $response Prepared response.
-     * @param WP_Post          $post     Post being prepared.
+     * @param WP_Post          $post     Post, revision or autosave being prepared.
      * @param WP_REST_Request  $request  Current request.
      * @return WP_REST_Response
      */
@@ -65,11 +78,12 @@ final class MetaRegistrar
             return $response;
         }
 
-        $context = (string) ($request['context'] ?? 'view');
-        $user    = wp_get_current_user();
+        $postType = $post->post_type === 'revision' ? (string) get_post_type($post->post_parent) : $post->post_type;
+        $context  = (string) ($request['context'] ?? 'view');
+        $user     = wp_get_current_user();
 
-        foreach (self::storedFields($post->post_type) as $key => $field) {
-            if (!self::readable($post->post_type, (string) $key, $field, $context, $user)) {
+        foreach (self::storedFields($postType) as $key => $field) {
+            if (!self::readable($postType, (string) $key, $field, $context, $user)) {
                 unset($data['meta'][$key]);
             }
         }
@@ -95,8 +109,7 @@ final class MetaRegistrar
             'show_in_rest'      => ['schema' => $valueSchema + ['context' => !empty($field['public']) ? ['view', 'edit'] : ['edit']]],
             'sanitize_callback' => self::sanitizer($kind, $field, $schema),
             'auth_callback'     => static fn (bool $allowed, string $metaKey, int $postId, int $userId): bool
-                => user_can($userId, 'edit_post', $postId)
-                && self::allowed('edit', $postType, $key, $field, get_userdata($userId) ?: null),
+                => self::canWrite($postType, $key, $postId, $userId),
             'revisions_enabled' => post_type_supports($postType, 'revisions'),
         ];
 
@@ -230,20 +243,64 @@ final class MetaRegistrar
             return false;
         }
 
-        return self::allowed('view', $postType, $key, $field, $user);
+        return self::allowed('view', $postType, $key, $user);
     }
 
     /**
-     * Check a field's own `access` rule; fields without one defer to post capabilities.
+     * Whether a user may write a field on a post.
      */
-    private static function allowed(string $verb, string $postType, string $key, array $field, ?WP_User $user): bool
+    private static function canWrite(string $postType, string $key, int $postId, int $userId): bool
     {
-        if (!isset($field['access'])) {
+        $user = get_userdata($userId);
+
+        if (!$user instanceof WP_User || !user_can($user, 'edit_post', $postId)) {
+            return false;
+        }
+
+        return self::allowed('edit', $postType, $key, $user);
+    }
+
+    /**
+     * Check a field's `access`, inherited from its section and tab as on settings pages.
+     *
+     * Fields with no rule anywhere above them defer to post capabilities, so public fields stay readable logged out.
+     */
+    private static function allowed(string $verb, string $postType, string $key, WP_User $user): bool
+    {
+        $group  = FieldGroups::forPostType($postType);
+        $config = $group === null ? [] : ConfigLoader::load($group['config']);
+
+        if (!in_array($key, self::gatedFieldIds($config), true)) {
             return true;
         }
 
         $resolver = new AccessResolver(get_post_type_object($postType)?->cap->edit_posts ?? 'edit_posts');
+        $map      = $resolver->resolveForConfig($config, $user);
 
-        return $resolver->userCan($verb, AccessResolver::normalizeSpec($field['access']), $user, ['level' => 'field', 'id' => $key]);
+        return $verb === 'edit' ? $map->canEdit($key) : in_array($key, $map->viewableFieldIds(), true);
+    }
+
+    /**
+     * Get the top-level field IDs with an `access` rule on themselves, their section or their tab.
+     *
+     * @return list<string>
+     */
+    private static function gatedFieldIds(array $config): array
+    {
+        $ids = [];
+
+        foreach ($config['tabs'] ?? [] as $tab) {
+            foreach ($tab['sections'] ?? [] as $section) {
+                $inherited = isset($tab['access']) || isset($section['access']);
+
+                foreach ($section['fields'] ?? [] as $field) {
+                    if ($inherited || isset($field['access'])) {
+                        $ids[] = (string) ($field['id'] ?? '');
+                    }
+                }
+            }
+        }
+
+        return $ids;
     }
 }

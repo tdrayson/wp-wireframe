@@ -24,7 +24,7 @@ final class FieldGroups
     private static array $claimed = [];
 
     /**
-     * Register a field group, replacing one with the same prefix and id; validates it at once after `wp_loaded`.
+     * Register a field group, replacing one with the same prefix and id; validates it and registers its meta at once after `wp_loaded`.
      *
      * @param string $prefix Consumer prefix from `App::boot()`.
      * @param array  $group  `id`, `post_types`, and `config` (a ConfigLoader slug or a raw config array).
@@ -48,7 +48,21 @@ final class FieldGroups
         ];
 
         if (did_action('wp_loaded') > 0) {
-            self::bootGroup(self::$groups[self::owner(['prefix' => $prefix, 'id' => $id])]);
+            $registered = self::$groups[self::owner(['prefix' => $prefix, 'id' => $id])];
+            self::bootGroup($registered);
+            self::registerMeta($registered);
+        }
+    }
+
+    /**
+     * Register post meta for the post types a late group claimed; `wp_loaded` has already registered the rest.
+     */
+    private static function registerMeta(array $group): void
+    {
+        foreach ($group['post_types'] as $postType) {
+            if ((self::$claimed[$postType] ?? null) === $group) {
+                MetaRegistrar::registerFor($postType);
+            }
         }
     }
 
