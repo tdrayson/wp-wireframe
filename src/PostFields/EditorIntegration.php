@@ -175,8 +175,8 @@ final class EditorIntegration
         $args['template']      = [];
         $args['template_lock'] = 'all';
 
-        if (is_array($args['supports'] ?? null) && !in_array('editor', $args['supports'], true)) {
-            $args['supports'][] = 'editor';
+        if (is_array($args['supports'] ?? null)) {
+            $args['supports'] = array_values(array_unique([...$args['supports'], 'title', 'editor']));
         }
 
         return $args;

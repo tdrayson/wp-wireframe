@@ -517,10 +517,24 @@ final class FieldGroups
 
             $GLOBALS['wireframe_field_group_owners'][$postType] = $owner;
             EditorIntegration::lockTemplate($postType);
+            self::ensureTitle($group, $postType);
         }
 
         self::$attached[$postType][] = $group;
         add_post_type_support($postType, 'custom-fields');
+    }
+
+    /**
+     * Add `title` support to a `content` post type that lacks it, since the block editor won't save a post without one.
+     */
+    private static function ensureTitle(array $group, string $postType): void
+    {
+        if (post_type_supports($postType, 'title')) {
+            return;
+        }
+
+        add_post_type_support($postType, 'title');
+        self::debugReport($group, sprintf('added "title" support to post type "%s": the block editor can\'t save a post with no title, excerpt or content.', $postType));
     }
 
     /**

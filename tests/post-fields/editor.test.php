@@ -109,6 +109,19 @@ check('canvas left alone on a post the location excludes', null, $lockOf($skippe
 as_user('editor');
 check('canvas left alone for a user who can view none of its fields', null, $lockOf($lockedPost));
 
+$notices = [];
+register_post_type('untitled_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['custom-fields']]);
+FieldGroups::register('wf-test', [
+    'id'       => 'untitled_content',
+    'location' => ['untitled_cpt'],
+    'display'  => ['position' => 'content'],
+    'config'   => ['fields' => [['id' => 'untitled_note', 'type' => 'text']]],
+]);
+check('a content group adds title support', true, post_type_supports('untitled_cpt', 'title'));
+check('adding title support is reported', 1, $mentions('"untitled_content"'));
+register_post_type('untitled_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['custom-fields']]);
+check('re-registering keeps title support', true, post_type_supports('untitled_cpt', 'title'));
+
 as_user('administrator');
 FieldGroups::register('wf-test', [
     'id'       => 'folded',
