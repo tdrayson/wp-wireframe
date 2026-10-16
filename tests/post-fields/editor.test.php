@@ -90,6 +90,25 @@ check('a late content group locks the template', ['all', true], [get_post_type_o
 register_post_type('late_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['title']]);
 check('re-registering the post type keeps the lock', ['all', []], [get_post_type_object('late_cpt')->template_lock, get_post_type_object('late_cpt')->template]);
 
+register_post_type('lock_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['title']]);
+$lockedPost  = get_post((int) wp_insert_post(['post_type' => 'lock_cpt', 'post_status' => 'draft', 'post_title' => 'Locked']));
+$skippedPost = get_post((int) wp_insert_post(['post_type' => 'lock_cpt', 'post_status' => 'draft', 'post_title' => 'Skipped']));
+FieldGroups::register('wf-test', [
+    'id'       => 'lock_content',
+    'location' => ['all' => [
+        ['field' => 'post_type', 'operator' => 'equals', 'value' => 'lock_cpt'],
+        ['field' => 'post_id', 'operator' => 'not_in', 'value' => [$skippedPost->ID]],
+    ]],
+    'display'  => ['position' => 'content'],
+    'config'   => ['fields' => [['id' => 'lock_note', 'type' => 'text', 'access' => 'administrator']]],
+]);
+$lockOf = static fn (WP_Post $post): ?string => apply_filters('block_editor_settings_all', [], new WP_Block_Editor_Context(['post' => $post]))['templateLock'] ?? null;
+as_user('administrator');
+check('canvas locked where the content group applies', 'all', $lockOf($lockedPost));
+check('canvas left alone on a post the location excludes', null, $lockOf($skippedPost));
+as_user('editor');
+check('canvas left alone for a user who can view none of its fields', null, $lockOf($lockedPost));
+
 as_user('administrator');
 FieldGroups::register('wf-test', [
     'id'       => 'folded',

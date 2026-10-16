@@ -183,7 +183,7 @@ final class EditorIntegration
     }
 
     /**
-     * Filter `block_editor_settings_all`: lock the canvas of a `content` post type.
+     * Filter `block_editor_settings_all`: lock the canvas when the current user gets the post's `content` group.
      *
      * Core only passes `template_lock` on when the template is non-empty, so an empty template needs this.
      *
@@ -194,6 +194,10 @@ final class EditorIntegration
     public static function filterEditorSettings(array $settings, WP_Block_Editor_Context $context): array
     {
         if (!$context->post instanceof WP_Post || !isset($GLOBALS['wireframe_field_group_owners'][$context->post->post_type])) {
+            return $settings;
+        }
+
+        if (!in_array('content', array_column(self::data($context->post)['groups'], 'position'), true)) {
             return $settings;
         }
 
