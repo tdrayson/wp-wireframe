@@ -170,6 +170,12 @@ final class FieldGroups
             $title = ucfirst($id);
         }
 
+        $config = self::configSlug($prefix, $id, $group['config'] ?? null);
+
+        if ($merged['position'] === 'sidebar') {
+            $config = self::flattenTabs($prefix, $id, $config);
+        }
+
         $normalised = [
             'id'         => $id,
             'prefix'     => $prefix,
@@ -178,7 +184,7 @@ final class FieldGroups
             'location'   => $location,
             'post_types' => $location === null ? [] : (Location::postTypes($location) ?? []),
             'display'    => $merged,
-            'config'     => self::configSlug($prefix, $id, $group['config'] ?? null),
+            'config'     => $config,
         ];
 
         return [$normalised, self::shapeProblem($group, $normalised)];
@@ -189,7 +195,7 @@ final class FieldGroups
      */
     private static function configSlug(string $prefix, string $id, mixed $config): string
     {
-        $slug = preg_replace('/[^a-z0-9_-]/i', '-', "{$prefix}-group-{$id}") ?: 'settings';
+        $slug = self::groupSlug($prefix, $id);
 
         if (is_array($config)) {
             ConfigLoader::register($slug, $config);
@@ -198,6 +204,81 @@ final class FieldGroups
         }
 
         return is_string($config) && $config !== '' ? $config : $slug;
+    }
+
+    /**
+     * Get the config slug a group's own config is registered under.
+     */
+    private static function groupSlug(string $prefix, string $id): string
+    {
+        return preg_replace('/[^a-z0-9_-]/i', '-', "{$prefix}-group-{$id}") ?: 'settings';
+    }
+
+    /**
+     * Merge a sidebar group's tabs into one untitled tab, since a panel has no tab bar; returns the config slug to use.
+     *
+     * Sections keep their order and titles. Tab `access` moves down to sections without their own.
+     */
+    private static function flattenTabs(string $prefix, string $id, string $slug): string
+    {
+        $config = ConfigLoader::load($slug);
+        $tabs   = $config['tabs'] ?? [];
+
+        if (!self::hasTabChrome($tabs)) {
+            return $slug;
+        }
+
+        $sections = [];
+        $seen     = [];
+
+        foreach ($tabs as $tab) {
+            foreach ($tab['sections'] ?? [] as $section) {
+                $section = self::inheritTabAccess($section, $tab);
+
+                // Access maps are keyed by section id, so a repeated id would hide the earlier section's fields.
+                if (isset($seen[$section['id'] ?? ''])) {
+                    $section['id'] = ($tab['id'] ?? '') . '-' . ($section['id'] ?? '');
+                }
+
+                $seen[$section['id'] ?? ''] = true;
+                $sections[]                 = $section;
+            }
+        }
+
+        $flatSlug = self::groupSlug($prefix, $id);
+        ConfigLoader::register($flatSlug, ['sections' => $sections] + array_intersect_key($config, array_flip(['title', 'subtitle', 'header_actions'])));
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            self::report(['id' => $id, 'prefix' => $prefix], 'config issue: a "sidebar" group shows one panel, so its tabs were merged; tab titles and conditions are dropped.');
+        }
+
+        return $flatSlug;
+    }
+
+    /**
+     * Whether a config's tabs carry anything a single panel can't show: several tabs, or a tab title or conditions.
+     */
+    private static function hasTabChrome(array $tabs): bool
+    {
+        if (count($tabs) > 1) {
+            return true;
+        }
+
+        $tab = $tabs[0] ?? [];
+
+        return ($tab['title'] ?? '') !== '' || isset($tab['conditions']);
+    }
+
+    /**
+     * Copy a tab's `access` onto one of its sections that has none.
+     */
+    private static function inheritTabAccess(array $section, array $tab): array
+    {
+        if (isset($tab['access']) && !isset($section['access'])) {
+            $section['access'] = $tab['access'];
+        }
+
+        return $section;
     }
 
     /**
@@ -399,6 +480,7 @@ final class FieldGroups
             }
 
             $GLOBALS['wireframe_field_group_owners'][$postType] = $owner;
+            EditorIntegration::lockTemplate($postType);
         }
 
         self::$attached[$postType][] = $group;

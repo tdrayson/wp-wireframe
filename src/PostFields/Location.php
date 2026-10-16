@@ -34,7 +34,7 @@ final class Location
                 : null;
         }
 
-        return self::isValidNode($location) ? $location : null;
+        return self::isValidNode($location) ? self::castPostIds($location) : null;
     }
 
     /**
@@ -106,13 +106,41 @@ final class Location
             return false;
         }
 
-        $children = $node['all'] ?? $node['any'] ?? null;
+        $combinators = array_intersect_key($node, ['all' => true, 'any' => true]);
 
-        if ($children !== null) {
+        if (count($combinators) > 1 || ($combinators !== [] && isset($node['field']))) {
+            return false;
+        }
+
+        $children = reset($combinators);
+
+        if ($children !== false) {
             return is_array($children) && array_is_list($children) && array_filter($children, [self::class, 'isValidNode']) === $children;
         }
 
         return is_string($node['field'] ?? null) && is_string($node['operator'] ?? null);
+    }
+
+    /**
+     * Cast `post_id` rule values to ints, since Conditions compares them strictly against the int context value.
+     */
+    private static function castPostIds(array $node): array
+    {
+        foreach (['all', 'any'] as $combinator) {
+            if (isset($node[$combinator])) {
+                $node[$combinator] = array_map([self::class, 'castPostIds'], $node[$combinator]);
+
+                return $node;
+            }
+        }
+
+        if ($node['field'] !== 'post_id' || !array_key_exists('value', $node)) {
+            return $node;
+        }
+
+        $node['value'] = is_array($node['value']) ? array_map('intval', $node['value']) : (int) $node['value'];
+
+        return $node;
     }
 
     /**
