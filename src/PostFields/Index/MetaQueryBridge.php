@@ -13,6 +13,9 @@ use Wireframe\PostFields\FieldGroups;
  */
 final class MetaQueryBridge
 {
+    /** Filter each bundled copy answers for its own indexed subfields, so every copy's rebuild bridges them all. */
+    public const OWNER_FILTER = 'wireframe/indexed_subfield';
+
     /**
      * Lift `suppress_filters` when a query uses an indexed dotted key, so the orderby rewrite runs under `get_posts()`.
      *
@@ -88,6 +91,23 @@ final class MetaQueryBridge
         }
 
         [$repeater, $subfield] = explode('.', $key);
+
+        return (bool) apply_filters(self::OWNER_FILTER, false, $repeater, $subfield);
+    }
+
+    /**
+     * Filter `wireframe/indexed_subfield`: claim a subfield indexed on a repeater of one of this copy's post types.
+     *
+     * @param mixed  $indexed  Whether a copy already claimed it.
+     * @param string $repeater Repeater field id.
+     * @param string $subfield Subfield id.
+     * @return bool
+     */
+    public static function claim(mixed $indexed, string $repeater, string $subfield): bool
+    {
+        if ($indexed) {
+            return true;
+        }
 
         foreach (array_keys(FieldGroups::all()) as $postType) {
             if (in_array($subfield, IndexSync::indexedSubfields((string) $postType, $repeater), true)) {

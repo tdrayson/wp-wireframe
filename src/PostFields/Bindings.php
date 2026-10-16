@@ -15,12 +15,21 @@ final class Bindings
 {
     public const SOURCE = 'wireframe/field';
 
+    /** Filter each bundled copy answers for the fields it owns; the copy that registered the source applies it. */
+    public const VALUE_FILTER = 'wireframe/field_binding_value';
+
     /**
-     * Register the source, when core has block bindings (WP 6.5+).
+     * Answer for this copy's fields and register the source if no copy has, when core has block bindings (WP 6.5+).
      */
     public static function register(): void
     {
-        if (!function_exists('register_block_bindings_source') || get_block_bindings_source(self::SOURCE) !== null) {
+        if (!function_exists('register_block_bindings_source')) {
+            return;
+        }
+
+        add_filter(self::VALUE_FILTER, [self::class, 'answer'], 10, 4);
+
+        if (get_block_bindings_source(self::SOURCE) !== null) {
             return;
         }
 
@@ -54,13 +63,40 @@ final class Bindings
             return self::refuse('The "key" argument is required.');
         }
 
+        $text = apply_filters(self::VALUE_FILTER, null, $args, $block, $attribute);
+
+        if (is_string($text)) {
+            return $text;
+        }
+
+        return self::refuse(sprintf('"%s" is not a public field of "%s".', $key, $post->post_type));
+    }
+
+    /**
+     * Filter `wireframe/field_binding_value`: format a bound key when it is a public field of this copy, viewable here.
+     *
+     * @param mixed    $text      Text another copy already gave, or null.
+     * @param array    $args      Binding args, with a non-empty `key`.
+     * @param WP_Block $block     Block being rendered; its post is visible to the viewer.
+     * @param string   $attribute Bound attribute.
+     * @return mixed The text, or null to leave the key to other copies.
+     */
+    public static function answer(mixed $text, array $args, WP_Block $block, string $attribute): mixed
+    {
+        $post = get_post((int) ($block->context['postId'] ?? 0));
+        $key  = (string) ($args['key'] ?? '');
+
+        if ($text !== null || !$post instanceof WP_Post || $key === '') {
+            return $text;
+        }
+
         $field = self::resolve($post, $key);
 
         if ($field === null) {
-            return self::refuse(sprintf('"%s" is not a public field of "%s".', $key, $post->post_type));
+            return null;
         }
 
-        $value = str_contains($key, '.') ? self::cell($postId, $key, $field) : Meta::get($postId, $key);
+        $value = str_contains($key, '.') ? self::cell($post->ID, $key, $field) : Meta::get($post->ID, $key);
         $text  = self::format($field, $value, $attribute, $args['format'] ?? null);
 
         return self::isMarkup($block, $attribute) ? esc_html($text) : $text;

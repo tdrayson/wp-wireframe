@@ -19,6 +19,9 @@ final class ClassicSave
     /** Core's "Post draft updated." edit screen message. */
     private const DRAFT_UPDATED = 10;
 
+    /** Global holding the errors found in the current `save_post`, by transient key; shared by bundled copies. */
+    private const SAVE_FAILURES = 'wireframe_classic_save_failures';
+
     /** @var array<int, string> Status requested for posts kept as drafts by guardStatus(), by post id. */
     private static array $demoted = [];
 
@@ -294,14 +297,37 @@ final class ClassicSave
      */
     private static function storeFailure(int $postId, array $errors, array $rejected): void
     {
-        $key = self::errorsKey(get_current_user_id(), $postId);
+        $key     = self::errorsKey(get_current_user_id(), $postId);
+        $failure = self::sharedFailure($key, $errors, $rejected);
 
-        if ($errors === []) {
+        if ($failure['errors'] === []) {
             delete_transient($key);
 
             return;
         }
 
-        set_transient($key, ['errors' => $errors, 'values' => $rejected], self::ERRORS_TTL);
+        set_transient($key, ['errors' => $failure['errors'], 'values' => $failure['values']], self::ERRORS_TTL);
+    }
+
+    /**
+     * Merge one copy's errors with those other bundled copies found in the same `save_post`, so none clears another's.
+     *
+     * @return array{errors: array, values: array}
+     */
+    private static function sharedFailure(string $key, array $errors, array $rejected): array
+    {
+        $save   = did_action('save_post');
+        $shared = $GLOBALS[self::SAVE_FAILURES][$key] ?? null;
+
+        if (($shared['save'] ?? null) !== $save) {
+            $shared = ['save' => $save, 'errors' => [], 'values' => []];
+        }
+
+        $shared['errors'] += $errors;
+        $shared['values'] += $rejected;
+
+        $GLOBALS[self::SAVE_FAILURES][$key] = $shared;
+
+        return $shared;
     }
 }

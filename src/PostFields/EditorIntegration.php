@@ -27,8 +27,8 @@ final class EditorIntegration
     /** @var array<string, array> Payloads by post and user ID, as the classic editor asks once per box. */
     private static array $data = [];
 
-    /** @var array<string, string|false> The lock a `content` post type had before its template was emptied, by post type. */
-    private static array $nativeLocks = [];
+    /** Global holding the lock a `content` post type had before its template was emptied, by post type; shared by bundled copies. */
+    private const NATIVE_LOCKS = 'wireframe_native_locks';
 
     /**
      * Build the `window.wireframePostFields` payload: the groups whose static params match, with access-filtered, populated configs.
@@ -126,8 +126,8 @@ final class EditorIntegration
      */
     public static function nativeLock(string $postType): string|false
     {
-        if (array_key_exists($postType, self::$nativeLocks)) {
-            return self::$nativeLocks[$postType];
+        if (array_key_exists($postType, $GLOBALS[self::NATIVE_LOCKS] ?? [])) {
+            return $GLOBALS[self::NATIVE_LOCKS][$postType];
         }
 
         $object = get_post_type_object($postType);
@@ -173,8 +173,24 @@ final class EditorIntegration
 
         AdminPage::enqueueWordPressEditors();
 
+        wp_add_inline_script(self::HANDLE, self::payloadScript($data), 'before');
+    }
+
+    /**
+     * Build the inline script that adds a payload's groups to `window.wireframePostFields`, which every bundled copy shares.
+     *
+     * The first copy's payload seeds the global; each copy's groups are appended, and one bundle renders them all.
+     *
+     * @param array $data Payload from data(), or the classic editor's.
+     * @return string
+     */
+    public static function payloadScript(array $data): string
+    {
         // Not wp_localize_script(): it stringifies top-level scalars, so `false` arrives as "".
-        wp_add_inline_script(self::HANDLE, 'window.wireframePostFields = ' . wp_json_encode($data) . ';', 'before');
+        $json = wp_json_encode($data);
+
+        return '(function(d){var w=window.wireframePostFields=window.wireframePostFields||Object.assign({},d,{groups:[]});'
+            . 'w.groups=w.groups.concat(d.groups);})(' . $json . ');';
     }
 
     /**
@@ -293,7 +309,7 @@ final class EditorIntegration
             return;
         }
 
-        self::$nativeLocks[$postType] ??= self::lockOf((array) $wp_post_types[$postType]->template, $wp_post_types[$postType]->template_lock);
+        $GLOBALS[self::NATIVE_LOCKS][$postType] ??= self::lockOf((array) $wp_post_types[$postType]->template, $wp_post_types[$postType]->template_lock);
 
         $wp_post_types[$postType]->template      = [];
         $wp_post_types[$postType]->template_lock = 'all';
@@ -308,11 +324,11 @@ final class EditorIntegration
      */
     public static function filterPostTypeArgs(array $args, string $postType): array
     {
-        if (!isset($GLOBALS['wireframe_field_group_owners'][$postType])) {
+        if (!self::ownsCanvas($postType)) {
             return $args;
         }
 
-        self::$nativeLocks[$postType] = self::lockOf((array) ($args['template'] ?? []), $args['template_lock'] ?? false);
+        $GLOBALS[self::NATIVE_LOCKS][$postType] = self::lockOf((array) ($args['template'] ?? []), $args['template_lock'] ?? false);
 
         $args['template']      = [];
         $args['template_lock'] = 'all';
@@ -334,7 +350,7 @@ final class EditorIntegration
      */
     public static function filterEditorSettings(array $settings, WP_Block_Editor_Context $context): array
     {
-        if (!$context->post instanceof WP_Post || !isset($GLOBALS['wireframe_field_group_owners'][$context->post->post_type])) {
+        if (!$context->post instanceof WP_Post || !self::ownsCanvas($context->post->post_type)) {
             return $settings;
         }
 
@@ -344,6 +360,16 @@ final class EditorIntegration
         $settings['templateLock'] = $applies ? 'all' : self::nativeLock($context->post->post_type);
 
         return $settings;
+    }
+
+    /**
+     * Whether this copy's `content` group holds a post type's canvas; the first bundled copy to boot claims it site-wide.
+     */
+    private static function ownsCanvas(string $postType): bool
+    {
+        $owner = $GLOBALS['wireframe_field_group_owners'][$postType] ?? null;
+
+        return $owner !== null && in_array($owner, array_column(FieldGroups::groupsFor($postType), 'owner'), true);
     }
 
     /**

@@ -3,7 +3,7 @@
  *
  * Reads `window.wireframePostFields` and renders each group whose location matches the edited post, in its position.
  */
-import { registerPlugin } from '@wordpress/plugins';
+import { getPlugin, registerPlugin } from '@wordpress/plugins';
 import registerBindings from './post-fields/bindings';
 import PostFieldsProvider from './post-fields/PostFieldsProvider';
 import ContentArea from './post-fields/ContentArea';
@@ -26,7 +26,7 @@ const POSITIONS = {
 };
 
 /**
- * Render every group that applies to the edited post, each in its own field store.
+ * Render every group that applies to the edited post, each in its own field store; groups from every bundled copy.
  */
 function Root() {
 	const data = window.wireframePostFields;
@@ -58,7 +58,7 @@ function Root() {
 	} );
 }
 
-if ( window.wireframePostFields?.groups ) {
+if ( window.wireframePostFields?.groups && ! getPlugin( PLUGIN_NAME ) ) {
 	stripHiddenMeta( window.wireframePostFields );
 	registerBindings( window.wireframePostFields.groups );
 	registerPlugin( PLUGIN_NAME, { render: Root } );

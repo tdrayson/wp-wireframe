@@ -183,7 +183,7 @@ wp_enqueue_media(['post' => $event->ID]);
 EditorIntegration::enqueue();
 $inline = implode("\n", (array) wp_scripts()->get_data('wp-wireframe-post-fields', 'before'));
 check('bundle enqueued on a grouped post type', true, wp_script_is('wp-wireframe-post-fields', 'enqueued'));
-check('payload printed before the bundle', true, str_contains($inline, 'window.wireframePostFields = {"postId":' . $event->ID));
+check('payload printed before the bundle', true, str_contains($inline, 'window.wireframePostFields=window.wireframePostFields||') && str_contains($inline, '({"postId":' . $event->ID));
 check('media enqueued once', 1, did_action('wp_enqueue_media'));
 check('media uploads still attach to the post', true, str_contains((string) wp_scripts()->get_data('media-views', 'data'), '"post":{"id":' . $event->ID));
 

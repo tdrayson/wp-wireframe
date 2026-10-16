@@ -81,6 +81,7 @@ final class Plugin
         add_action('pre_get_posts', [MetaQueryBridge::class, 'prepare'], 1000);
         // Early, as it rebuilds the SQL from the queries; later get_meta_sql filters see the result.
         add_filter('get_meta_sql', [MetaQueryBridge::class, 'rewrite'], 1, 6);
+        add_filter(MetaQueryBridge::OWNER_FILTER, [MetaQueryBridge::class, 'claim'], 10, 3);
         add_filter('posts_clauses', [MetaQueryBridge::class, 'orderby'], 10, 2);
         add_filter('get_post_metadata', [DottedMeta::class, 'read'], 10, 4);
         ReindexCommand::register();

@@ -1,7 +1,11 @@
 /**
  * The `wireframe/field` block bindings source, read-only, formatted like the PHP `Bindings` source.
  */
-import { getBlockType, registerBlockBindingsSource } from '@wordpress/blocks';
+import {
+	getBlockBindingsSource,
+	getBlockType,
+	registerBlockBindingsSource,
+} from '@wordpress/blocks';
 import { escapeHTML } from '@wordpress/escape-html';
 import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import { __, _n, sprintf } from '@wordpress/i18n';
@@ -241,12 +245,24 @@ function formatValue( field, value, attribute, format, select ) {
 }
 
 /**
+ * Whether another bundle already gave the source its client side; core bootstraps the server's label alone.
+ *
+ * @return {boolean} True when the source has `getValues`.
+ */
+function isRegistered() {
+	return (
+		typeof getBlockBindingsSource === 'function' &&
+		typeof getBlockBindingsSource( SOURCE )?.getValues === 'function'
+	);
+}
+
+/**
  * Register the source on WP 6.7+, reading values from the editor store so bound blocks preview live.
  *
  * @param {Array} groups Groups from `window.wireframePostFields`.
  */
 export default function registerBindings( groups ) {
-	if ( typeof registerBlockBindingsSource !== 'function' ) {
+	if ( typeof registerBlockBindingsSource !== 'function' || isRegistered() ) {
 		return;
 	}
 

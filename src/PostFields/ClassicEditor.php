@@ -27,8 +27,8 @@ final class ClassicEditor
 
     private const BOX_CONTEXTS = ['meta_box' => 'normal', 'sidebar' => 'side'];
 
-    /** @var array<int, array{errors: array, values: array}> The last failed save, by post id, read once per request. */
-    private static array $failures = [];
+    /** Global holding the last failed save by post id, read once per request and shared by bundled copies. */
+    private const FAILURES = 'wireframe_classic_failures';
 
     /**
      * Hook into the classic edit screen.
@@ -176,7 +176,7 @@ final class ClassicEditor
         wp_enqueue_media(['post' => $post->ID]);
         AdminPage::enqueueWordPressEditors();
 
-        wp_add_inline_script(self::HANDLE, 'window.wireframePostFields = ' . wp_json_encode($data) . ';', 'before');
+        wp_add_inline_script(self::HANDLE, EditorIntegration::payloadScript($data), 'before');
     }
 
     /**
@@ -237,17 +237,17 @@ final class ClassicEditor
      */
     private static function failure(int $postId): array
     {
-        if (!array_key_exists($postId, self::$failures)) {
+        if (!array_key_exists($postId, $GLOBALS[self::FAILURES] ?? [])) {
             $key    = ClassicSave::errorsKey(get_current_user_id(), $postId);
             $stored = get_transient($key);
 
             delete_transient($key);
-            self::$failures[$postId] = [
+            $GLOBALS[self::FAILURES][$postId] = [
                 'errors' => is_array($stored['errors'] ?? null) ? $stored['errors'] : [],
                 'values' => is_array($stored['values'] ?? null) ? $stored['values'] : [],
             ];
         }
 
-        return self::$failures[$postId];
+        return $GLOBALS[self::FAILURES][$postId];
     }
 }
