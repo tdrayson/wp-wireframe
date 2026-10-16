@@ -77,8 +77,6 @@ final class EditorIntegration
             wp_enqueue_style(self::HANDLE, $url . 'post-fields.css', ['wp-components'], $asset['version']);
         }
 
-        // First call wins, so the post-bound media frame must come before the shared editors call.
-        wp_enqueue_media(['post' => $post->ID]);
         AdminPage::enqueueWordPressEditors();
 
         // Not wp_localize_script(): it stringifies top-level scalars, so `false` arrives as "".

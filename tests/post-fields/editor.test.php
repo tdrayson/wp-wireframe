@@ -175,12 +175,14 @@ check('a saved state wins over collapsed', [], get_user_option('closedpostboxes_
 as_user('administrator');
 set_current_screen('event');
 $GLOBALS['post'] = $event;
+// Core enqueues the post-bound media frame before enqueue_block_editor_assets.
+wp_enqueue_media(['post' => $event->ID]);
 EditorIntegration::enqueue();
 $inline = implode("\n", (array) wp_scripts()->get_data('wp-wireframe-post-fields', 'before'));
 check('bundle enqueued on a grouped post type', true, wp_script_is('wp-wireframe-post-fields', 'enqueued'));
 check('payload printed before the bundle', true, str_contains($inline, 'window.wireframePostFields = {"postId":' . $event->ID));
-check('media enqueued', 1, did_action('wp_enqueue_media'));
-check('media uploads attach to the post', true, str_contains((string) wp_scripts()->get_data('media-views', 'data'), '"post":{"id":' . $event->ID));
+check('media enqueued once', 1, did_action('wp_enqueue_media'));
+check('media uploads still attach to the post', true, str_contains((string) wp_scripts()->get_data('media-views', 'data'), '"post":{"id":' . $event->ID));
 
 wp_dequeue_script('wp-wireframe-post-fields');
 set_current_screen('page');
