@@ -93,5 +93,6 @@ export function getSections( tabConfig ) {
 		title: section.title || '',
 		description: section.description || '',
 		fields: section.fields || [],
+		conditions: section.conditions,
 	} ) );
 }
