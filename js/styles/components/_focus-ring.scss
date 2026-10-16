@@ -1,0 +1,16 @@
+// Focus ring for inputs in Wireframe field UIs
+
+$accent: var(--wp-components-color-accent, var(--wp-admin-theme-color, #3858e9));
+
+.wireframe-page,
+.wireframe-post-fields {
+  // A 1px ring like core admin forms: the components' 0.5px spread rounds to 2px on one edge at fractional offsets.
+  input:is([type="text"], [type="number"], [type="email"], [type="url"], [type="password"]):not(.components-input-control__input):focus,
+  textarea:focus,
+  select:not(.components-select-control__input):focus,
+  .components-input-control__input:focus ~ .components-input-control__backdrop,
+  .components-select-control__input:focus ~ .components-input-control__backdrop {
+    border-color: $accent;
+    box-shadow: 0 0 0 1px $accent;
+  }
+}

@@ -8,6 +8,7 @@
 @use 'components/tabs';
 @use 'components/section';
 @use 'components/field-errors';
+@use 'components/focus-ring';
 @use 'fields/html';
 @use 'fields/checkbox-group';
 @use 'fields/media';
@@ -94,7 +95,8 @@ body.wireframe-content-mode {
   color: var(--wpds-color-fg-content-neutral);
 }
 
-.wireframe-content-area__title:focus {
+// Beats the focus ring partial: like the canvas title, only the caret shows focus.
+.wireframe-post-fields textarea.wireframe-content-area__title:focus {
   box-shadow: none;
   outline: none;
 }
