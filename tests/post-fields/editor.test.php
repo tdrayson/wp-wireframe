@@ -1,5 +1,6 @@
 <?php
 
+use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
@@ -180,7 +181,7 @@ check('sidebar tabs flattened to one', 1, count($tabs));
 check('sections kept in tab order', ['s1', 's2'], array_column($tabs[0]['sections'], 'id'));
 check('section titles kept', ['One', 'Two'], array_column($tabs[0]['sections'], 'title'));
 check('tab title and conditions dropped', ['', false], [$tabs[0]['title'], isset($tabs[0]['conditions'])]);
-check('tab access moves to its sections', [null, 'administrator'], array_map(static fn ($s) => $s['access'] ?? null, $tabs[0]['sections']));
+check('tab access moves to its sections', [null, ['view' => 'administrator', 'edit' => 'administrator']], array_map(static fn ($s) => $s['access'] ?? null, $tabs[0]['sections']));
 check('flat fields hold both sections', ['f1', 'f2'], array_keys(ConfigLoader::flatFields($flat['config'])));
 check('flattening is reported', 1, $mentions('"flat"'));
 
@@ -194,6 +195,99 @@ FieldGroups::register('wf-test', [
     'config'   => ['sections' => [['id' => 's', 'title' => 'S', 'fields' => [['id' => 'g', 'type' => 'text']]]]],
 ]);
 check('a sidebar group with one untitled tab is not reported', 0, $mentions('"flat_ok"'));
+
+$gatedTabs = ['tabs' => [
+    ['id' => 'open', 'title' => 'Open', 'sections' => [['id' => 'o', 'fields' => [['id' => 'g_open', 'type' => 'text']]]]],
+    ['id' => 'admin_tab', 'title' => 'Admin', 'access' => 'administrator', 'sections' => [
+        ['id' => 'edit_only', 'access' => ['edit' => 'administrator'], 'fields' => [['id' => 'g_edit_only', 'type' => 'text']]],
+        ['id' => 'bare', 'fields' => [['id' => 'g_bare', 'type' => 'text']]],
+    ]],
+    ['id' => 'strict_tab', 'title' => 'Strict', 'access' => 'manage_options', 'sections' => [
+        ['id' => 'loose', 'access' => 'edit_others_posts', 'fields' => [['id' => 'g_loose', 'type' => 'text']]],
+        ['id' => 'tangled', 'access' => 'edit_others_posts', 'fields' => [['id' => 'g_tangled', 'type' => 'text', 'access' => 'edit_posts']]],
+    ]],
+    ['id' => 'read_tab', 'title' => 'Read', 'access' => 'edit_others_posts', 'sections' => [
+        ['id' => 'read_only', 'access' => ['edit' => 'manage_options'], 'fields' => [['id' => 'g_read_only', 'type' => 'text']]],
+    ]],
+]];
+$gatedCases = [
+    'g_edit_only' => 'tab role, section sets only edit',
+    'g_bare'      => 'tab access, section without',
+    'g_loose'     => 'section more permissive than its tab',
+    'g_read_only' => 'tab allows view, section narrows edit',
+];
+
+$notices = [];
+register_post_type('gate_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['title']]);
+FieldGroups::register('wf-test', ['id' => 'gated', 'title' => 'Gated', 'location' => ['gate_cpt'], 'display' => ['position' => 'sidebar'], 'config' => $gatedTabs]);
+$gatedSlug = FieldGroups::groupsFor('gate_cpt')[0]['config'];
+check('a section whose access cannot be merged is dropped', false, isset(ConfigLoader::flatFields($gatedSlug)['g_tangled']));
+check('dropping a section is reported', 1, $mentions('"tangled"'));
+
+ConfigLoader::register('wf-test-gated-tabs', $gatedTabs);
+$accessOf = static function (string $slug, WP_User $user): array {
+    $map  = (new AccessResolver('edit_posts'))->resolveForConfig(ConfigLoader::load($slug), $user);
+    $view = array_diff($map->viewableFieldIds(), ['g_tangled']);
+    $edit = array_diff($map->editable, ['g_tangled']);
+    sort($view);
+    sort($edit);
+
+    return ['view' => $view, 'edit' => $edit];
+};
+
+foreach (['administrator', 'editor', 'author', 'contributor'] as $role) {
+    $user = get_userdata(as_user($role));
+    check("flattened access matches the tabbed config for $role", $accessOf('wf-test-gated-tabs', $user), $accessOf($gatedSlug, $user));
+}
+
+as_user('administrator');
+$gatePost = (int) wp_insert_post([
+    'post_type'   => 'gate_cpt',
+    'post_status' => 'draft',
+    'post_title'  => 'Gate',
+    'meta_input'  => array_fill_keys(['g_open', ...array_keys($gatedCases)], 'v'),
+]);
+$gatedConfig = static fn (): array => $groupOf(EditorIntegration::data(get_post($gatePost)), 'gated')['config'] ?? [];
+$readOnly    = static function (array $config): array {
+    $flags = [];
+
+    foreach ($config['tabs'] ?? [] as $tab) {
+        foreach ($tab['sections'] ?? [] as $section) {
+            foreach ($section['fields'] ?? [] as $field) {
+                $flags[$field['id']] = !empty($field['readonly']);
+            }
+        }
+    }
+
+    return $flags;
+};
+$restMeta    = static fn (): array => rest('GET', "/wp/v2/gate_cpt/$gatePost", [], ['context' => 'edit'])->get_data()['meta'] ?? [];
+// Core skips the auth check when the value is unchanged, so each role writes its own value.
+$restWrite   = static fn (string $key): int => rest('POST', "/wp/v2/gate_cpt/$gatePost", ['meta' => [$key => wp_get_current_user()->user_login]])->get_status();
+
+$adminConfig = $readOnly($gatedConfig());
+$adminMeta   = $restMeta();
+
+foreach ($gatedCases as $key => $label) {
+    check("$label: admin config, editable", false, $adminConfig[$key] ?? null);
+    check("$label: admin REST read", true, array_key_exists($key, $adminMeta));
+    check("$label: admin REST write", 200, $restWrite($key));
+}
+
+as_user('editor');
+$editorConfig = $readOnly($gatedConfig());
+$editorMeta   = $restMeta();
+$editorSees   = ['g_edit_only' => false, 'g_bare' => false, 'g_loose' => false, 'g_read_only' => true];
+
+check('editor config keeps the ungated field', false, $editorConfig['g_open'] ?? null);
+
+foreach ($gatedCases as $key => $label) {
+    check("$label: editor config", $editorSees[$key] ? true : null, $editorConfig[$key] ?? null);
+    check("$label: editor REST read", $editorSees[$key], array_key_exists($key, $editorMeta));
+    check("$label: editor REST write refused", 403, $restWrite($key));
+}
+
+check('editor REST write: ungated field saves', 200, $restWrite('g_open'));
 
 check(
     'post_id values are cast to int',

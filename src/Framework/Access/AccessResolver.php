@@ -448,7 +448,7 @@ final class AccessResolver
      * Normalize the various accepted `access` shorthand forms into a spec
      * with explicit `view`/`edit` keys.
      */
-    private static function normalizeSpec(mixed $raw): ?array
+    public static function normalizeSpec(mixed $raw): ?array
     {
         if ($raw === null) {
             return null;
@@ -476,7 +476,7 @@ final class AccessResolver
      * and vice versa. Returns null if both child and parent are null so
      * downstream code can fall through to the page capability cleanly.
      */
-    private static function inheritSpec(?array $child, ?array $parent): ?array
+    public static function inheritSpec(?array $child, ?array $parent): ?array
     {
         if ($child === null) {
             return $parent;

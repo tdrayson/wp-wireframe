@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Wireframe\PostFields;
 
+use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\ConfigValidator;
 
@@ -217,7 +218,7 @@ final class FieldGroups
     /**
      * Merge a sidebar group's tabs into one untitled tab, since a panel has no tab bar; returns the config slug to use.
      *
-     * Sections keep their order and titles. Tab `access` moves down to sections without their own.
+     * Sections keep their order, titles and effective access; one whose access can't be kept is dropped.
      */
     private static function flattenTabs(string $prefix, string $id, string $slug): string
     {
@@ -228,29 +229,33 @@ final class FieldGroups
             return $slug;
         }
 
+        $group    = ['id' => $id, 'prefix' => $prefix];
         $sections = [];
         $seen     = [];
 
         foreach ($tabs as $tab) {
             foreach ($tab['sections'] ?? [] as $section) {
-                $section = self::inheritTabAccess($section, $tab);
+                $merged = self::withTabAccess($section, $tab);
 
-                // Access maps are keyed by section id, so a repeated id would hide the earlier section's fields.
-                if (isset($seen[$section['id'] ?? ''])) {
-                    $section['id'] = ($tab['id'] ?? '') . '-' . ($section['id'] ?? '');
+                if ($merged === null) {
+                    self::debugReport($group, sprintf('config issue: section "%s" was dropped from the "sidebar" group: its access and its tab\'s can\'t be combined in one panel.', $section['id'] ?? ''));
+
+                    continue;
                 }
 
-                $seen[$section['id'] ?? ''] = true;
-                $sections[]                 = $section;
+                // Access maps are keyed by section id, so a repeated id would hide the earlier section's fields.
+                if (isset($seen[$merged['id'] ?? ''])) {
+                    $merged['id'] = ($tab['id'] ?? '') . '-' . ($merged['id'] ?? '');
+                }
+
+                $seen[$merged['id'] ?? ''] = true;
+                $sections[]                = $merged;
             }
         }
 
         $flatSlug = self::groupSlug($prefix, $id);
         ConfigLoader::register($flatSlug, ['sections' => $sections] + array_intersect_key($config, array_flip(['title', 'subtitle', 'header_actions'])));
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            self::report(['id' => $id, 'prefix' => $prefix], 'config issue: a "sidebar" group shows one panel, so its tabs were merged; tab titles and conditions are dropped.');
-        }
+        self::debugReport($group, 'config issue: a "sidebar" group shows one panel, so its tabs were merged; tab titles and conditions are dropped.');
 
         return $flatSlug;
     }
@@ -270,15 +275,46 @@ final class FieldGroups
     }
 
     /**
-     * Copy a tab's `access` onto one of its sections that has none.
+     * Fold a tab's `access` into one of its sections so AccessResolver gives every user the same result without the tab.
+     *
+     * The tab gates the section and fills the verbs it leaves unset. When the two view rules differ, the tab's rule
+     * gates the section and the section's moves onto its fields, which is exact only while no field sets its own view.
+     *
+     * @param array $section Section from the tab.
+     * @param array $tab     Tab the section came from.
+     * @return array|null The section, or null when its access can't be kept.
      */
-    private static function inheritTabAccess(array $section, array $tab): array
+    private static function withTabAccess(array $section, array $tab): ?array
     {
-        if (isset($tab['access']) && !isset($section['access'])) {
-            $section['access'] = $tab['access'];
+        if (!isset($tab['access'])) {
+            return $section;
         }
 
-        return $section;
+        $tabSpec = AccessResolver::normalizeSpec($tab['access']) ?? ['view' => null, 'edit' => null];
+
+        if (!isset($section['access'])) {
+            return ['access' => $tabSpec] + $section;
+        }
+
+        $sectionSpec = AccessResolver::inheritSpec(AccessResolver::normalizeSpec($section['access']), $tabSpec);
+
+        if ($sectionSpec['view'] === $tabSpec['view']) {
+            return ['access' => $sectionSpec] + $section;
+        }
+
+        $fields = [];
+
+        foreach ($section['fields'] ?? [] as $field) {
+            $fieldSpec = AccessResolver::inheritSpec(AccessResolver::normalizeSpec($field['access'] ?? null), $sectionSpec);
+
+            if ($fieldSpec['view'] !== $sectionSpec['view']) {
+                return null;
+            }
+
+            $fields[] = ['access' => $fieldSpec] + $field;
+        }
+
+        return ['access' => $tabSpec, 'fields' => $fields] + $section;
     }
 
     /**
@@ -500,6 +536,16 @@ final class FieldGroups
 
         foreach (ConfigValidator::validate($config, $group['config']) as $issue) {
             self::report($group, 'config issue: ' . $issue);
+        }
+    }
+
+    /**
+     * Report a lint finding under WP_DEBUG only.
+     */
+    private static function debugReport(array $group, string $message): void
+    {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            self::report($group, $message);
         }
     }
 
