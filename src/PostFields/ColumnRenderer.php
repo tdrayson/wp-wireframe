@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Wireframe\PostFields;
 
-use DateTimeZone;
 use Wireframe\Framework\Populate;
 
 /**
@@ -15,8 +14,6 @@ final class ColumnRenderer
     private const TEXT_LIMIT = 80;
 
     private const THUMBNAIL = 40;
-
-    private const CHOICE_TYPES = ['select', 'radio', 'checkboxes', 'image_radio', 'image_checkboxes'];
 
     /**
      * Get the default cell HTML for a value.
@@ -41,52 +38,21 @@ final class ColumnRenderer
     }
 
     /**
-     * Get a value as plain, unescaped text.
+     * Get a value as plain, unescaped text; free text is cut to a one-line excerpt.
      */
     private static function text(array $field, mixed $value): string
     {
         $type = (string) ($field['type'] ?? 'text');
 
-        return match (true) {
-            $type === 'date', $type === 'time'        => self::moment($type, $value),
-            $type === 'repeater'                      => self::rows($value),
-            in_array($type, self::CHOICE_TYPES, true) => implode(', ', self::labels($field, $value)),
-            default                                   => self::excerpt($value),
-        };
-    }
-
-    /**
-     * Format a stored date (`Y-m-d`) or time (`H:i`) with the site's format.
-     */
-    private static function moment(string $type, mixed $value): string
-    {
-        if (!is_string($value) || $value === '') {
-            return '';
+        if ($type === 'repeater' || in_array($type, ValueFormatter::CHOICE_TYPES, true)) {
+            return ValueFormatter::text($field, $value);
         }
 
-        $timestamp = strtotime($type === 'date' ? "$value 00:00:00 UTC" : "1970-01-01 $value UTC");
-
-        if ($timestamp === false) {
-            return self::excerpt($value);
+        if ($type === 'date' || $type === 'time') {
+            return self::excerpt(ValueFormatter::text($field, $value));
         }
 
-        $format = (string) get_option($type === 'date' ? 'date_format' : 'time_format');
-
-        return wp_date($format, $timestamp, new DateTimeZone('UTC')) ?: self::excerpt($value);
-    }
-
-    /**
-     * Count a repeater's rows as "N rows".
-     */
-    private static function rows(mixed $value): string
-    {
-        $count = is_array($value) ? count($value) : 0;
-
-        if ($count === 0) {
-            return '';
-        }
-
-        return sprintf(_n('%d row', '%d rows', $count, 'wp-wireframe'), $count);
+        return self::excerpt($value);
     }
 
     /**
@@ -105,58 +71,11 @@ final class ColumnRenderer
     }
 
     /**
-     * Get the labels of a choice field's selected values, populated options included.
-     *
-     * @return list<string>
-     */
-    private static function labels(array $field, mixed $value): array
-    {
-        $selected = Populate::valuesOf($value);
-
-        if ($selected === []) {
-            return [];
-        }
-
-        $options = self::options($field, $selected);
-        $labels  = [];
-
-        foreach ($selected as $item) {
-            $labels[] = self::labelOf($options[$item] ?? $item);
-        }
-
-        return $labels;
-    }
-
-    /**
-     * Get a choice field's `value => label` options, resolving only the given values when populated.
-     *
-     * @param list<int|string> $selected
-     */
-    private static function options(array $field, array $selected): array
-    {
-        $options = Populate::resolve($field, $selected)['args']['options'] ?? [];
-
-        return is_array($options) ? $options : [];
-    }
-
-    /**
-     * Get an option's label, which image fields may nest under `label`.
-     */
-    private static function labelOf(mixed $option): string
-    {
-        if (is_array($option)) {
-            $option = $option['label'] ?? '';
-        }
-
-        return is_scalar($option) ? (string) $option : '';
-    }
-
-    /**
      * Whether a choice field's values are post IDs from a `populate` query on posts.
      */
     private static function linksPosts(array $field, string $type): bool
     {
-        if (!in_array($type, self::CHOICE_TYPES, true) || !Populate::isPopulated($field)) {
+        if (!in_array($type, ValueFormatter::CHOICE_TYPES, true) || !Populate::isPopulated($field)) {
             return false;
         }
 
@@ -177,7 +96,7 @@ final class ColumnRenderer
 
         foreach (Populate::valuesOf($value) as $item) {
             if (isset($static[$item])) {
-                $links[] = esc_html(self::labelOf($static[$item]));
+                $links[] = esc_html(ValueFormatter::labelOf($static[$item]));
 
                 continue;
             }

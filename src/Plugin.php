@@ -7,6 +7,7 @@ namespace Wireframe;
 use Wireframe\Admin\AdminPage;
 use Wireframe\Framework\ConfigValidator;
 use Wireframe\PostFields\Aliases;
+use Wireframe\PostFields\Bindings;
 use Wireframe\PostFields\ClassicEditor;
 use Wireframe\PostFields\ClassicSave;
 use Wireframe\PostFields\Cli\MigrateCommand;
@@ -68,6 +69,8 @@ final class Plugin
         add_action('wp_loaded', [IndexTable::class, 'install'], 2);
         IndexSync::register();
         Aliases::register();
+        // App::boot() may itself run inside `init`, after its callbacks have fired.
+        did_action('init') ? Bindings::register() : add_action('init', [Bindings::class, 'register']);
         // Late, so a wireframe_query added by other pre_get_posts callbacks still lifts suppress_filters.
         add_action('pre_get_posts', [QueryClauses::class, 'prepare'], 1000);
         add_filter('posts_clauses', [QueryClauses::class, 'apply'], 10, 2);

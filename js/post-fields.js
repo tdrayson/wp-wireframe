@@ -4,6 +4,7 @@
  * Reads `window.wireframePostFields` and renders each group whose location matches the edited post, in its position.
  */
 import { registerPlugin } from '@wordpress/plugins';
+import registerBindings from './post-fields/bindings';
 import PostFieldsProvider from './post-fields/PostFieldsProvider';
 import ContentArea from './post-fields/ContentArea';
 import MetaBoxGroup from './post-fields/MetaBoxGroup';
@@ -59,5 +60,6 @@ function Root() {
 
 if ( window.wireframePostFields?.groups ) {
 	stripHiddenMeta( window.wireframePostFields );
+	registerBindings( window.wireframePostFields.groups );
 	registerPlugin( PLUGIN_NAME, { render: Root } );
 }
