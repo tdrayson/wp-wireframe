@@ -12,14 +12,12 @@ import { chevronLeft } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import { useSettings } from '../hooks/useSettings';
-import { isTabVisible } from '../utils/conditions';
-import { getTabs, getSections } from '../utils/mapConfig';
 import {
   findActiveDetailField,
   writeEntryParam,
   URL_CHANGE_EVENT,
 } from '../utils/tableDetailUrl';
-import SettingsSection from './SettingsSection';
+import FieldTabs, { useVisibleTabs } from './FieldTabs';
 import HeaderActions from './HeaderActions';
 import TableDetailView from './fields/TableDetailView';
 
@@ -55,7 +53,7 @@ function writeTabToUrl(tabId) {
 }
 
 export default function SettingsPage() {
-  const { config, values, isDirty, saving, save, reset, hasSaved, canSave, canReset, restBase } = useSettings();
+  const { config, isDirty, saving, save, reset, hasSaved, canSave, canReset, restBase } = useSettings();
   const notices = useSelect(
     (select) =>
       select(noticesStore)
@@ -64,14 +62,9 @@ export default function SettingsPage() {
     [],
   );
   const { removeNotice } = useDispatch(noticesStore);
-  // Filter tabs by their `conditions` against current values. Sections and
-  // fields already do this — extending to tabs lets authors gate a whole
-  // tab behind a toggle (e.g. show "Advanced" only when advanced_mode=true).
-  const allTabs = getTabs(config);
-  const tabs = useMemo(
-    () => allTabs.filter((tab) => isTabVisible(tab, values)),
-    [allTabs, values],
-  );
+  // Tabs are gated by their `conditions` (e.g. show "Advanced" only when
+  // advanced_mode=true), like sections and fields.
+  const tabs = useVisibleTabs(config);
   const tabIds = useMemo(() => tabs.map((t) => t.id), [tabs]);
   const [activeTab, setActiveTab] = useState(() =>
     resolveInitialTab(tabIds),
@@ -125,8 +118,6 @@ export default function SettingsPage() {
     };
   }, [config]);
 
-  const currentTab = tabs.find((t) => t.id === activeTab);
-  const sections = currentTab ? getSections(currentTab) : [];
   const pageRef = useRef(null);
 
   // Measure the Page header height and set a CSS variable so tabs
@@ -278,33 +269,7 @@ export default function SettingsPage() {
         subTitle={config.subtitle || undefined}
         actions={headerActions}
       >
-        {/* Tabs */}
-        {tabs.length > 1 && (
-          <div className="wireframe-page__tabs-container">
-            <nav className="wireframe-page__tabs" role="tablist">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  aria-selected={tab.id === activeTab}
-                  className={`wireframe-page__tab ${
-                    tab.id === activeTab ? 'is-active' : ''
-                  }`}
-                  onClick={() => updateTab(tab.id)}
-                >
-                  {tab.title}
-                </button>
-              ))}
-            </nav>
-          </div>
-        )}
-
-        {/* Section cards */}
-        <div className="wireframe-page__content">
-          {sections.map((section) => (
-            <SettingsSection key={section.id} section={section} />
-          ))}
-        </div>
+        <FieldTabs config={config} activeTab={activeTab} onSelect={updateTab} />
       </Page>
       <SnackbarList
         notices={notices}

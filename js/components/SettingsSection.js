@@ -5,13 +5,13 @@
  * CSS grid of fields. Fields come as a sequential array with `id` keys.
  */
 import { useCallback } from '@wordpress/element';
-import { useSettings } from '../hooks/useSettings';
+import { useFieldStore } from '../hooks/useFieldStore';
 import { isFieldVisible, isSectionVisible } from '../utils/conditions';
 import { mapField } from '../utils/mapConfig';
 import { customEditComponents } from './fields';
 
 export default function SettingsSection( { section } ) {
-	const { values, setMultiple, errors } = useSettings();
+	const { values, setMultiple, errors } = useFieldStore();
 
 	if ( ! isSectionVisible( section, values ) ) {
 		return null;

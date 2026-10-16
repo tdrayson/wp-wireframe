@@ -5,11 +5,11 @@
  * based on the current settings values.
  */
 import { useCallback } from '@wordpress/element';
-import { useSettings } from './useSettings';
+import { useFieldStore } from './useFieldStore';
 import { isFieldVisible, isSectionVisible } from '../utils/conditions';
 
 export function useConditions() {
-	const { values, config } = useSettings();
+	const { values, config } = useFieldStore();
 
 	const checkField = useCallback(
 		( fieldId, fieldConfig ) => {

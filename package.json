@@ -4,8 +4,8 @@
   "private": true,
   "description": "React admin settings UI for WP Wireframe.",
   "scripts": {
-    "build": "wp-scripts build --webpack-src-dir=js --output-path=src/assets",
-    "start": "wp-scripts start --webpack-src-dir=js --output-path=src/assets"
+    "build": "wp-scripts build index=./js/index.js post-fields=./js/post-fields.js --output-path=src/assets",
+    "start": "wp-scripts start index=./js/index.js post-fields=./js/post-fields.js --output-path=src/assets"
   },
   "devDependencies": {
     "@wordpress/scripts": "^30.0.0"

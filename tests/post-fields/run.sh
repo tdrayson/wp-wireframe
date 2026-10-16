@@ -43,7 +43,14 @@ fi
 plugins="$site/wp-content/plugins"
 ln -sfn "$root" "$plugins/wp-wireframe"
 ln -sfn "$here/fixture" "$plugins/wf-fixture"
-wpc plugin activate wf-fixture --quiet
+
+# Copy, not symlink: the example needs vendor/wp-wireframe, which must not live in the repo tree.
+ref="$plugins/field-reference"
+rsync -a --delete --exclude=/vendor "$root/examples/field-reference/" "$ref/"
+mkdir -p "$ref/vendor"
+ln -sfn "$root" "$ref/vendor/wp-wireframe"
+
+wpc plugin activate wf-fixture field-reference --quiet
 
 if [[ "${1:-}" == "--serve" ]]; then
     exec wp --path="$site" server --port=8890
