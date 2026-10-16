@@ -133,6 +133,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 							<div className="wireframe-repeater__row-header">
 								{ collapsible && (
 									<button
+										type="button"
 										className="wireframe-repeater__toggle"
 										onClick={ () => toggleCollapse( rowKey ) }
 										aria-label={ isCollapsed ? __( 'Expand', 'wp-wireframe' ) : __( 'Collapse', 'wp-wireframe' ) }

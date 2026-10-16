@@ -44,6 +44,7 @@ export function TabNav( { tabs, activeTab, onSelect } ) {
 				{ tabs.map( ( tab ) => (
 					<button
 						key={ tab.id }
+						type="button"
 						role="tab"
 						aria-selected={ tab.id === activeTab }
 						className={ `wireframe-page__tab ${
