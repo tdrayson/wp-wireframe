@@ -117,6 +117,94 @@ final class QueryClauses
     }
 
     /**
+     * Compile a `meta_query` clause on `{repeater}.{subfield}` into an EXISTS condition; `1=0` when malformed.
+     *
+     * @param array  $clause        Clause with `key`, and optionally `value`, `compare` and `type`.
+     * @param string $postsIdColumn Trusted SQL column holding the post ID.
+     * @return array{0: string, 1: list<mixed>} SQL with placeholders, and their args.
+     */
+    public static function metaClause(array $clause, string $postsIdColumn): array
+    {
+        $exists = self::exists(self::fromMeta($clause), $postsIdColumn);
+
+        if ($exists === null) {
+            return [self::invalid('A meta_query clause on a repeater subfield needs a known compare and type, and a value that fits the compare.'), []];
+        }
+
+        return $exists;
+    }
+
+    /**
+     * Build a subquery for a post's lowest, or highest, value among the rows a `meta_query` clause matches.
+     *
+     * @param array  $clause        Clause with `key`, and optionally `value`, `compare` and `type`.
+     * @param string $postsIdColumn Trusted SQL column holding the post ID.
+     * @param string $type          Type whose column is compared: CHAR, NUMERIC, DATE and so on.
+     * @param bool   $highest       Take the highest value rather than the lowest.
+     * @return string Prepared SQL; `NULL` when the clause is malformed.
+     */
+    public static function metaOrder(array $clause, string $postsIdColumn, string $type, bool $highest): string
+    {
+        global $wpdb;
+
+        $clause = self::fromMeta($clause);
+        $match  = self::match($clause, 'o');
+
+        if ($match === null) {
+            return 'NULL';
+        }
+
+        $column    = self::COLUMNS[$type] ?? 'value_str';
+        $aggregate = $highest ? 'MAX' : 'MIN';
+        $table     = IndexTable::name();
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifiers are ours; values are placeholders.
+        return '(' . $wpdb->prepare("SELECT {$aggregate}(o.{$column}) FROM {$table} o WHERE o.post_id = {$postsIdColumn} AND o.field = %s AND {$match[0]}", [$clause['field'], ...$match[1]]) . ')';
+    }
+
+    /**
+     * Convert a `meta_query` clause on `{repeater}.{subfield}` into a `wireframe_query` clause.
+     */
+    private static function fromMeta(array $clause): array
+    {
+        [$field, $subfield] = array_pad(explode('.', is_string($clause['key'] ?? null) ? $clause['key'] : '', 2), 2, '');
+        $converted          = ['field' => $field, 'subfield' => $subfield];
+
+        if (isset($clause['value'])) {
+            $converted['value'] = $clause['value'];
+        }
+
+        if (isset($clause['compare']) && $clause['compare'] !== '') {
+            $converted['compare'] = $clause['compare'];
+        }
+
+        if (isset($clause['type']) && $clause['type'] !== '') {
+            $converted['type'] = self::metaType($clause['type']);
+        }
+
+        // Core accepts a comma or space separated string for these.
+        if (in_array(self::compare($converted), ['IN', 'NOT IN', 'BETWEEN'], true) && is_string($converted['value'] ?? null)) {
+            $converted['value'] = preg_split('/[,\s]+/', trim($converted['value']));
+        }
+
+        return $converted;
+    }
+
+    /**
+     * Map core's precision and unsigned meta types onto the ones the index knows.
+     */
+    private static function metaType(mixed $type): mixed
+    {
+        if (!is_string($type)) {
+            return $type;
+        }
+
+        $type = (string) preg_replace('/\s*\(.*\)$/', '', strtoupper(trim($type)));
+
+        return $type === 'UNSIGNED' ? 'SIGNED' : $type;
+    }
+
+    /**
      * Check a top-level value is a clause or holds at least one child.
      */
     private static function isTree(mixed $tree): bool
@@ -148,19 +236,34 @@ final class QueryClauses
     {
         global $wpdb;
 
-        $match = self::match($clause, 'i');
+        $exists = self::exists($clause, $postId);
 
-        if ($match === null) {
+        if ($exists === null) {
             return self::invalid('A wireframe_query clause needs a field, a subfield, a known compare and type, and a value that fits the compare.');
         }
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers are ours; values are placeholders.
+        return $wpdb->prepare($exists[0], $exists[1]);
+    }
+
+    /**
+     * Build a clause's EXISTS (or NOT EXISTS) subquery with placeholders; null when malformed.
+     *
+     * @return array{0: string, 1: list<mixed>}|null
+     */
+    private static function exists(array $clause, string $postId): ?array
+    {
+        $match = self::match($clause, 'i');
+
+        if ($match === null) {
+            return null;
+        }
+
         [$sql, $args, $negated] = $match;
-        $table = IndexTable::name();
+        $table    = IndexTable::name();
+        $subquery = "SELECT 1 FROM {$table} i WHERE i.post_id = {$postId} AND i.field = %s AND {$sql}";
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and column are trusted identifiers.
-        $subquery = $wpdb->prepare("SELECT 1 FROM {$table} i WHERE i.post_id = {$postId} AND i.field = %s AND {$sql}", [$clause['field'], ...$args]);
-
-        return ($negated ? 'NOT EXISTS' : 'EXISTS') . " ({$subquery})";
+        return [($negated ? 'NOT EXISTS' : 'EXISTS') . " ({$subquery})", [$clause['field'], ...$args]];
     }
 
     /**

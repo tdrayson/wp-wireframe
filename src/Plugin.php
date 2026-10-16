@@ -12,10 +12,12 @@ use Wireframe\PostFields\ClassicSave;
 use Wireframe\PostFields\Cli\MigrateCommand;
 use Wireframe\PostFields\Cli\ReindexCommand;
 use Wireframe\PostFields\Columns;
+use Wireframe\PostFields\DottedMeta;
 use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\Index\IndexSync;
 use Wireframe\PostFields\Index\IndexTable;
+use Wireframe\PostFields\Index\MetaQueryBridge;
 use Wireframe\PostFields\Index\QueryClauses;
 use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\Rest\ActionController;
@@ -69,6 +71,11 @@ final class Plugin
         // Late, so a wireframe_query added by other pre_get_posts callbacks still lifts suppress_filters.
         add_action('pre_get_posts', [QueryClauses::class, 'prepare'], 1000);
         add_filter('posts_clauses', [QueryClauses::class, 'apply'], 10, 2);
+        add_action('pre_get_posts', [MetaQueryBridge::class, 'prepare'], 1000);
+        // Early, as it rebuilds the SQL from the queries; later get_meta_sql filters see the result.
+        add_filter('get_meta_sql', [MetaQueryBridge::class, 'rewrite'], 1, 6);
+        add_filter('posts_clauses', [MetaQueryBridge::class, 'orderby'], 10, 2);
+        add_filter('get_post_metadata', [DottedMeta::class, 'read'], 10, 4);
         ReindexCommand::register();
         MigrateCommand::register();
         add_filter('is_protected_meta', [MetaRegistrar::class, 'protect'], 10, 3);
