@@ -45,6 +45,7 @@ for ( const group of data?.groups || [] ) {
 				isNew={ Boolean( data.isNew ) }
 				errors={ data.errors }
 				rejected={ data.rejected }
+				postType={ data.postType }
 			/>
 		);
 	}

@@ -40,14 +40,16 @@ function ownEntries( map, config ) {
  * @param {boolean}          isNew    Whether the post is an auto-draft.
  * @param {Object}           errors   Errors by field id from the last failed save.
  * @param {Object}           rejected Values by field id the last failed save did not write.
- * @return {{ config: Object, values: Object, setMultiple: Function, errors: Object }} The field store.
+ * @param {string}           postType Post type being edited.
+ * @return {{ config: Object, values: Object, setMultiple: Function, errors: Object, populate: Object }} The field store.
  */
 export default function useLocalFieldStore(
 	group,
 	input,
 	isNew,
 	errors,
-	rejected
+	rejected,
+	postType
 ) {
 	const [ values, setValues ] = useState( () => asObject( group.values ) );
 	const [ edits, setEdits ] = useState( () =>
@@ -78,13 +80,19 @@ export default function useLocalFieldStore(
 		[ group.config ]
 	);
 
+	const populate = useMemo(
+		() => ( { prefix: group.prefix, context: `post:${ postType }` } ),
+		[ group.prefix, postType ]
+	);
+
 	return useMemo(
 		() => ( {
 			config: group.config,
 			values,
 			setMultiple,
 			errors: fieldErrors,
+			populate,
 		} ),
-		[ group.config, values, setMultiple, fieldErrors ]
+		[ group.config, values, setMultiple, fieldErrors, populate ]
 	);
 }

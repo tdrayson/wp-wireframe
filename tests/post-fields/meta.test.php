@@ -28,7 +28,7 @@ as_user('administrator');
 
 $registered = array_keys(get_registered_meta_keys('post', 'event'));
 sort($registered);
-$expected = ['admin_notes', 'event_starts', 'extra_note', 'gallery', 'genres', 'internal_ref', 'is_featured', 'logo', 'price', 'public_tagline', 'secret_code', 'seo_noindex', 'seo_title', 'sessions', 'ticket_url'];
+$expected = ['admin_notes', 'event_starts', 'event_tags', 'extra_note', 'gallery', 'genres', 'host', 'internal_ref', 'is_featured', 'logo', 'price', 'public_tagline', 'secret_code', 'seo_noindex', 'seo_title', 'sessions', 'speakers', 'ticket_url'];
 check('every top-level field of every event group registered', $expected, $registered);
 check('post group registered on post', true, array_key_exists('post_subtitle', get_registered_meta_keys('post', 'post')));
 check('post group not registered on event', false, in_array('post_subtitle', $registered, true));

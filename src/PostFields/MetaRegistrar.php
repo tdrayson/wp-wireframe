@@ -13,6 +13,7 @@ use Wireframe\Framework\Access\ConfigAccessMap;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldInterface;
 use Wireframe\Framework\Fields\FieldRegistry;
+use Wireframe\Framework\Populate;
 
 /**
  * Registers post meta for attached field groups, with REST schemas, sanitising, auth and read privacy.
@@ -80,7 +81,7 @@ final class MetaRegistrar
     public static function schemaFor(array $field): array
     {
         return match (StorageKind::for($field)) {
-            StorageKind::MULTI    => ['type' => 'array', 'items' => ['type' => 'string']],
+            StorageKind::MULTI    => ['type' => 'array', 'items' => ['type' => Populate::valueType($field['args'] ?? [])]],
             StorageKind::LIST     => self::ID_LIST_SCHEMA,
             StorageKind::REPEATER => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => self::rowSchema($field)]],
             default               => ['type' => self::scalarType($field)],
@@ -161,7 +162,7 @@ final class MetaRegistrar
         $args    = $field['args'] ?? [];
 
         if ($kind === StorageKind::MULTI) {
-            return static fn (mixed $value): mixed => self::sanitizeOption($handler, $value, $args);
+            return static fn (mixed $value): mixed => self::sanitizeOption($handler, $value, Populate::argsFor($field, $value));
         }
 
         if ($kind === StorageKind::SCALAR && $type === 'file') {
@@ -174,7 +175,7 @@ final class MetaRegistrar
             return static fn (mixed $value): array => self::sanitizeRows($handler, $value, $args, $columns);
         }
 
-        return static fn (mixed $value): mixed => $handler::sanitize($value, $args);
+        return static fn (mixed $value): mixed => $handler::sanitize($value, Populate::argsFor($field, $value));
     }
 
     /**
@@ -247,6 +248,7 @@ final class MetaRegistrar
             'toggle', 'checkbox' => 'boolean',
             'number', 'range'    => 'number',
             'file'               => 'integer',
+            'select', 'radio'    => Populate::valueType($field['args'] ?? []),
             default              => 'string',
         };
     }

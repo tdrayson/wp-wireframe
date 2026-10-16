@@ -18,8 +18,11 @@ const NO_META = {};
  * @param {import('@wordpress/element').ReactNode} props.children Position component.
  */
 export default function PostFieldsProvider( { group, children } ) {
-	const meta = useSelect(
-		( select ) => select( editorStore ).getEditedPostAttribute( 'meta' ),
+	const { meta, postType } = useSelect(
+		( select ) => ( {
+			meta: select( editorStore ).getEditedPostAttribute( 'meta' ),
+			postType: select( editorStore ).getCurrentPostType(),
+		} ),
 		[]
 	);
 	const { editPost } = useDispatch( editorStore );
@@ -33,14 +36,20 @@ export default function PostFieldsProvider( { group, children } ) {
 		[ editPost, clear, group.config ]
 	);
 
+	const populate = useMemo(
+		() => ( { prefix: group.prefix, context: `post:${ postType }` } ),
+		[ group.prefix, postType ]
+	);
+
 	const store = useMemo(
 		() => ( {
 			config: group.config,
 			values: meta || NO_META,
 			setMultiple,
 			errors,
+			populate,
 		} ),
-		[ group.config, meta, setMultiple, errors ]
+		[ group.config, meta, setMultiple, errors, populate ]
 	);
 
 	return (

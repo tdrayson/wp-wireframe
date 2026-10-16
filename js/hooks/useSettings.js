@@ -207,9 +207,14 @@ export function SettingsProvider( { config, initialValues, hasSavedInitial, canS
 		pageId,
 	} ), [ config, values, setValue, setMultiple, isDirty, saving, errors, save, reset, hasSaved, canSave, canReset, restBase, restRoot, prefix, pageId ] );
 
+	const populate = useMemo(
+		() => ( { prefix, context: `settings:${ pageId }` } ),
+		[ prefix, pageId ]
+	);
+
 	const fieldStore = useMemo(
-		() => ( { config, values, setMultiple, errors } ),
-		[ config, values, setMultiple, errors ]
+		() => ( { config, values, setMultiple, errors, populate } ),
+		[ config, values, setMultiple, errors, populate ]
 	);
 
 	return (

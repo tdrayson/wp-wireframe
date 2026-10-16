@@ -40,8 +40,13 @@ export function mapField( fieldConfig ) {
 		_args: args,
 	};
 
-	// Map options to elements array.
-	if ( args.options && typeof args.options === 'object' ) {
+	// Populated options arrive as an ordered, typed list; a keyed object would lose both.
+	if ( isOptionList( args.options ) ) {
+		field.elements = args.options.map( ( { value, label } ) => ( {
+			value,
+			label,
+		} ) );
+	} else if ( args.options && typeof args.options === 'object' ) {
 		field.elements = Object.entries( args.options ).map( ( [ value, label ] ) => {
 			if ( typeof label === 'object' && label.label ) {
 				return { value, label: label.label, _image: label.image };
@@ -56,6 +61,23 @@ export function mapField( fieldConfig ) {
 	}
 
 	return field;
+}
+
+/**
+ * Whether options are a `[{value, label}]` list rather than a `value → label` map.
+ *
+ * @param {*} options `args.options` from the config.
+ * @return {boolean} True for a list of option objects.
+ */
+function isOptionList( options ) {
+	return (
+		Array.isArray( options ) &&
+		options.length > 0 &&
+		options.every(
+			( option ) =>
+				option && typeof option === 'object' && 'value' in option
+		)
+	);
 }
 
 /**

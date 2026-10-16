@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Wireframe\Framework\Fields;
 
+use Wireframe\Framework\Populate;
+
 /**
  * Select field — single dropdown or multi-select token input.
  *
  * When `args.multiple` is true, behaves like CheckboxesField
  * (stores an array, validates each value against options).
+ * Populated options must be resolved into `args.options` first; see Populate.
  */
 class SelectField extends BaseField
 {
@@ -41,8 +44,8 @@ class SelectField extends BaseField
             }
 
             foreach ($value as $selectedValue) {
-                if (!array_key_exists($selectedValue, $options)) {
-                    return sprintf('"%s" is not a valid option.', $selectedValue);
+                if (!self::isOption($selectedValue, $options)) {
+                    return sprintf('"%s" is not a valid option.', is_scalar($selectedValue) ? $selectedValue : gettype($selectedValue));
                 }
             }
 
@@ -50,7 +53,7 @@ class SelectField extends BaseField
         }
 
         // Single select.
-        if ($value !== null && $value !== '' && !array_key_exists($value, $options)) {
+        if ($value !== null && $value !== '' && !self::isOption($value, $options)) {
             return 'Selected value is not allowed.';
         }
 
@@ -80,9 +83,9 @@ class SelectField extends BaseField
                 return array_map('sanitize_text_field', $value);
             }
 
-            return array_values(
-                array_filter($value, fn(string $selectedValue) => array_key_exists($selectedValue, $options))
-            );
+            return Populate::typed($args, array_values(
+                array_filter($value, static fn (mixed $selectedValue): bool => self::isOption($selectedValue, $options))
+            ));
         }
 
         // Single select.
@@ -90,6 +93,18 @@ class SelectField extends BaseField
             return is_string($value) ? sanitize_text_field($value) : '';
         }
 
-        return array_key_exists($value, $options) ? $value : ($args['default'] ?? '');
+        return self::isOption($value, $options) ? Populate::typed($args, $value) : ($args['default'] ?? '');
+    }
+
+    /**
+     * Whether a value is a key of the options map.
+     *
+     * @param mixed $value   Submitted value.
+     * @param array $options Options map.
+     * @return bool
+     */
+    protected static function isOption(mixed $value, array $options): bool
+    {
+        return (is_int($value) || is_string($value)) && array_key_exists($value, $options);
     }
 }

@@ -38,6 +38,42 @@ return [
                         ],
                         ['id' => 'logo', 'type' => 'file', 'label' => 'Logo'],
                         ['id' => 'gallery', 'type' => 'file', 'label' => 'Gallery', 'args' => ['multiple' => true]],
+                        [
+                            'id'    => 'speakers',
+                            'type'  => 'select',
+                            'label' => 'Speakers',
+                            'args'  => [
+                                'multiple' => true,
+                                'populate' => [
+                                    'type'      => 'query',
+                                    'query'     => 'posts',
+                                    'arguments' => ['post_type' => 'speaker'],
+                                    'fetch'     => true,
+                                ],
+                            ],
+                        ],
+                        [
+                            'id'    => 'event_tags',
+                            'type'  => 'checkboxes',
+                            'label' => 'Event tags',
+                            'args'  => [
+                                'populate' => ['type' => 'query', 'query' => 'terms', 'arguments' => ['taxonomy' => 'event_type']],
+                            ],
+                        ],
+                        [
+                            'id'    => 'host',
+                            'type'  => 'radio',
+                            'label' => 'Host',
+                            'args'  => [
+                                'options'  => ['0' => 'None'],
+                                'populate' => [
+                                    'type'      => 'query',
+                                    'query'     => 'users',
+                                    'arguments' => ['role' => 'editor'],
+                                    'position'  => 'after',
+                                ],
+                            ],
+                        ],
                     ],
                 ],
                 [

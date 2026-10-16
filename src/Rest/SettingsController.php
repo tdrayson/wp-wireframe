@@ -11,6 +11,7 @@ use Wireframe\Framework\Access\PageFlags;
 use Wireframe\Framework\Conditions;
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldRegistry;
+use Wireframe\Framework\Populate;
 use Wireframe\Framework\Sanitizer;
 use Wireframe\Framework\Validator;
 use Wireframe\Settings;
@@ -115,10 +116,12 @@ final class SettingsController
         $map      = self::accessMap($page);
         $resolver = new AccessResolver($page['capability']);
         $filtered = $resolver->filterConfig($config, $map);
+        $values   = Settings::resolvedFor($page['option_key'], $page['config']);
+        $forUser  = apply_filters('wp-wireframe/config/for_user', $filtered, $page['page_id'], $map);
 
         return new WP_REST_Response([
-            'config'   => apply_filters('wp-wireframe/config/for_user', $filtered, $page['page_id'], $map),
-            'values'   => Settings::resolvedFor($page['option_key'], $page['config']),
+            'config'   => Populate::resolveConfig($forUser, $values),
+            'values'   => $values,
             'canSave'  => PageFlags::canSave($page, $map),
             'canReset' => PageFlags::canReset($page, $map),
         ]);

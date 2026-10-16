@@ -10,6 +10,8 @@ use WP_User;
 use Wireframe\Admin\AdminPage;
 use Wireframe\App;
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\Framework\Populate;
+use Wireframe\Meta;
 
 /**
  * Hooks field groups into the block editor: assets and data, `content` template locking, and meta box containers.
@@ -21,7 +23,7 @@ final class EditorIntegration
     private const BOX_PREFIX = 'wireframe-group-';
 
     /**
-     * Build the `window.wireframePostFields` payload: the groups that apply to a post, with access-filtered configs.
+     * Build the `window.wireframePostFields` payload: the groups that apply to a post, with access-filtered, populated configs.
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
@@ -31,9 +33,10 @@ final class EditorIntegration
     {
         $user ??= wp_get_current_user();
         $groups = [];
+        $values = Meta::resolved($post->ID);
 
         foreach (FieldGroups::groupsFor($post->post_type) as $group) {
-            $entry = self::groupData($group, $post, $user);
+            $entry = self::groupData($group, $post, $user, $values);
 
             if ($entry !== null) {
                 $groups[] = $entry;
@@ -232,7 +235,7 @@ final class EditorIntegration
     /**
      * Get a group's payload entry, or null when it doesn't apply or the user can see none of its fields.
      */
-    private static function groupData(array $group, WP_Post $post, WP_User $user): ?array
+    private static function groupData(array $group, WP_Post $post, WP_User $user, array $values): ?array
     {
         if (!Location::applies($group, $post->ID, $user->exists() ? $user : null)) {
             return null;
@@ -246,11 +249,12 @@ final class EditorIntegration
 
         return [
             'id'        => $group['id'],
+            'prefix'    => $group['prefix'],
             'title'     => $group['title'],
             'position'  => $group['display']['position'],
             'collapsed' => $group['display']['collapsed'],
             'order'     => $group['display']['order'],
-            'config'    => $config,
+            'config'    => Populate::resolveConfig($config, $values),
         ];
     }
 

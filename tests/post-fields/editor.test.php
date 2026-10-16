@@ -51,7 +51,7 @@ check('post type', 'event', $data['postType']);
 check('event supports title', true, $data['supportsTitle']);
 check('admin gets every event group, sorted', ['event_details', 'event_extras', 'event_seo'], array_column($data['groups'], 'id'));
 check('positions', ['content', 'meta_box', 'sidebar'], array_column($data['groups'], 'position'));
-check('group keys', ['id', 'title', 'position', 'collapsed', 'order', 'config'], array_keys($data['groups'][0]));
+check('group keys', ['id', 'prefix', 'title', 'position', 'collapsed', 'order', 'config'], array_keys($data['groups'][0]));
 check('seo display', ['SEO', true, 20], [$data['groups'][2]['title'], $data['groups'][2]['collapsed'], $data['groups'][2]['order']]);
 check('admin config has admin_notes', true, in_array('admin_notes', $fieldIds($groupOf($data, 'event_details')['config']), true));
 

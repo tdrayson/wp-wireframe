@@ -24,6 +24,13 @@ add_action('init', static function (): void {
         'supports'     => ['title', 'thumbnail', 'revisions'],
     ]);
 
+    register_post_type('speaker', [
+        'label'        => 'Speakers',
+        'public'       => true,
+        'show_in_rest' => true,
+        'supports'     => ['title'],
+    ]);
+
     register_taxonomy('event_type', 'event', [
         'label'        => 'Event types',
         'hierarchical' => true,

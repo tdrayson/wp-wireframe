@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe;
 
 use Wireframe\Framework\Fields\FieldRegistry;
+use Wireframe\Framework\Populate;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\Index\IndexSync;
 use Wireframe\PostFields\MetaRegistrar;
@@ -412,13 +413,12 @@ final class Meta
     private static function sanitize(string $kind, array $field, mixed $value): mixed
     {
         $handler = FieldRegistry::instance()->get((string) ($field['type'] ?? 'text'));
-        $args    = $field['args'] ?? [];
 
         if ($kind === StorageKind::MULTI) {
             $value = array_map('strval', array_filter((array) $value, 'is_scalar'));
         }
 
-        $clean = $handler::sanitize($value, $args);
+        $clean = $handler::sanitize($value, Populate::argsFor($field, $value));
 
         if ($kind === StorageKind::SCALAR && ($field['type'] ?? '') === 'file') {
             return (int) (array_values((array) $clean)[0] ?? 0);
@@ -469,11 +469,17 @@ final class Meta
     }
 
     /**
-     * Cast a stored scalar to its REST schema type, since post meta returns strings.
+     * Cast a stored scalar, or each value of a multi-value field, to its REST schema type, since post meta returns strings.
      */
     private static function typed(array $field, mixed $value): mixed
     {
-        if (StorageKind::for($field) !== StorageKind::SCALAR) {
+        $kind = StorageKind::for($field);
+
+        if ($kind === StorageKind::MULTI && is_array($value)) {
+            return Populate::typed($field['args'] ?? [], $value);
+        }
+
+        if ($kind !== StorageKind::SCALAR) {
             return $value;
         }
 

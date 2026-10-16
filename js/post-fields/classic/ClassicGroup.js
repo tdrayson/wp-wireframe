@@ -22,6 +22,7 @@ const POSITION_CLASSES = {
  * @param {boolean}          props.isNew    Whether the post is an auto-draft.
  * @param {Object}           props.errors   Errors by field id from the last failed save.
  * @param {Object}           props.rejected Values by field id the last failed save did not write.
+ * @param {string}           props.postType Post type being edited.
  */
 export default function ClassicGroup( {
 	group,
@@ -29,8 +30,16 @@ export default function ClassicGroup( {
 	isNew,
 	errors,
 	rejected,
+	postType,
 } ) {
-	const store = useLocalFieldStore( group, input, isNew, errors, rejected );
+	const store = useLocalFieldStore(
+		group,
+		input,
+		isNew,
+		errors,
+		rejected,
+		postType
+	);
 	const isSidebar = group.position === 'sidebar';
 	const config = useMemo(
 		() => ( isSidebar ? fullWidth( group.config ) : group.config ),

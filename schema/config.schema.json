@@ -214,6 +214,29 @@
         "type": ["string", "object"]
       }
     },
+    "populate": {
+      "type": "object",
+      "description": "Select, checkboxes and radio only: options filled from posts, users, terms or a callback, merged with the static `options`.",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["query", "function", "custom"], "description": "Default `query`." },
+        "query": { "type": "string", "enum": ["posts", "users", "terms"], "description": "Default `posts`. Runs WP_Query, WP_User_Query or WP_Term_Query." },
+        "arguments": { "type": "object", "description": "Query args. Defaults: published posts by title, all of them; users by display name; empty terms included." },
+        "return_format": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Object properties for each option. Defaults: ID/post_title, ID/display_name, term_id/name.",
+          "properties": {
+            "value": { "type": "string" },
+            "label": { "type": "string" }
+          }
+        },
+        "function": { "type": "string", "description": "Type `function`: a callable name (a closure in PHP config), called with the field; returns a value => label map." },
+        "custom": { "type": "string", "description": "Type `custom`: id of the `wp-wireframe/populate/{id}` filter that returns a value => label map." },
+        "position": { "type": "string", "enum": ["before", "after"], "description": "Where populated options go relative to the static `options`. Default `after`." },
+        "fetch": { "type": "boolean", "description": "Select only: ship just the stored labels and search as you type." }
+      }
+    },
     "argsByType": {
       "choice": {
         "if": {
@@ -228,9 +251,10 @@
           "properties": {
             "args": {
               "type": "object",
-              "required": ["options"],
+              "anyOf": [{ "required": ["options"] }, { "required": ["populate"] }],
               "properties": {
                 "options": { "$ref": "#/$defs/optionMap" },
+                "populate": { "$ref": "#/$defs/populate" },
                 "multiple": { "type": "boolean" },
                 "allow_custom": { "type": "boolean" },
                 "placeholder": { "type": "string" },

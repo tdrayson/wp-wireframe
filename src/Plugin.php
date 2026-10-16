@@ -16,6 +16,7 @@ use Wireframe\PostFields\Index\IndexTable;
 use Wireframe\PostFields\Index\QueryClauses;
 use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\Rest\ActionController;
+use Wireframe\Rest\PopulateController;
 use Wireframe\Rest\SettingsController;
 use Wireframe\Rest\TableController;
 
@@ -56,6 +57,7 @@ final class Plugin
         add_action('rest_api_init', [SettingsController::class, 'register']);
         add_action('rest_api_init', [TableController::class, 'register']);
         add_action('rest_api_init', [ActionController::class, 'register']);
+        add_action('rest_api_init', [PopulateController::class, 'register']);
         add_action('wp_loaded', [FieldGroups::class, 'boot'], 0);
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
         add_action('wp_loaded', [IndexTable::class, 'install'], 2);

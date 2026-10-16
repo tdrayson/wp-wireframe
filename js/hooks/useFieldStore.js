@@ -14,7 +14,9 @@ export const FieldStoreContext = createContext( null );
 /**
  * Access the field store. Must be called within a `FieldStoreContext.Provider`.
  *
- * @return {{ config: Object, values: Object, setMultiple: Function, errors: Object }}
+ * `populate` is the `{ prefix, context }` that `fetch` selects search with.
+ *
+ * @return {{ config: Object, values: Object, setMultiple: Function, errors: Object, populate: { prefix: string, context: string } }}
  */
 export function useFieldStore() {
 	const context = useContext( FieldStoreContext );

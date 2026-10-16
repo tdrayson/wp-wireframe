@@ -34,7 +34,6 @@ final class Sanitizer
 
             $type    = $fieldConfig['type'] ?? 'text';
             $handler = $registry->get($type);
-            $args    = $fieldConfig['args'] ?? [];
             $default = $fieldConfig['default'] ?? null;
             $value   = $payload[$fieldId] ?? $default;
 
@@ -42,7 +41,7 @@ final class Sanitizer
                 continue;
             }
 
-            $clean[$fieldId] = $handler::sanitize($value, $args);
+            $clean[$fieldId] = $handler::sanitize($value, Populate::argsFor($fieldConfig, $value));
         }
 
         return $clean;

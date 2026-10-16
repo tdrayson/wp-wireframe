@@ -58,8 +58,8 @@ final class Validator
 
             $type    = $fieldConfig['type'] ?? 'text';
             $handler = $registry->get($type);
-            $args    = $fieldConfig['args'] ?? [];
             $value   = $payload[$fieldId] ?? null;
+            $args    = Populate::argsFor($fieldConfig, $value);
 
             if ($handler::isStateless()) {
                 continue;
@@ -168,7 +168,7 @@ final class Validator
 
     private static function validateRepeater(array $rows, array $args): array
     {
-        $subfields = $args['subfields'] ?? [];
+        $subfields = Populate::resolveSubfields($args['subfields'] ?? [], $rows);
         $registry  = FieldRegistry::instance();
         $errors    = [];
 

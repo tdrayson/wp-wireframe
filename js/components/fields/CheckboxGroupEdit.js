@@ -12,6 +12,17 @@
 import { CheckboxControl, BaseControl } from '@wordpress/components';
 import { getFieldHelp } from './useFieldError';
 
+/**
+ * Whether two option values match; populated values may arrive as numbers or numeric strings.
+ *
+ * @param {*} a One value.
+ * @param {*} b The other.
+ * @return {boolean} True when they match as strings.
+ */
+function sameValue( a, b ) {
+	return String( a ) === String( b );
+}
+
 export default function CheckboxGroupEdit( { data, field, onChange, error } ) {
 	const value = Array.isArray( data[ field.id ] ) ? data[ field.id ] : ( field.defaultValue || [] );
 	const options = field.elements || [];
@@ -26,7 +37,10 @@ export default function CheckboxGroupEdit( { data, field, onChange, error } ) {
 	const handleChange = ( optionValue, isChecked ) => {
 		const updatedValue = isChecked
 			? [ ...value, optionValue ]
-			: value.filter( ( selectedValue ) => selectedValue !== optionValue );
+			: value.filter(
+					( selectedValue ) =>
+						! sameValue( selectedValue, optionValue )
+			  );
 
 		onChange( { [ field.id ]: updatedValue } );
 	};
@@ -45,7 +59,9 @@ export default function CheckboxGroupEdit( { data, field, onChange, error } ) {
 						__nextHasNoMarginBottom
 						key={ option.value }
 						label={ option.label }
-						checked={ value.includes( option.value ) }
+						checked={ value.some( ( selectedValue ) =>
+							sameValue( selectedValue, option.value )
+						) }
 						onChange={ disabled ? undefined : ( isChecked ) => handleChange( option.value, isChecked ) }
 						disabled={ disabled }
 					/>
