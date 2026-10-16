@@ -19,8 +19,61 @@ export function useVisibleTabs( config ) {
 	const { values } = useFieldStore();
 
 	return useMemo(
-		() => getTabs( config ).filter( ( tab ) => isTabVisible( tab, values ) ),
+		() =>
+			getTabs( config ).filter( ( tab ) => isTabVisible( tab, values ) ),
 		[ config, values ]
+	);
+}
+
+/**
+ * The tab bar, shown only when there is more than one tab.
+ *
+ * @param {Object}   props
+ * @param {Object[]} props.tabs      Visible tabs.
+ * @param {string}   props.activeTab Id of the active tab.
+ * @param {Function} props.onSelect  Called with a tab id when a tab is clicked.
+ */
+export function TabNav( { tabs, activeTab, onSelect } ) {
+	if ( tabs.length <= 1 ) {
+		return null;
+	}
+
+	return (
+		<div className="wireframe-page__tabs-container">
+			<nav className="wireframe-page__tabs" role="tablist">
+				{ tabs.map( ( tab ) => (
+					<button
+						key={ tab.id }
+						role="tab"
+						aria-selected={ tab.id === activeTab }
+						className={ `wireframe-page__tab ${
+							tab.id === activeTab ? 'is-active' : ''
+						}` }
+						onClick={ () => onSelect( tab.id ) }
+					>
+						{ tab.title }
+					</button>
+				) ) }
+			</nav>
+		</div>
+	);
+}
+
+/**
+ * A tab's section cards.
+ *
+ * @param {Object}      props
+ * @param {Object|null} props.tab The tab to render, or null for none.
+ */
+export function TabSections( { tab } ) {
+	const sections = tab ? getSections( tab ) : [];
+
+	return (
+		<div className="wireframe-page__content">
+			{ sections.map( ( section ) => (
+				<SettingsSection key={ section.id } section={ section } />
+			) ) }
+		</div>
 	);
 }
 
@@ -32,36 +85,16 @@ export function useVisibleTabs( config ) {
  */
 export default function FieldTabs( { config, activeTab, onSelect } ) {
 	const tabs = useVisibleTabs( config );
-	const currentTab = tabs.find( ( tab ) => tab.id === activeTab );
-	const sections = currentTab ? getSections( currentTab ) : [];
+	const currentTab = tabs.find( ( tab ) => tab.id === activeTab ) ?? null;
 
 	return (
 		<>
-			{ tabs.length > 1 && (
-				<div className="wireframe-page__tabs-container">
-					<nav className="wireframe-page__tabs" role="tablist">
-						{ tabs.map( ( tab ) => (
-							<button
-								key={ tab.id }
-								role="tab"
-								aria-selected={ tab.id === activeTab }
-								className={ `wireframe-page__tab ${
-									tab.id === activeTab ? 'is-active' : ''
-								}` }
-								onClick={ () => onSelect( tab.id ) }
-							>
-								{ tab.title }
-							</button>
-						) ) }
-					</nav>
-				</div>
-			) }
-
-			<div className="wireframe-page__content">
-				{ sections.map( ( section ) => (
-					<SettingsSection key={ section.id } section={ section } />
-				) ) }
-			</div>
+			<TabNav
+				tabs={ tabs }
+				activeTab={ activeTab }
+				onSelect={ onSelect }
+			/>
+			<TabSections tab={ currentTab } />
 		</>
 	);
 }
