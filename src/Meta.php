@@ -40,7 +40,7 @@ final class Meta
         $value = self::value($postId, $top, $field);
 
         if ($top === $key) {
-            return $value ?? $default;
+            return $value ?? $default ?? self::blank($field);
         }
 
         $nested = Settings::dotGet(is_array($value) ? $value : [], self::path($key, $top));
@@ -144,7 +144,7 @@ final class Meta
         $merged = [];
 
         foreach (self::storedFields($postId) as $key => $field) {
-            $merged[$key] = self::value($postId, $key, $field);
+            $merged[$key] = self::value($postId, $key, $field) ?? self::blank($field);
         }
 
         return $merged;
@@ -430,7 +430,7 @@ final class Meta
     }
 
     /**
-     * Read a field's typed value, or its config default when nothing is stored (multi-value: `[]` outside auto-drafts).
+     * Read a field's typed value, or its config default when nothing is stored (multi-value: none outside auto-drafts).
      */
     private static function value(int $postId, string $key, array $field): mixed
     {
@@ -442,10 +442,18 @@ final class Meta
 
         // A multi-value field stores no rows when emptied, so its default only seeds a new post.
         if (StorageKind::for($field) === StorageKind::MULTI && get_post_status($postId) !== 'auto-draft') {
-            return [];
+            return null;
         }
 
         return $field['default'] ?? null;
+    }
+
+    /**
+     * Get what an unset field reads as when it has no default: `[]` for multi-value, else null.
+     */
+    private static function blank(array $field): mixed
+    {
+        return StorageKind::for($field) === StorageKind::MULTI ? [] : null;
     }
 
     /**

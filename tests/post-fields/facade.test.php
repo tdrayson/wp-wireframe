@@ -17,6 +17,8 @@ check('config default for a scalar', true, Meta::get($id, 'is_featured'));
 check('multi-value default seeds an auto-draft', ['jazz'], Meta::get(make_event([], 'auto-draft'), 'genres'));
 check('multi-value default is not applied to a draft', [], Meta::get($id, 'genres'));
 check('multi-value default is not applied to a published post', [], Meta::get(make_event([], 'publish'), 'genres'));
+check('call-site default is honoured for an empty multi-value field', ['x'], Meta::get($id, 'genres', ['x']));
+check('call-site default does not override an auto-draft config default', ['jazz'], Meta::get(make_event([], 'auto-draft'), 'genres', ['x']));
 check('resolved seeds an auto-draft', ['jazz'], Meta::resolved(make_event([], 'auto-draft'))['genres'] ?? null);
 check('resolved leaves a draft empty', [], Meta::resolved($id)['genres'] ?? null);
 check('call-site default for an unset field', 'x', Meta::get($id, 'ticket_url', 'x'));
