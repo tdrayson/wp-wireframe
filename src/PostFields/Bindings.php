@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\PostFields;
 
 use WP_Block;
+use WP_Post;
 use Wireframe\Meta;
 
 /**
@@ -36,46 +37,63 @@ final class Bindings
      * @param array    $args      Binding args: `key` (field id or dot path), optional `format` (PHP date format, dates only).
      * @param WP_Block $block     Block being rendered.
      * @param string   $attribute Bound attribute.
-     * @return string Blank when the key is missing, private or unknown.
+     * @return string|null Null when the post isn't visible to the viewer, so the block keeps its content; blank for a missing, private or unknown key.
      */
     public static function value(array $args, WP_Block $block, string $attribute): ?string
     {
-        $key    = $args['key'] ?? null;
-        $postId = (int) ($block->context['postId'] ?? get_the_ID());
+        $postId = (int) ($block->context['postId'] ?? 0);
+        $post   = $postId > 0 ? get_post($postId) : null;
 
-        if ($postId <= 0) {
-            return '';
+        if (!self::visible($post)) {
+            return null;
         }
+
+        $key = $args['key'] ?? null;
 
         if (!is_string($key) || $key === '') {
             return self::refuse('The "key" argument is required.');
         }
 
-        $postType = (string) ($block->context['postType'] ?? get_post_type($postId));
-        $field    = self::resolve($postType, $key);
+        $field = self::resolve($post, $key);
 
         if ($field === null) {
-            return self::refuse(sprintf('"%s" is not a public field of "%s".', $key, $postType));
+            return self::refuse(sprintf('"%s" is not a public field of "%s".', $key, $post->post_type));
         }
 
-        $value = str_contains($key, '.') ? get_post_meta($postId, $key, true) : Meta::get($postId, $key);
+        $value = str_contains($key, '.') ? self::cell($postId, $key, $field) : Meta::get($postId, $key);
         $text  = self::format($field, $value, $attribute, $args['format'] ?? null);
 
         return self::isMarkup($block, $attribute) ? esc_html($text) : $text;
     }
 
     /**
-     * Get the config to format a key with, or null unless its top-level field is public and the key names a real field.
+     * Whether the viewer may see the post's content, as core's `core/post-meta` source decides.
+     */
+    private static function visible(?WP_Post $post): bool
+    {
+        if ($post === null) {
+            return false;
+        }
+
+        if (!is_post_publicly_viewable($post) && !current_user_can('read_post', $post->ID)) {
+            return false;
+        }
+
+        return !post_password_required($post);
+    }
+
+    /**
+     * Get the config to format a key with, or null unless the field is public, applies to the post and is viewable by the user.
      *
      * @return array|null Field config; the subfield's for a dot path.
      */
-    private static function resolve(string $postType, string $key): ?array
+    private static function resolve(WP_Post $post, string $key): ?array
     {
-        $fields = FieldGroups::flatFields($postType);
+        $fields = FieldGroups::flatFields($post->post_type);
         $parts  = explode('.', $key);
         $top    = $fields[$parts[0]] ?? null;
 
-        if ($top === null || empty($top['public'])) {
+        if ($top === null || empty($top['public']) || !self::readable($post, $parts[0])) {
             return null;
         }
 
@@ -88,6 +106,31 @@ final class Bindings
         }
 
         return $fields[$parts[0] . '.' . end($parts)] ?? null;
+    }
+
+    /**
+     * Whether the current user may view a top-level field on a post: its group applies and its access allows it.
+     */
+    private static function readable(WP_Post $post, string $id): bool
+    {
+        $group = FieldGroups::groupOfField($post->post_type, $id);
+        $user  = wp_get_current_user();
+
+        if ($group === null || !Location::applies($group, $post->ID, $user->exists() ? $user : null)) {
+            return false;
+        }
+
+        return in_array($id, MetaRegistrar::accessMap($post->post_type, $group, $user)->viewableFieldIds(), true);
+    }
+
+    /**
+     * Read a dotted key's cell, falling back to the subfield's default when it is empty.
+     */
+    private static function cell(int $postId, string $key, array $field): mixed
+    {
+        $value = get_post_meta($postId, $key, true);
+
+        return $value === '' || $value === null ? ($field['default'] ?? '') : $value;
     }
 
     /**

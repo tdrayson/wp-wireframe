@@ -26,12 +26,14 @@ FieldGroups::register('wf-bind', [
         ['id' => 'genres', 'type' => 'checkboxes', 'public' => true, 'args' => ['options' => ['jazz' => 'Jazz', 'rock' => 'Rock']]],
         ['id' => 'logo', 'type' => 'file', 'public' => true],
         ['id' => 'hidden', 'type' => 'text'],
+        ['id' => 'admin_only', 'type' => 'text', 'public' => true, 'access' => 'administrator'],
         [
             'id'     => 'rows',
             'type'   => 'repeater',
             'public' => true,
             'args'   => ['subfields' => [
                 ['id' => 'venue', 'type' => 'text'],
+                ['id' => 'city', 'type' => 'text', 'default' => 'TBA'],
                 ['id' => 'when', 'type' => 'date'],
                 ['id' => 'on', 'type' => 'toggle'],
             ]],
@@ -90,7 +92,6 @@ check('an unknown key warns under WP_DEBUG', $wrongRun, count($notices) === 1);
 check('a missing key renders empty', '<p></p>', $bare($para([], $id)));
 check('a missing key warns under WP_DEBUG', $wrongRun, count($notices) === 1);
 check('no post context renders empty', '<p></p>', $bare($para(['key' => 'subtitle'], null)));
-check('a field of another post type renders empty', '<p></p>', $bare($para(['key' => 'subtitle'], $id, 'event')));
 
 // Per-type formatting.
 check('a date uses the site format', wp_date(get_option('date_format'), strtotime('2026-03-05 UTC'), new DateTimeZone('UTC')), $text($para(['key' => 'starts'], $id)));
@@ -126,6 +127,7 @@ check('a dot path formats with the subfield type', wp_date(get_option('date_form
 check('a dot path toggle is Yes/No', 'No', $text($para(['key' => 'rows.1.on'], $rows)));
 check('a dot path without a row reads the first row', 'Leeds', $text($para(['key' => 'rows.venue'], $rows)));
 check('an out-of-range row is empty', '<p></p>', $bare($para(['key' => 'rows.9.venue'], $rows)));
+check('a dot path falls back to the subfield default', 'TBA', $text($para(['key' => 'rows.0.city'], $rows)));
 check('an unknown subfield is empty', '<p></p>', $bare($para(['key' => 'rows.0.nope'], $rows)));
 check('an unknown subfield warns under WP_DEBUG', $wrongRun, count($notices) === 1);
 check('a top-level repeater counts its rows', '2 rows', $text($para(['key' => 'rows'], $rows)));
@@ -134,6 +136,39 @@ $sessions = make_event(['sessions' => [['venue' => 'Leeds']]], 'publish');
 $created[] = $sessions;
 check('a dot path under a non-public repeater is empty', '<p></p>', $bare($para(['key' => 'sessions.0.venue'], $sessions, 'event')));
 check('a dot path under a non-public repeater warns', $wrongRun, count($notices) === 1);
+
+// Post visibility: like core/post-meta, a post the viewer can't see leaves the block's saved content alone.
+$saved   = static fn (int $postId): string => $text($render('paragraph', 'content', ['key' => 'subtitle'], $postId, '<p>Saved</p>'));
+$draft   = $make(['subtitle' => 'Draft value']);
+$private = $make(['subtitle' => 'Private value']);
+$locked  = $make(['subtitle' => 'Locked value']);
+wp_update_post(['ID' => $draft, 'post_status' => 'draft']);
+wp_update_post(['ID' => $private, 'post_status' => 'private']);
+wp_update_post(['ID' => $locked, 'post_password' => 'secret']);
+
+as_user('guest');
+check('a draft post shows nothing to a guest', 'Saved', $saved($draft));
+check('a private post shows nothing to a guest', 'Saved', $saved($private));
+check('a password-protected post shows nothing to a guest', 'Saved', $saved($locked));
+check('a published post shows its value to a guest', 'Hello there', $saved($id));
+check('a non-visible post raises no notice', 0, count($notices));
+as_user('administrator');
+check('an administrator sees a draft post', 'Draft value', $saved($draft));
+check('an administrator sees a private post', 'Private value', $saved($private));
+
+// Access and location.
+$gated = $make(['admin_only' => 'Staff only']);
+as_user('guest');
+check('a public field with an access rule is empty for a guest', '<p></p>', $bare($para(['key' => 'admin_only'], $gated)));
+as_user('subscriber');
+check('a public field with an access rule is empty for a subscriber', '<p></p>', $bare($para(['key' => 'admin_only'], $gated)));
+as_user('administrator');
+check('an administrator reads the field with an access rule', 'Staff only', $text($para(['key' => 'admin_only'], $gated)));
+
+as_user('guest');
+$rowsPost = $make(['rows' => [['venue' => 'Leeds']]]);
+check('a guest still reads public dot paths', 'Leeds', $text($para(['key' => 'rows.0.venue'], $rowsPost)));
+as_user('administrator');
 
 // Formatter.
 $field = static fn (string $postType, string $id): array => FieldGroups::flatFields($postType)[$id];

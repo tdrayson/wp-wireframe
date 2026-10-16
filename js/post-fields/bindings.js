@@ -1,7 +1,8 @@
 /**
  * The `wireframe/field` block bindings source, read-only, formatted like the PHP `Bindings` source.
  */
-import { registerBlockBindingsSource } from '@wordpress/blocks';
+import { getBlockType, registerBlockBindingsSource } from '@wordpress/blocks';
+import { escapeHTML } from '@wordpress/escape-html';
 import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { topLevelFields } from './coerce';
@@ -83,7 +84,9 @@ function readValue( meta, key, field ) {
 		value = rows[ Number( row ) ]?.[ sub ];
 	}
 
-	return value ?? field.default ?? '';
+	const empty = value === undefined || value === null || value === '';
+
+	return empty ? field.default ?? '' : value;
 }
 
 /**
@@ -155,6 +158,37 @@ function moment( type, value, format ) {
 }
 
 /**
+ * Coerce a stored value like PHP's `FILTER_VALIDATE_BOOLEAN`: "1", "true", "on" and "yes" are true.
+ *
+ * @param {*} value Stored toggle value.
+ * @return {boolean} Whether it reads as on.
+ */
+function toBoolean( value ) {
+	if ( typeof value === 'string' ) {
+		return [ '1', 'true', 'on', 'yes' ].includes(
+			value.trim().toLowerCase()
+		);
+	}
+
+	return typeof value === 'number' ? value === 1 : Boolean( value );
+}
+
+/**
+ * Whether the attribute is HTML in the block's markup, so plain text must be escaped for it.
+ *
+ * @param {Object} select    Registry select.
+ * @param {string} clientId  Bound block's client ID.
+ * @param {string} attribute Bound attribute.
+ * @return {boolean} True for `html` and `rich-text` attributes.
+ */
+function isMarkup( select, clientId, attribute ) {
+	const name = select( 'core/block-editor' ).getBlockName( clientId );
+	const source = getBlockType( name )?.attributes?.[ attribute ]?.source;
+
+	return source === 'html' || source === 'rich-text';
+}
+
+/**
  * Format a value as plain text, as `ValueFormatter::text()` does.
  *
  * @param {Object}   field     Field config.
@@ -176,7 +210,9 @@ function formatValue( field, value, attribute, format, select ) {
 	}
 
 	if ( type === 'toggle' || type === 'checkbox' ) {
-		return value ? __( 'Yes', 'wp-wireframe' ) : __( 'No', 'wp-wireframe' );
+		return toBoolean( value )
+			? __( 'Yes', 'wp-wireframe' )
+			: __( 'No', 'wp-wireframe' );
 	}
 
 	if ( type === 'repeater' ) {
@@ -220,7 +256,7 @@ export default function registerBindings( groups ) {
 		name: SOURCE,
 		label: __( 'Wireframe field', 'wp-wireframe' ),
 		usesContext: [ 'postId', 'postType' ],
-		getValues( { bindings, context, select } ) {
+		getValues( { bindings, clientId, context, select } ) {
 			const editor = select( 'core/editor' );
 			const meta = editor.getEditedPostAttribute( 'meta' );
 			const isCurrent =
@@ -240,13 +276,21 @@ export default function registerBindings( groups ) {
 				} else if ( ! meta || ! isCurrent ) {
 					values[ attribute ] = field.label || key;
 				} else {
-					values[ attribute ] = formatValue(
+					const text = formatValue(
 						field,
 						readValue( meta, key, field ),
 						attribute,
 						binding.args.format,
 						select
 					);
+
+					values[ attribute ] = isMarkup(
+						select,
+						clientId,
+						attribute
+					)
+						? escapeHTML( text )
+						: text;
 				}
 			}
 

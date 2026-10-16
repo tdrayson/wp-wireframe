@@ -70,7 +70,11 @@ final class Plugin
         IndexSync::register();
         Aliases::register();
         // App::boot() may itself run inside `init`, after its callbacks have fired.
-        did_action('init') ? Bindings::register() : add_action('init', [Bindings::class, 'register']);
+        if (did_action('init')) {
+            Bindings::register();
+        } else {
+            add_action('init', [Bindings::class, 'register']);
+        }
         // Late, so a wireframe_query added by other pre_get_posts callbacks still lifts suppress_filters.
         add_action('pre_get_posts', [QueryClauses::class, 'prepare'], 1000);
         add_filter('posts_clauses', [QueryClauses::class, 'apply'], 10, 2);
