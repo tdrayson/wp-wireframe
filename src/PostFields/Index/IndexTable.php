@@ -68,6 +68,17 @@ final class IndexTable
     }
 
     /**
+     * Filter `wpmu_drop_tables`: drop the table with a deleted site's own; core has switched to that site.
+     *
+     * @param array $tables Tables to drop.
+     * @return array
+     */
+    public static function dropWithSite(array $tables): array
+    {
+        return [...$tables, self::name()];
+    }
+
+    /**
      * Whether the current site's table exists.
      */
     public static function exists(): bool

@@ -62,6 +62,9 @@ final class IndexSync
     {
         global $wpdb;
 
+        // A site reached through switch_to_blog() may not have run install yet.
+        IndexTable::install();
+
         $table = IndexTable::name();
         $wpdb->delete($table, ['post_id' => $postId, 'field' => $field], ['%d', '%s']);
 
@@ -124,6 +127,7 @@ final class IndexSync
     {
         global $wpdb;
 
+        IndexTable::install();
         $wpdb->delete(IndexTable::name(), ['post_id' => $postId], ['%d']);
     }
 

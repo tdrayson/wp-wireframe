@@ -67,6 +67,7 @@ final class Plugin
         add_action('wp_loaded', [FieldGroups::class, 'boot'], 0);
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
         add_action('wp_loaded', [IndexTable::class, 'install'], 2);
+        add_filter('wpmu_drop_tables', [IndexTable::class, 'dropWithSite']);
         IndexSync::register();
         Aliases::register();
         // App::boot() may itself run inside `init`, after its callbacks have fired.

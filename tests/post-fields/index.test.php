@@ -135,6 +135,17 @@ check('the retry installs the table', [IndexTable::VERSION, $table], [(int) get_
 $wpdb->query("DROP TABLE {$table}");
 $wpdb->query("RENAME TABLE {$table}_kept TO {$table}");
 
+check('deleting a site drops its index table', true, in_array($table, (array) apply_filters('wpmu_drop_tables', [$wpdb->posts], get_current_blog_id()), true));
+
+// A site switched to whose table was never installed, as after switch_to_blog().
+$wpdb->query("RENAME TABLE {$table} TO {$table}_kept");
+update_option('wireframe_index_db_version', 0);
+$fresh = make_event();
+Meta::set($fresh, 'sessions', [['venue' => 'Hull']]);
+check('a write installs a missing table first', [IndexTable::VERSION, 1], [(int) get_option('wireframe_index_db_version'), $count($fresh, 'venue')]);
+$wpdb->query("DROP TABLE {$table}");
+$wpdb->query("RENAME TABLE {$table}_kept TO {$table}");
+
 $lastChanged = wp_cache_get_last_changed('posts');
 Meta::reindex('event');
 check('reindex invalidates cached post queries', true, $lastChanged !== wp_cache_get_last_changed('posts'));
