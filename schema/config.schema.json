@@ -118,6 +118,21 @@
           "type": "boolean",
           "description": "Post fields only: include the value in public (view context) REST responses. Default false."
         },
+        "column": {
+          "description": "Post fields only, on a storable field: show it as a column on the post type's admin list. `true`, or an object.",
+          "oneOf": [
+            { "type": "boolean" },
+            {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string", "description": "Column heading. Defaults to the field label." },
+                "sortable": { "type": "boolean", "description": "Let the list be sorted by this column. Ignored for multi-value fields and repeaters." },
+                "after": { "type": "string", "description": "Id of the column to follow. Defaults to `title`; field columns are `wireframe_{field_id}`." }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "indexed": {
           "type": "boolean",
           "description": "Repeater subfields on post fields only: write the value to the index table so `wireframe_query` can match it."

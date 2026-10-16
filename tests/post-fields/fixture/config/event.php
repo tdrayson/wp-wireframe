@@ -12,7 +12,7 @@ return [
                     'id'     => 'details',
                     'title'  => 'Details',
                     'fields' => [
-                        ['id' => 'is_featured', 'type' => 'toggle', 'label' => 'Featured', 'default' => true],
+                        ['id' => 'is_featured', 'type' => 'toggle', 'label' => 'Featured', 'default' => true, 'column' => ['after' => 'wireframe_event_starts']],
                         [
                             'id'         => 'ticket_url',
                             'type'       => 'url',
@@ -20,11 +20,12 @@ return [
                             'required'   => true,
                             'conditions' => ['all' => [['field' => 'is_featured', 'operator' => 'truthy']]],
                         ],
-                        ['id' => 'price', 'type' => 'number', 'label' => 'Price'],
+                        ['id' => 'price', 'type' => 'number', 'label' => 'Price', 'column' => ['sortable' => true, 'after' => 'wireframe_event_starts']],
                         [
                             'id'      => 'genres',
                             'type'    => 'checkboxes',
                             'label'   => 'Genres',
+                            'column'  => ['after' => 'wireframe_event_starts'],
                             'default' => ['jazz'],
                             'args'    => ['options' => ['jazz' => 'Jazz', 'rock' => 'Rock', 'folk' => 'Folk']],
                         ],
@@ -35,14 +36,16 @@ return [
                             'type'   => 'textarea',
                             'label'  => 'Admin notes',
                             'access' => ['view' => 'administrator', 'edit' => 'administrator'],
+                            'column' => ['after' => 'wireframe_event_starts'],
                         ],
-                        ['id' => 'logo', 'type' => 'file', 'label' => 'Logo'],
+                        ['id' => 'logo', 'type' => 'file', 'label' => 'Logo', 'column' => ['after' => 'wireframe_event_starts']],
                         ['id' => 'gallery', 'type' => 'file', 'label' => 'Gallery', 'args' => ['multiple' => true]],
                         [
-                            'id'    => 'speakers',
-                            'type'  => 'select',
-                            'label' => 'Speakers',
-                            'args'  => [
+                            'id'     => 'speakers',
+                            'type'   => 'select',
+                            'label'  => 'Speakers',
+                            'column' => ['after' => 'wireframe_event_starts'],
+                            'args'   => [
                                 'multiple' => true,
                                 'populate' => [
                                     'type'      => 'query',
@@ -94,12 +97,13 @@ return [
                     'id'     => 'schedule',
                     'title'  => 'Schedule',
                     'fields' => [
-                        ['id' => 'event_starts', 'type' => 'date', 'label' => 'Starts', 'required' => true],
+                        ['id' => 'event_starts', 'type' => 'date', 'label' => 'Starts', 'required' => true, 'column' => ['sortable' => true]],
                         [
-                            'id'    => 'sessions',
-                            'type'  => 'repeater',
-                            'label' => 'Sessions',
-                            'args'  => [
+                            'id'     => 'sessions',
+                            'type'   => 'repeater',
+                            'label'  => 'Sessions',
+                            'column' => ['after' => 'wireframe_event_starts'],
+                            'args'   => [
                                 'subfields' => [
                                     ['id' => 'starts', 'type' => 'date', 'label' => 'Starts', 'indexed' => true],
                                     ['id' => 'venue', 'type' => 'text', 'label' => 'Venue', 'indexed' => true],

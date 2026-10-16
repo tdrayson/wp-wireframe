@@ -9,6 +9,7 @@ use Wireframe\Framework\ConfigValidator;
 use Wireframe\PostFields\ClassicEditor;
 use Wireframe\PostFields\ClassicSave;
 use Wireframe\PostFields\Cli\ReindexCommand;
+use Wireframe\PostFields\Columns;
 use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
 use Wireframe\PostFields\Index\IndexSync;
@@ -73,6 +74,7 @@ final class Plugin
         add_action('add_meta_boxes', [EditorIntegration::class, 'registerMetaBoxes'], 10, 2);
         ClassicEditor::register();
         ClassicSave::register();
+        add_action('admin_init', [Columns::class, 'register']);
         add_filter('admin_body_class', [$this, 'addBodyClass']);
         add_action('in_admin_header', [$this, 'suppressForeignNotices'], 1000);
 
