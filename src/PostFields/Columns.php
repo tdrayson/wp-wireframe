@@ -87,8 +87,9 @@ final class Columns
         $key   = $column['field']['id'];
         $has   = ['key' => $key, 'compare' => 'EXISTS'];
 
+        // Core's NUMERIC casts to SIGNED, which drops the fraction.
         if (in_array($column['field']['type'] ?? '', ['number', 'range'], true)) {
-            $has['type'] = 'NUMERIC';
+            $has['type'] = 'DECIMAL(20,6)';
         }
 
         $existing = $query->get('meta_query');

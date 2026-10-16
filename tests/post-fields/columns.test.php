@@ -162,6 +162,10 @@ check('price sorts numerically ascending', [$low, $high], array_slice($mine($sor
 check('price sorts numerically descending', [$high, $low], array_slice($mine($sorted('wireframe_price', 'desc')), 0, 2));
 check('posts without a value stay in the list', true, in_array($none, $sorted('wireframe_price'), true));
 check('date sorts by its stored string', [$high, $low], array_slice($mine($sorted('wireframe_event_starts')), -2));
+$ninePointFive = $event(['price' => 9.5]);
+$ninePointTwo  = $event(['price' => 9.2]);
+$decimals      = array_values(array_intersect($sorted('wireframe_price'), [$ninePointFive, $ninePointTwo]));
+check('decimal prices sort by their fraction', [$ninePointTwo, $ninePointFive], $decimals);
 $query = static function (string $orderby, bool $main = true): WP_Query {
     set_current_screen('edit-event');
     $q = new WP_Query();
