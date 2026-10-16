@@ -116,6 +116,10 @@ $bound     = $render('image', 'url', ['key' => 'logo'], $withLogo, $imageHtml);
 check('a file bound to an image url is the attachment URL', true, str_contains($bound, 'src="' . esc_url(wp_get_attachment_url($image)) . '"'));
 check('a file bound to text is the URL', wp_get_attachment_url($image), $text($para(['key' => 'logo'], $withLogo)));
 check('an empty file is empty', '<p></p>', $bare($para(['key' => 'logo'], $make())));
+$urlBlock = new WP_Block(parse_blocks('<!-- wp:image -->' . $imageHtml . '<!-- /wp:image -->')[0], ['postId' => $make(['subtitle' => 'javascript:alert(1)']), 'postType' => 'bind_cpt']);
+check('a url attribute drops an unsafe protocol', '', Wireframe\PostFields\Bindings::value(['key' => 'subtitle'], $urlBlock, 'url'));
+$urlBlock = new WP_Block($urlBlock->parsed_block, ['postId' => $make(['subtitle' => 'https://example.com/a b']), 'postType' => 'bind_cpt']);
+check('a url attribute is escaped as a URL', 'https://example.com/a%20b', Wireframe\PostFields\Bindings::value(['key' => 'subtitle'], $urlBlock, 'url'));
 
 // Dotted paths.
 $rows = $make(['rows' => [

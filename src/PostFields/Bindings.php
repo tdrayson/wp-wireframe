@@ -18,6 +18,8 @@ final class Bindings
     /** Filter each bundled copy answers for the fields it owns; the copy that registered the source applies it. */
     public const VALUE_FILTER = 'wireframe/field_binding_value';
 
+    private const URL_ATTRIBUTES = ['url', 'href', 'src'];
+
     /**
      * Answer for this copy's fields and register the source if no copy has, when core has block bindings (WP 6.5+).
      */
@@ -98,6 +100,10 @@ final class Bindings
 
         $value = str_contains($key, '.') ? self::cell($post->ID, $key, $field) : Meta::get($post->ID, $key);
         $text  = self::format($field, $value, $attribute, $args['format'] ?? null);
+
+        if (in_array($attribute, self::URL_ATTRIBUTES, true)) {
+            return esc_url($text);
+        }
 
         return self::isMarkup($block, $attribute) ? esc_html($text) : $text;
     }
