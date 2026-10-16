@@ -14,7 +14,11 @@ $row = ['starts' => '2026-11-01', 'venue' => 'York', 'seats' => 40, 'notes' => '
 $id = make_event();
 
 check('config default for a scalar', true, Meta::get($id, 'is_featured'));
-check('config default for a multi-value field', ['jazz'], Meta::get($id, 'genres'));
+check('multi-value default seeds an auto-draft', ['jazz'], Meta::get(make_event([], 'auto-draft'), 'genres'));
+check('multi-value default is not applied to a draft', [], Meta::get($id, 'genres'));
+check('multi-value default is not applied to a published post', [], Meta::get(make_event([], 'publish'), 'genres'));
+check('resolved seeds an auto-draft', ['jazz'], Meta::resolved(make_event([], 'auto-draft'))['genres'] ?? null);
+check('resolved leaves a draft empty', [], Meta::resolved($id)['genres'] ?? null);
 check('call-site default for an unset field', 'x', Meta::get($id, 'ticket_url', 'x'));
 check('bool reads the default', true, Meta::bool($id, 'is_featured'));
 check('int is 0 when unset', 0, Meta::int($id, 'price'));
@@ -50,10 +54,26 @@ check('multi-value stores one row per value', 2, count(get_post_meta($id, 'genre
 check('multi-value read back', ['rock', 'jazz'], Meta::get($id, 'genres'));
 Meta::set($id, 'genres', ['rock', 'metal']);
 check('multi-value drops options the field does not have', ['rock'], Meta::get($id, 'genres'));
+$writes = 0;
+$count  = static function () use (&$writes): void {
+    $writes++;
+};
+add_action('added_post_meta', $count);
+add_action('deleted_post_meta', $count);
+Meta::set($id, 'genres', ['rock']);
+check('an unchanged multi-value set writes nothing', [true, 0], [Meta::set($id, 'genres', ['rock']), $writes]);
+remove_action('added_post_meta', $count);
+remove_action('deleted_post_meta', $count);
+
 check('emptied multi-value set succeeds', true, Meta::set($id, 'genres', []));
 check('emptied multi-value field stores no rows', [], get_post_meta($id, 'genres'));
+check('emptied multi-value field reads empty, not the default', [], Meta::get($id, 'genres'));
+check('emptied multi-value field resolves empty', [], Meta::resolved($id)['genres'] ?? null);
 
 Meta::set($id, 'public_tagline', 'a\\b');
+Meta::set($id, 'sessions', [$row]);
+Meta::set($id, 'sessions.0.venue', 'a\\b');
+check('backslashes survive a repeater cell', 'a\\b', get_post_meta($id, 'sessions', true)[0]['venue'] ?? null);
 check('backslashes survive the round trip', 'a\\b', get_post_meta($id, 'public_tagline', true));
 
 Meta::set($id, 'logo', 12);

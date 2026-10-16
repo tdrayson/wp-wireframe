@@ -82,7 +82,7 @@ final class Meta
     }
 
     /**
-     * Delete a field, or one path inside it; the field then reads as its default again.
+     * Delete a field, or one path inside it; a single-value field then reads as its default again.
      */
     public static function forget(int $postId, string $key): bool
     {
@@ -373,9 +373,15 @@ final class Meta
         $value = $sanitize ? self::sanitize($kind, $field, $value) : $value;
 
         if ($kind === StorageKind::MULTI) {
+            $rows = array_values((array) $value);
+
+            if (get_post_meta($postId, $key) === array_map('strval', $rows)) {
+                return true;
+            }
+
             delete_post_meta($postId, $key);
 
-            foreach (array_values((array) $value) as $row) {
+            foreach ($rows as $row) {
                 if (!add_post_meta($postId, $key, wp_slash($row))) {
                     return false;
                 }
@@ -389,7 +395,7 @@ final class Meta
     }
 
     /**
-     * Sanitise a value with its field class; the registered meta callback then re-runs it idempotently.
+     * Sanitise a value with its field class into its stored shape; the registered meta callback then re-runs it idempotently.
      */
     private static function sanitize(string $kind, array $field, mixed $value): mixed
     {
@@ -400,7 +406,13 @@ final class Meta
             $value = array_map('strval', array_filter((array) $value, 'is_scalar'));
         }
 
-        return $handler::sanitize($value, $args);
+        $clean = $handler::sanitize($value, $args);
+
+        if ($kind === StorageKind::SCALAR && ($field['type'] ?? '') === 'file') {
+            return (int) (array_values((array) $clean)[0] ?? 0);
+        }
+
+        return $clean;
     }
 
     /**
@@ -418,13 +430,22 @@ final class Meta
     }
 
     /**
-     * Read a field's typed value, or its config default when nothing is stored.
+     * Read a field's typed value, or its config default when nothing is stored (multi-value: `[]` outside auto-drafts).
      */
     private static function value(int $postId, string $key, array $field): mixed
     {
         $stored = self::stored($postId, $key, $field);
 
-        return $stored === null ? ($field['default'] ?? null) : self::typed($field, $stored);
+        if ($stored !== null) {
+            return self::typed($field, $stored);
+        }
+
+        // A multi-value field stores no rows when emptied, so its default only seeds a new post.
+        if (StorageKind::for($field) === StorageKind::MULTI && get_post_status($postId) !== 'auto-draft') {
+            return [];
+        }
+
+        return $field['default'] ?? null;
     }
 
     /**
