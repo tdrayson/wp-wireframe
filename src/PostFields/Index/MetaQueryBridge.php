@@ -65,7 +65,7 @@ final class MetaQueryBridge
         }
 
         foreach (self::droppedAliases($query->meta_query->get_clauses()) as $alias => $clause) {
-            $orderby = (string) preg_replace_callback(self::termPattern($alias), static fn (array $m): string => self::orderTerm($clause, $m), $orderby);
+            $orderby = self::replaceTerms($orderby, $alias, $clause);
         }
 
         $clauses['orderby'] = $orderby;
@@ -99,6 +99,18 @@ final class MetaQueryBridge
     }
 
     /**
+     * Replace every ORDER BY term on one dropped alias with its clause's index subquery.
+     */
+    private static function replaceTerms(string $orderby, string $alias, array $clause): string
+    {
+        $replace = static function (array $match) use ($clause): string {
+            return self::orderTerm($clause, $match);
+        };
+
+        return (string) preg_replace_callback(self::termPattern($alias), $replace, $orderby);
+    }
+
+    /**
      * Match the ORDER BY terms core writes for an alias: `CAST(a.meta_value AS T)`, `a.meta_value+0` or `a.meta_value`, then a direction.
      */
     private static function termPattern(string $alias): string
@@ -121,12 +133,6 @@ final class MetaQueryBridge
 
         $direction = strtoupper($match[3]);
         $type      = ($match[2] ?? '') !== '' ? 'NUMERIC' : self::orderType(strtoupper($match[1]));
-
-        // Core defaults a missing compare to '=', which with no value means "has the subfield".
-        if (!isset($clause['value']) && !in_array($clause['compare'] ?? '', ['EXISTS', 'NOT EXISTS'], true)) {
-            unset($clause['compare']);
-        }
-
         $value = QueryClauses::metaOrder($clause, "{$wpdb->posts}.ID", $type, $direction === 'DESC');
 
         return "{$value} IS NULL, {$value} {$direction}";
@@ -177,10 +183,7 @@ final class MetaQueryBridge
      */
     private static function usesBridgedKey(WP_Query $query): bool
     {
-        $orderby = $query->get('orderby');
-        $keys    = is_array($orderby) ? array_keys($orderby) : preg_split('/[\s,]+/', (string) $orderby);
-
-        foreach ([$query->get('meta_key'), ...$keys] as $key) {
+        foreach ([$query->get('meta_key'), ...self::orderbyKeys($query)] as $key) {
             if (is_string($key) && self::bridges(['key' => $key])) {
                 return true;
             }
@@ -189,6 +192,22 @@ final class MetaQueryBridge
         $metaQuery = $query->get('meta_query');
 
         return is_array($metaQuery) && self::hasBridgedClause($metaQuery);
+    }
+
+    /**
+     * Get the keys a query orders by, from an `orderby` string or array.
+     *
+     * @return list<mixed>
+     */
+    private static function orderbyKeys(WP_Query $query): array
+    {
+        $orderby = $query->get('orderby');
+
+        if (is_array($orderby)) {
+            return array_keys($orderby);
+        }
+
+        return (array) preg_split('/[\s,]+/', (string) $orderby, -1, PREG_SPLIT_NO_EMPTY);
     }
 
     /**
@@ -210,7 +229,7 @@ final class MetaQueryBridge
     }
 
     /**
-     * Mark the clause WP_Query built from a bare `meta_key`, so it orders without filtering out posts that lack a value.
+     * Mark the clause WP_Query built from a bare `meta_key` that `orderby` uses, so it orders without filtering out posts that lack a value.
      */
     private static function markOrderOnly(array $queries, ?object $context): array
     {
@@ -221,6 +240,12 @@ final class MetaQueryBridge
         }
 
         if (($first['key'] ?? null) !== $context->get('meta_key') || isset($first['value']) || isset($first['compare'])) {
+            return $queries;
+        }
+
+        $orderedBy = array_intersect(['meta_value', 'meta_value_num', $first['key']], self::orderbyKeys($context));
+
+        if ($orderedBy === []) {
             return $queries;
         }
 

@@ -134,6 +134,40 @@ $found = get_posts([
 check('get_posts orders by a dotted meta_key', [$a, $b, $c], array_map('intval', $found));
 check('orderby causes no SQL error', '', $wpdb->last_error);
 
+check("'=' with no value asks for the key", [$a, $b], $ids([['key' => 'sessions.venue', 'compare' => '=']]));
+
+$found = $query(['meta_key' => 'sessions.starts']);
+sort($found);
+check('a bare dotted meta_key without orderby filters for the key', [$a, $b], $found);
+
+$suppress = static function (WP_Query $q): void {
+    $q->set('suppress_filters', true);
+};
+add_action('pre_get_posts', $suppress, 2000);
+$found = $query([
+    'meta_key'   => 'sessions.starts',
+    'orderby'    => 'meta_value',
+    'order'      => 'DESC',
+    'meta_query' => [['key' => 'sessions.venue', 'value' => 'Leeds']],
+]);
+remove_action('pre_get_posts', $suppress, 2000);
+sort($found);
+check('a later suppress_filters still filters', [$a, $b], $found);
+check('a later suppress_filters causes no SQL error', '', $wpdb->last_error);
+
+$meta = get_meta_sql([['key' => 'sessions.venue', 'value' => 'Leeds']], 'post', $wpdb->posts, 'ID');
+$in   = implode(',', $fixtures);
+$found = array_map('intval', $wpdb->get_col(
+    "SELECT {$wpdb->posts}.ID FROM {$wpdb->posts} {$meta['join']} WHERE {$wpdb->posts}.ID IN ({$in}) {$meta['where']} ORDER BY {$wpdb->postmeta}.meta_value ASC"
+));
+sort($found);
+check('a direct get_meta_sql caller ordering by the alias still filters', [$a, $b], $found);
+check('a direct get_meta_sql caller ordering by the alias causes no SQL error', '', $wpdb->last_error);
+
+check('a null meta key reads all meta', true, is_array(get_post_meta($a, null)));
+check('a null meta key is left alone', null, apply_filters('get_post_metadata', null, $a, null, null, 'post'));
+check('a null single reads every row', ['Leeds', 'York'], apply_filters('get_post_metadata', null, $a, 'sessions.venue', null, 'post'));
+
 check('a cell by row index', 'Leeds', get_post_meta($a, 'sessions.0.venue', true));
 check('every row of a subfield', ['Leeds', 'York'], get_post_meta($a, 'sessions.venue'));
 check('the first row of a subfield', 'Leeds', get_post_meta($a, 'sessions.venue', true));

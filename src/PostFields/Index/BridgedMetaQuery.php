@@ -53,6 +53,11 @@ final class BridgedMetaQuery extends WP_Meta_Query
             $sql['join'] = str_replace('INNER JOIN', 'LEFT JOIN', $sql['join']);
         }
 
+        // After the LEFT JOIN rule, so core's own joins stay as core wrote them.
+        foreach ($this->droppedAliases() as $alias) {
+            $sql['join'] .= " LEFT JOIN (SELECT NULL AS meta_id, NULL AS post_id, NULL AS meta_key, NULL AS meta_value) AS {$alias} ON 1=0";
+        }
+
         return $sql;
     }
 
@@ -92,6 +97,16 @@ final class BridgedMetaQuery extends WP_Meta_Query
         }
 
         return ['join' => [], 'where' => [$condition]];
+    }
+
+    /**
+     * Get the aliases only bridged clauses use, kept as empty stubs so an ORDER BY the rewrite misses stays valid SQL.
+     *
+     * @return list<string>
+     */
+    private function droppedAliases(): array
+    {
+        return array_keys(array_diff_key($this->bridgedJoins, $this->coreAliases));
     }
 
     /**

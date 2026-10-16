@@ -174,8 +174,12 @@ final class QueryClauses
             $converted['value'] = $clause['value'];
         }
 
-        if (isset($clause['compare']) && $clause['compare'] !== '') {
-            $converted['compare'] = $clause['compare'];
+        $compare = $clause['compare'] ?? '';
+        // As in core, '=' with no value only asks for the key.
+        $keyOnly = $compare === '=' && !isset($clause['value']);
+
+        if ($compare !== '' && !$keyOnly) {
+            $converted['compare'] = $compare;
         }
 
         if (isset($clause['type']) && $clause['type'] !== '') {

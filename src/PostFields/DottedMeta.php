@@ -14,13 +14,13 @@ final class DottedMeta
      *
      * @param mixed  $value    Short-circuit value so far.
      * @param int    $objectId Post ID.
-     * @param string $metaKey  Meta key being read.
-     * @param bool   $single   Whether a single value was asked for.
+     * @param mixed  $metaKey  Meta key being read; callers may pass null.
+     * @param mixed  $single   Whether a single value was asked for.
      * @return mixed Values for core to unwrap; null leaves the read to core.
      */
-    public static function read(mixed $value, int $objectId, string $metaKey, bool $single): mixed
+    public static function read(mixed $value, int $objectId, mixed $metaKey, mixed $single): mixed
     {
-        if ($value !== null || !str_contains($metaKey, '.')) {
+        if ($value !== null || !is_string($metaKey) || !str_contains($metaKey, '.')) {
             return $value;
         }
 
@@ -67,13 +67,25 @@ final class DottedMeta
             return null;
         }
 
-        $fields = FieldGroups::flatFields($postType);
-
-        if (!isset($fields[$repeater], $fields["{$repeater}.{$subfield}"]) || StorageKind::for($fields[$repeater]) !== StorageKind::REPEATER) {
+        if (!self::isRepeaterSubfield(FieldGroups::flatFields($postType), $repeater, $subfield)) {
             return null;
         }
 
         return [$repeater, $row, $subfield];
+    }
+
+    /**
+     * Whether a post type's fields hold this subfield on this repeater.
+     *
+     * @param array<string, array> $fields Flat fields of the post type.
+     */
+    private static function isRepeaterSubfield(array $fields, string $repeater, string $subfield): bool
+    {
+        if (!isset($fields[$repeater], $fields["{$repeater}.{$subfield}"])) {
+            return false;
+        }
+
+        return StorageKind::for($fields[$repeater]) === StorageKind::REPEATER;
     }
 
     /**
