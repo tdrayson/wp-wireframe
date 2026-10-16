@@ -358,7 +358,12 @@ final class Settings
 
     // ─── Dot notation internals ───────────────────────
 
-    private static function dotGet(array $array, string $key): mixed
+    /**
+     * Dot-notation helper shared with Meta.
+     *
+     * @internal
+     */
+    public static function dotGet(array $array, string $key): mixed
     {
         foreach (explode('.', $key) as $segment) {
             if (!is_array($array) || !array_key_exists($segment, $array)) {
@@ -370,7 +375,12 @@ final class Settings
         return $array;
     }
 
-    private static function dotSet(array &$array, string $key, mixed $value): void
+    /**
+     * Dot-notation helper shared with Meta.
+     *
+     * @internal
+     */
+    public static function dotSet(array &$array, string $key, mixed $value): void
     {
         $keys = explode('.', $key);
         $last = array_pop($keys);
@@ -385,7 +395,12 @@ final class Settings
         $array[$last] = $value;
     }
 
-    private static function dotForget(array &$array, string $key): void
+    /**
+     * Dot-notation helper shared with Meta.
+     *
+     * @internal
+     */
+    public static function dotForget(array &$array, string $key): void
     {
         $keys = explode('.', $key);
         $last = array_pop($keys);
