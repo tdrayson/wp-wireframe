@@ -86,7 +86,7 @@ final class ClassicSave
             self::write($postId, (string) $key, $value);
         }
 
-        self::storeErrors($postId, $errors);
+        self::storeFailure($postId, $errors, array_intersect_key($incoming, $errors));
     }
 
     /**
@@ -203,11 +203,12 @@ final class ClassicSave
     }
 
     /**
-     * Keep a failed save's errors for the edit screen the user is redirected to, or clear stale ones.
+     * Keep a failed save's errors and rejected values for the edit screen the user is redirected to, or clear stale ones.
      *
-     * @param array<string, mixed> $errors Errors by field id.
+     * @param array<string, mixed> $errors   Errors by field id.
+     * @param array<string, mixed> $rejected Values not written, by field id.
      */
-    private static function storeErrors(int $postId, array $errors): void
+    private static function storeFailure(int $postId, array $errors, array $rejected): void
     {
         $key = self::errorsKey(get_current_user_id(), $postId);
 
@@ -217,6 +218,6 @@ final class ClassicSave
             return;
         }
 
-        set_transient($key, ['errors' => $errors], self::ERRORS_TTL);
+        set_transient($key, ['errors' => $errors, 'values' => $rejected], self::ERRORS_TTL);
     }
 }

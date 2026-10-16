@@ -44,6 +44,7 @@ for ( const group of data?.groups || [] ) {
 				input={ input }
 				isNew={ Boolean( data.isNew ) }
 				errors={ data.errors }
+				rejected={ data.rejected }
 			/>
 		);
 	}

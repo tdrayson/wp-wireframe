@@ -27,8 +27,8 @@ final class ClassicEditor
 
     private const BOX_CONTEXTS = ['meta_box' => 'normal', 'sidebar' => 'side'];
 
-    /** @var array<int, array> Errors of the last failed save, by post id, read once per request. */
-    private static array $errors = [];
+    /** @var array<int, array{errors: array, values: array}> The last failed save, by post id, read once per request. */
+    private static array $failures = [];
 
     /**
      * Hook into the classic edit screen.
@@ -42,23 +42,27 @@ final class ClassicEditor
     }
 
     /**
-     * Build the classic payload: the block editor's, plus each group's values and the last failed save's errors.
+     * Build the classic payload: the block editor's, plus each group's values and the last failed save's errors and rejected values.
+     *
+     * Rejected values replace the stored ones, so fields show what the user typed beside its error.
      *
      * @param WP_Post      $post Post being edited.
      * @param WP_User|null $user User to resolve for; defaults to the current user.
-     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, groups: list<array>, isNew: bool, errors: array}
+     * @return array{postId: int, postType: string, supportsTitle: bool, debug: bool, groups: list<array>, isNew: bool, errors: array, rejected: array}
      */
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
-        $data   = EditorIntegration::data($post, $user);
-        $values = Meta::resolved($post->ID);
+        $data    = EditorIntegration::data($post, $user);
+        $failure = self::failure($post->ID);
+        $values  = array_replace(Meta::resolved($post->ID), $failure['values']);
 
         $data['groups'] = array_map(
             static fn (array $group): array => $group + ['values' => self::groupValues($group['config'], $values)],
             $data['groups']
         );
-        $data['isNew']  = $post->post_status === 'auto-draft';
-        $data['errors'] = self::errors($post->ID);
+        $data['isNew']    = $post->post_status === 'auto-draft';
+        $data['errors']   = $failure['errors'];
+        $data['rejected'] = $failure['values'];
 
         return $data;
     }
@@ -183,7 +187,7 @@ final class ClassicEditor
     {
         $post = get_post();
 
-        if (get_current_screen()?->base !== 'post' || !self::isClassic($post) || self::errors($post->ID) === []) {
+        if (get_current_screen()?->base !== 'post' || !self::isClassic($post) || self::failure($post->ID)['errors'] === []) {
             return;
         }
 
@@ -228,18 +232,23 @@ final class ClassicEditor
     }
 
     /**
-     * Get, and clear, the errors the current user's last failed save of a post left behind.
+     * Get, and clear, the errors and rejected values the current user's last failed save of a post left behind.
+     *
+     * @return array{errors: array, values: array}
      */
-    private static function errors(int $postId): array
+    private static function failure(int $postId): array
     {
-        if (!array_key_exists($postId, self::$errors)) {
+        if (!array_key_exists($postId, self::$failures)) {
             $key    = ClassicSave::errorsKey(get_current_user_id(), $postId);
             $stored = get_transient($key);
 
             delete_transient($key);
-            self::$errors[$postId] = is_array($stored['errors'] ?? null) ? $stored['errors'] : [];
+            self::$failures[$postId] = [
+                'errors' => is_array($stored['errors'] ?? null) ? $stored['errors'] : [],
+                'values' => is_array($stored['values'] ?? null) ? $stored['values'] : [],
+            ];
         }
 
-        return self::$errors[$postId];
+        return self::$failures[$postId];
     }
 }

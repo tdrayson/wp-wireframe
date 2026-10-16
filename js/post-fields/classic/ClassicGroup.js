@@ -17,13 +17,20 @@ const POSITION_CLASSES = {
  * Render a group's fields over a local store that posts with the classic form.
  *
  * @param {Object}           props
- * @param {Object}           props.group  Group from `window.wireframePostFields.groups`.
- * @param {HTMLInputElement} props.input  The group's hidden `wireframe_fields[{id}]` input.
- * @param {boolean}          props.isNew  Whether the post is an auto-draft.
- * @param {Object}           props.errors Errors by field id from the last failed save.
+ * @param {Object}           props.group    Group from `window.wireframePostFields.groups`.
+ * @param {HTMLInputElement} props.input    The group's hidden `wireframe_fields[{id}]` input.
+ * @param {boolean}          props.isNew    Whether the post is an auto-draft.
+ * @param {Object}           props.errors   Errors by field id from the last failed save.
+ * @param {Object}           props.rejected Values by field id the last failed save did not write.
  */
-export default function ClassicGroup( { group, input, isNew, errors } ) {
-	const store = useLocalFieldStore( group, input, isNew, errors );
+export default function ClassicGroup( {
+	group,
+	input,
+	isNew,
+	errors,
+	rejected,
+} ) {
+	const store = useLocalFieldStore( group, input, isNew, errors, rejected );
 	const isSidebar = group.position === 'sidebar';
 	const config = useMemo(
 		() => ( isSidebar ? fullWidth( group.config ) : group.config ),

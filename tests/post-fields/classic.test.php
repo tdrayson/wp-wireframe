@@ -60,6 +60,17 @@ check('no nonce: nothing written', '', get_post_meta($id, 'price', true));
 $classicSave($id, ['event_details' => ['price' => 15]], [], 'bogus');
 check('a bad nonce: nothing written', '', get_post_meta($id, 'price', true));
 
+$formPost  = $make();
+$otherPost = $make();
+$_POST     = wp_slash([
+    'post_ID'          => $formPost,
+    '_wireframe_nonce' => wp_create_nonce('wireframe_classic_save'),
+    'wireframe_fields' => ['event_details' => wp_json_encode(['price' => 77])],
+]);
+wp_update_post(['ID' => $otherPost, 'post_status' => 'publish']);
+$_POST = [];
+check('a post saved during the request whose id is not the form\'s is skipped', ['', 'publish'], [get_post_meta($otherPost, 'price', true), get_post_status($otherPost)]);
+
 $id = $make();
 $classicSave($id, ['event_details' => ['seo_title' => 'Smuggled', 'price' => 4]]);
 check('a field posted under a group that does not own it is not written', '', get_post_meta($id, 'seo_title', true));
@@ -110,6 +121,10 @@ check('the redirect of a draft save is left alone', 'post.php?message=7', apply_
 $classicSave($draftId, ['event_details' => ['ticket_url' => 'not a url']]);
 check('an invalid value is not written', $valid['ticket_url'], get_post_meta($draftId, 'ticket_url', true));
 check('an invalid value on a draft is reported', true, !empty($transient($draftId)['errors']['ticket_url']));
+check('the rejected value is kept for the edit screen', 'not a url', $transient($draftId)['values']['ticket_url'] ?? null);
+$rejected = array_column(ClassicEditor::data(get_post($draftId))['groups'], null, 'id')['event_details']['values']['ticket_url'] ?? null;
+check('the localised values show the rejected value, not the stored one', 'not a url', $rejected);
+check('the localised data marks it rejected', ['ticket_url' => 'not a url'], ClassicEditor::data(get_post($draftId))['rejected']);
 
 $id = $make();
 $classicSave($id, ['event_details' => $valid], $publish);
