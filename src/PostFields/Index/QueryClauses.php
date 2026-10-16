@@ -17,10 +17,10 @@ use WP_Query;
  *         ['same_row' => true, ['field' => 'sessions', 'subfield' => 'venue', 'value' => 'Leeds'], …],
  *     ]
  *
- * `type` is CHAR (default), NUMERIC, DECIMAL, SIGNED, DATE or DATETIME; DATE compares the date part only.
+ * `type` is CHAR (default), NUMERIC, DECIMAL, SIGNED, DATE or DATETIME; DATE compares whole days.
  * A clause matches when any one row satisfies it, so `!=` means "some row differs". Blank subfields
  * have no index row: they never match a value compare, and count as absent for EXISTS / NOT EXISTS.
- * Malformed clauses report doing-it-wrong and match nothing.
+ * Empty groups add no condition. Malformed clauses report doing-it-wrong and match nothing.
  */
 final class QueryClauses
 {
@@ -29,6 +29,8 @@ final class QueryClauses
     public const APPLIED = '_wireframe_query_applied';
 
     private const COMPARES = ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN', 'LIKE', 'BETWEEN', 'EXISTS', 'NOT EXISTS'];
+
+    private const DATE_RANGES = ['=', '>', '>=', '<', '<=', 'BETWEEN'];
 
     private const COLUMNS = [
         'CHAR'     => 'value_str',
@@ -44,6 +46,30 @@ final class QueryClauses
     private const ALL = ['1=1', []];
 
     /**
+     * Ready a query for `wireframe_query`: drop a stale applied flag, and let filters run even under `get_posts()`.
+     *
+     * @param WP_Query $query The query about to run.
+     */
+    public static function prepare(WP_Query $query): void
+    {
+        unset($query->query_vars[self::APPLIED]);
+
+        $tree = $query->get(self::QUERY_VAR, null);
+
+        if ($tree === null || $tree === '' || $tree === []) {
+            return;
+        }
+
+        if (!self::isTree($tree)) {
+            _doing_it_wrong(__METHOD__, 'wireframe_query must be a clause or an array of clauses; it was ignored.', '1.2.0');
+
+            return;
+        }
+
+        $query->set('suppress_filters', false);
+    }
+
+    /**
      * Append the compiled `wireframe_query` to a query's WHERE, once per query across bundled copies.
      *
      * @param array<string, string> $clauses `posts_clauses` pieces.
@@ -54,20 +80,24 @@ final class QueryClauses
     {
         global $wpdb;
 
-        $tree = $query->get(self::QUERY_VAR);
+        $tree = $query->get(self::QUERY_VAR, null);
 
-        if (!is_array($tree) || $tree === [] || $query->get(self::APPLIED)) {
+        if (!self::isTree($tree) || $query->get(self::APPLIED)) {
             return $clauses;
         }
 
-        $clauses['where'] = ($clauses['where'] ?? '') . ' AND ' . self::compile($tree, "{$wpdb->posts}.ID");
         $query->set(self::APPLIED, true);
+        $condition = self::compile($tree, "{$wpdb->posts}.ID");
+
+        if ($condition !== '') {
+            $clauses['where'] = ($clauses['where'] ?? '') . ' AND ' . $condition;
+        }
 
         return $clauses;
     }
 
     /**
-     * Compile a `wireframe_query` tree into a prepared SQL condition.
+     * Compile a `wireframe_query` tree into a prepared SQL condition; empty when it holds no clauses.
      *
      * @param array  $query         Query tree.
      * @param string $postsIdColumn Trusted SQL column holding the post ID, such as `wp_posts.ID`.
@@ -87,14 +117,25 @@ final class QueryClauses
     }
 
     /**
-     * Join a group's children with its relation; an OR same_row group lands here as it needs no shared row.
+     * Check a top-level value is a clause or holds at least one child.
+     */
+    private static function isTree(mixed $tree): bool
+    {
+        return is_array($tree) && (isset($tree['field']) || array_filter($tree, 'is_array') !== []);
+    }
+
+    /**
+     * Join a group's non-empty children with its relation; an OR same_row group lands here as it needs no shared row.
      */
     private static function group(array $group, string $postId): string
     {
-        $parts = array_map(static fn (array $child): string => self::compile($child, $postId), self::children($group));
+        $parts = array_filter(array_map(
+            static fn (array $child): string => self::compile($child, $postId),
+            self::children($group)
+        ));
 
         if ($parts === []) {
-            return '1=1';
+            return '';
         }
 
         return '(' . implode(' ' . self::relation($group) . ' ', $parts) . ')';
@@ -130,7 +171,12 @@ final class QueryClauses
         global $wpdb;
 
         $children = self::children($group);
-        $field    = self::sharedField($children);
+
+        if ($children === []) {
+            return '';
+        }
+
+        $field = self::sharedField($children);
 
         if ($field === null) {
             return self::invalid('A "same_row" group must hold only plain, valid clauses on one repeater.');
@@ -176,10 +222,7 @@ final class QueryClauses
     }
 
     /**
-     * Get the repeater every child of a same_row group targets, or null when they aren't all valid clauses on one field.
-     *
-     * @param list<array> $children Group children.
-     * @return string|null
+     * Get the repeater every same_row child targets, or null unless all are valid clauses on one field.
      */
     private static function sharedField(array $children): ?string
     {
@@ -199,11 +242,9 @@ final class QueryClauses
     }
 
     /**
-     * Build the row condition for a clause against one index alias: subfield plus value compare.
+     * Build a clause's row condition against one index alias: subfield plus value compare.
      *
-     * @param array  $clause Clause.
-     * @param string $alias  Index table alias.
-     * @return array{0: string, 1: list<mixed>, 2: bool}|null SQL, its args, whether it is NOT EXISTS; null when malformed.
+     * @return array{0: string, 1: list<mixed>, 2: bool}|null SQL, args, whether it is NOT EXISTS; null when malformed.
      */
     private static function match(array $clause, string $alias): ?array
     {
@@ -223,8 +264,7 @@ final class QueryClauses
             return [$sql, $args, $compare === 'NOT EXISTS'];
         }
 
-        $expression = $type === 'DATE' ? "DATE({$alias}.{$column})" : "{$alias}.{$column}";
-        $condition  = self::condition($compare, $type, $expression, $clause['value'] ?? null);
+        $condition = self::condition($compare, $type, "{$alias}.{$column}", $clause['value'] ?? null);
 
         if ($condition === null) {
             return null;
@@ -258,14 +298,68 @@ final class QueryClauses
      *
      * @return array{0: string, 1: list<mixed>}|null
      */
-    private static function condition(string $compare, string $type, string $expression, mixed $value): ?array
+    private static function condition(string $compare, string $type, string $column, mixed $value): ?array
     {
+        if ($type === 'DATE' && in_array($compare, self::DATE_RANGES, true)) {
+            return self::dayRange($compare, $column, $value);
+        }
+
+        $expression = $type === 'DATE' ? "DATE({$column})" : $column;
+
         return match ($compare) {
             'LIKE'         => self::like($expression, $value),
             'IN', 'NOT IN' => self::in($compare, $type, $expression, $value),
             'BETWEEN'      => self::between($type, $expression, $value),
             default        => self::binary($compare, $type, $expression, $value),
         };
+    }
+
+    /**
+     * Build a whole-day range on the raw DATETIME column, so the lookup index stays usable.
+     *
+     * @return array{0: string, 1: list<mixed>}|null
+     */
+    private static function dayRange(string $compare, string $column, mixed $value): ?array
+    {
+        $between = $compare === 'BETWEEN';
+
+        if ($between ? !is_array($value) || count($value) !== 2 : !is_scalar($value)) {
+            return null;
+        }
+
+        [$low, $high] = $between ? array_values($value) : [$value, $value];
+        $from         = self::day($low);
+        $to           = self::day($high);
+
+        if ($from === null || $to === null) {
+            return self::NONE;
+        }
+
+        return match ($compare) {
+            '>='    => ["{$column} >= %s", [$from[0]]],
+            '>'     => ["{$column} >= %s", [$from[1]]],
+            '<'     => ["{$column} < %s", [$from[0]]],
+            '<='    => ["{$column} < %s", [$from[1]]],
+            default => ["{$column} >= %s AND {$column} < %s", [$from[0], $to[1]]],
+        };
+    }
+
+    /**
+     * Get the start of a value's day and of the next day, or null when it isn't a date.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    private static function day(mixed $value): ?array
+    {
+        $date = is_scalar($value) ? IndexSync::date(self::text($value)) : null;
+
+        if ($date === null) {
+            return null;
+        }
+
+        $day = new \DateTimeImmutable(substr($date, 0, 10), new \DateTimeZone('UTC'));
+
+        return [$day->format('Y-m-d H:i:s'), $day->modify('+1 day')->format('Y-m-d H:i:s')];
     }
 
     /**
@@ -285,7 +379,7 @@ final class QueryClauses
     }
 
     /**
-     * Build an IN / NOT IN condition; values that can't be stored in the column are dropped, as they never match.
+     * Build an IN / NOT IN condition, dropping values the column can't hold as they never match.
      *
      * @return array{0: string, 1: list<mixed>}
      */
@@ -324,7 +418,7 @@ final class QueryClauses
     }
 
     /**
-     * Build a comparison-operator condition; an unparseable value never matches, so only `!=` holds.
+     * Build an operator condition; an unparseable value never matches, so only `!=` holds.
      *
      * @return array{0: string, 1: list<mixed>}|null
      */
@@ -381,10 +475,8 @@ final class QueryClauses
 
     /**
      * Stringify a scalar the way the index does.
-     *
-     * @param scalar $value Value.
      */
-    private static function text(mixed $value): string
+    private static function text(int|float|string|bool $value): string
     {
         return is_bool($value) ? ($value ? '1' : '0') : (string) $value;
     }
@@ -408,13 +500,13 @@ final class QueryClauses
     }
 
     /**
-     * Get a group's child clauses and groups.
+     * Get a group's non-empty child clauses and groups.
      *
      * @return list<array>
      */
     private static function children(array $group): array
     {
-        return array_values(array_filter($group, 'is_array'));
+        return array_values(array_filter($group, static fn (mixed $child): bool => is_array($child) && $child !== []));
     }
 
     /**

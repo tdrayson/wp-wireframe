@@ -123,4 +123,8 @@ IndexTable::install();
 check('install never lowers the stored version', 99, (int) get_option('wireframe_index_db_version'));
 update_option('wireframe_index_db_version', IndexTable::VERSION);
 
+$lastChanged = wp_cache_get_last_changed('posts');
+Meta::reindex('event');
+check('reindex invalidates cached post queries', true, $lastChanged !== wp_cache_get_last_changed('posts'));
+
 finish();

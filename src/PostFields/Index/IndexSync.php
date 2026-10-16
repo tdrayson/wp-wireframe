@@ -168,6 +168,10 @@ final class IndexSync
             } while (count($ids) === self::BATCH);
         }
 
+        if ($processed > 0) {
+            wp_cache_set_posts_last_changed();
+        }
+
         return $processed;
     }
 
