@@ -22,6 +22,12 @@ final class MetaRegistrar
 {
     private const ID_LIST_SCHEMA = ['type' => 'array', 'items' => ['type' => 'integer']];
 
+    /** Post whose meta is being written, so sanitising keeps the populated values it already stores; 0 for none. */
+    private static int $savingPostId = 0;
+
+    /** @var array<string, mixed> Stored values by meta key, read before a write that deletes rows first. */
+    private static array $savingStored = [];
+
     /**
      * Register the top-level fields of every post type with groups as post meta.
      */
@@ -45,8 +51,55 @@ final class MetaRegistrar
 
         add_filter("rest_prepare_{$postType}", [self::class, 'filterResponse'], 10, 3);
         add_filter("rest_pre_insert_{$postType}", [SaveValidator::class, 'check'], 10, 2);
+        add_action("rest_insert_{$postType}", [self::class, 'beginSave']);
+        add_action("rest_after_insert_{$postType}", [self::class, 'endSave']);
+        add_filter('rest_request_after_callbacks', [self::class, 'endSave']);
         add_filter('rest_prepare_revision', [self::class, 'filterResponse'], 10, 3);
         add_filter('rest_prepare_autosave', [self::class, 'filterResponse'], 10, 3);
+    }
+
+    /**
+     * Run a write of a post's meta with its stored values in scope for sanitising.
+     *
+     * @param int                  $postId Post ID.
+     * @param callable             $write  Callback doing the write.
+     * @param array<string, mixed> $stored Stored values by meta key, read before the write.
+     * @return mixed The callback's result.
+     */
+    public static function whileSaving(int $postId, callable $write, array $stored = []): mixed
+    {
+        $previous = [self::$savingPostId, self::$savingStored];
+
+        [self::$savingPostId, self::$savingStored] = [$postId, $stored];
+
+        try {
+            return $write();
+        } finally {
+            [self::$savingPostId, self::$savingStored] = $previous;
+        }
+    }
+
+    /**
+     * Bring a REST save's post into scope for sanitising the meta core writes after `rest_insert_{type}`.
+     *
+     * @param WP_Post $post Saved post.
+     */
+    public static function beginSave(WP_Post $post): void
+    {
+        [self::$savingPostId, self::$savingStored] = [$post->ID, []];
+    }
+
+    /**
+     * End a REST save's scope, after the insert or, should it fail, after the request.
+     *
+     * @param mixed $passthrough Filtered response, returned as-is.
+     * @return mixed
+     */
+    public static function endSave(mixed $passthrough = null): mixed
+    {
+        [self::$savingPostId, self::$savingStored] = [0, []];
+
+        return $passthrough;
     }
 
     /**
@@ -139,7 +192,7 @@ final class MetaRegistrar
             'single'            => $single,
             'type'              => $valueSchema['type'],
             'show_in_rest'      => ['schema' => $valueSchema + ['context' => !empty($field['public']) ? ['view', 'edit'] : ['edit']]],
-            'sanitize_callback' => self::sanitizer($kind, $field, $schema),
+            'sanitize_callback' => self::sanitizer($kind, $key, $field, $schema),
             'auth_callback'     => static fn (bool $allowed, string $metaKey, int $postId, int $userId): bool
                 => self::canWrite($postType, $key, $postId, $userId),
             'revisions_enabled' => post_type_supports($postType, 'revisions'),
@@ -155,14 +208,15 @@ final class MetaRegistrar
     /**
      * Build the sanitize callback for one field, adapting the field class to its storage kind.
      */
-    private static function sanitizer(string $kind, array $field, array $schema): callable
+    private static function sanitizer(string $kind, string $key, array $field, array $schema): callable
     {
         $type    = (string) ($field['type'] ?? 'text');
         $handler = FieldRegistry::instance()->get($type);
         $args    = $field['args'] ?? [];
+        $argsFor = static fn (mixed $value): array => Populate::argsFor($field, $value, self::savingValue($key, $kind));
 
         if ($kind === StorageKind::MULTI) {
-            return static fn (mixed $value): mixed => self::sanitizeOption($handler, $value, Populate::argsFor($field, $value));
+            return static fn (mixed $value): mixed => self::sanitizeOption($handler, $value, $argsFor($value));
         }
 
         if ($kind === StorageKind::SCALAR && $type === 'file') {
@@ -172,10 +226,26 @@ final class MetaRegistrar
         if ($kind === StorageKind::REPEATER) {
             $columns = $schema['items']['properties'];
 
-            return static fn (mixed $value): array => self::sanitizeRows($handler, $value, $args, $columns);
+            return static fn (mixed $value): array => self::sanitizeRows($handler, $value, $argsFor($value), $columns);
         }
 
-        return static fn (mixed $value): mixed => $handler::sanitize($value, Populate::argsFor($field, $value));
+        return static fn (mixed $value): mixed => $handler::sanitize($value, $argsFor($value));
+    }
+
+    /**
+     * Get the stored value of a key on the post being saved, or null.
+     */
+    private static function savingValue(string $key, string $kind): mixed
+    {
+        if (array_key_exists($key, self::$savingStored)) {
+            return self::$savingStored[$key];
+        }
+
+        if (self::$savingPostId <= 0 || !metadata_exists('post', self::$savingPostId, $key)) {
+            return null;
+        }
+
+        return get_post_meta(self::$savingPostId, $key, $kind !== StorageKind::MULTI);
     }
 
     /**

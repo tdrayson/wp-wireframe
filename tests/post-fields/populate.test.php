@@ -1,8 +1,10 @@
 <?php
 
 use Wireframe\App;
+use Wireframe\Framework\ConfigValidator;
 use Wireframe\Framework\Populate;
 use Wireframe\Meta;
+use Wireframe\Settings;
 use Wireframe\PostFields\ClassicEditor;
 use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
@@ -143,8 +145,23 @@ check('an administrator host is refused', true, !empty($errors($save($id, ['host
 
 wp_update_post(['ID' => $grace, 'post_status' => 'draft']);
 check('a speaker unpublished since does not block an unrelated save', 200, $save($id, ['price' => 4])->get_status());
-check('resubmitting the unpublished speaker is refused', true, !empty($errors($save($id, ['speakers' => [$ada, $grace]]))['speakers']));
+check('resubmitting the stored, unpublished speaker is accepted', 200, $save($id, ['speakers' => [$ada, $grace]])->get_status());
+check('the unpublished speaker keeps its row', [$ada, $grace], Meta::get($id, 'speakers'));
+check('a new draft speaker is still refused', true, !empty($errors($save($id, ['speakers' => [$ada, $grace, $drafty]]))['speakers']));
+check('Meta::set keeps a stored, unpublished speaker', [$ada, $grace], (static function () use ($id, $ada, $grace): array {
+    Meta::set($id, 'speakers', [$ada, $grace]);
+
+    return Meta::get($id, 'speakers');
+})());
+$staleShown = $byId(EditorIntegration::data(get_post($id))['groups'][0]['config'], 'speakers')['args']['options'] ?? null;
+check('a stored, unpublished speaker ships labelled by its ID', [['value' => $ada, 'label' => 'Ada'], ['value' => $grace, 'label' => (string) $grace]], $staleShown);
 wp_update_post(['ID' => $grace, 'post_status' => 'publish']);
+
+$retired = $term('Populate retired');
+check('a term to retire saves', 200, $save($id, ['event_tags' => [$retired]])->get_status());
+wp_delete_term($retired, 'event_type');
+check('a stale stored term plus a newly ticked one saves', 200, $save($id, ['event_tags' => [$retired, $terms[1]]])->get_status());
+check('both terms are stored', [$retired, $terms[1]], Meta::get($id, 'event_tags'));
 
 check('Meta::set drops values the query does not return', [$ada], (static function () use ($id, $ada, $post): array {
     Meta::set($id, 'speakers', [$ada, $post]);
@@ -166,12 +183,18 @@ check('options ship as an ordered list', ['value' => 0, 'label' => 'None'], $hos
 check('the classic payload resolves too', [['value' => $ada, 'label' => 'Ada']], $byId(ClassicEditor::data($withAda)['groups'][0]['config'], 'speakers')['args']['options'] ?? null);
 
 $browser = Populate::resolveConfig(['tabs' => [['id' => 't', 'sections' => [['id' => 's', 'fields' => [$function]]]]]], []);
+$fetchFn  = ['id' => 'fn_fetch', 'type' => 'select', 'args' => ['populate' => ['type' => 'function', 'function' => static fn (): array => ['x' => 'X', 'y' => 'Y'], 'fetch' => true]]];
+$fetchCfg = Populate::resolveConfig(['tabs' => [['id' => 't', 'sections' => [['id' => 's', 'fields' => [$fetchFn]]]]]], ['fn_fetch' => 'y']);
+check('fetch ships only the stored labels of a callback', [['value' => 'y', 'label' => 'Y']], $fetchCfg['tabs'][0]['sections'][0]['fields'][0]['args']['options']);
 check('callables never reach the browser', ['fetch' => false, 'field' => 'fn_pick'], $browser['tabs'][0]['sections'][0]['fields'][0]['args']['populate']);
 check('the browser config encodes', true, is_string(wp_json_encode($browser)));
 
 // Search route.
 $response = $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Gra']);
 check('search finds Grace', [['value' => $grace, 'label' => 'Grace']], $response->get_data());
+$described = $speaker('Plain title');
+wp_update_post(['ID' => $described, 'post_content' => 'Zanzibar keynote']);
+check('search matches titles only', [], $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Zanzibar'])->get_data());
 check('search skips drafts', [], $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Draft'])->get_data());
 check('search on a field without fetch is refused', 403, $search(['context' => 'post:event', 'field' => 'event_tags', 'search' => 'W'])->get_status());
 check('search on an unknown context is refused', 403, $search(['context' => 'nope:event', 'field' => 'speakers'])->get_status());
@@ -194,6 +217,17 @@ as_user('logged_out');
 check('logged out is refused', 401, $search(['context' => 'post:event', 'field' => 'speakers', 'search' => 'Gra'])->get_status());
 as_user('administrator');
 
+require_once ABSPATH . 'wp-admin/includes/user.php';
+$alice = wp_insert_user(['user_login' => 'wf_alice_populate', 'user_pass' => wp_generate_password(), 'user_email' => 'alice@client.com', 'display_name' => 'Alice Populate', 'role' => 'editor']);
+check('users search finds a display name', true, in_array(['value' => $alice, 'label' => 'Alice Populate'], Populate::search($field('host'), 'Alice Pop'), true));
+check('users search ignores an email domain', [], Populate::search($field('host'), '@client.com'));
+check('users search ignores an email prefix', [], Populate::search($field('host'), 'alice@'));
+wp_delete_user($alice);
+
+$fetchRadio = ['id' => 'fetch_radio', 'type' => 'radio', 'args' => ['populate' => ['query' => 'users', 'fetch' => true]]];
+$issues     = ConfigValidator::validate(['tabs' => [['id' => 't', 'sections' => [['id' => 's', 'fields' => [$fetchRadio]]]]]]);
+check('fetch on a radio is flagged', true, (bool) preg_grep('/"fetch" only applies to select/', $issues));
+
 // Settings page.
 check('settings search finds Ada', [['value' => $ada, 'label' => 'Ada']], $search(['context' => 'settings:default', 'field' => 'featured_speaker', 'search' => 'Ada'], 'wf-populate')->get_data());
 $response = rest('POST', '/wf-populate/v1/settings/default', ['featured_speaker' => $post]);
@@ -205,6 +239,15 @@ check('settings store checkboxes as integers', [$grace], get_option('wf_populate
 $config = rest('GET', '/wf-populate/v1/settings/default')->get_data()['config'];
 check('settings config ships the stored label', [['value' => $ada, 'label' => 'Ada']], $byId($config, 'featured_speaker')['args']['options'] ?? null);
 check('settings config ships the full list without fetch', true, in_array(['value' => $grace, 'label' => 'Grace'], $byId($config, 'lineup')['args']['options'] ?? [], true));
+
+wp_update_post(['ID' => $grace, 'post_status' => 'draft']);
+check('settings with a stale saved ID still save', 200, rest('POST', '/wf-populate/v1/settings/default', ['featured_speaker' => $ada, 'lineup' => [$grace]])->get_status());
+check('settings accept the stale ID plus a new one', 200, rest('POST', '/wf-populate/v1/settings/default', ['lineup' => [$grace, $ada]])->get_status());
+check('settings keep the stale ID', [$grace, $ada], get_option('wf_populate_settings')['lineup'] ?? null);
+check('settings refuse a new draft', true, !empty($errors(rest('POST', '/wf-populate/v1/settings/default', ['lineup' => [$grace, $drafty]]))['lineup']));
+Settings::set('wf_populate_settings', 'lineup', [$grace, $ada, $drafty]);
+check('Settings::set keeps the stale ID and drops a new draft', [$grace, $ada], get_option('wf_populate_settings')['lineup'] ?? null);
+wp_update_post(['ID' => $grace, 'post_status' => 'publish']);
 
 delete_option('wf_populate_settings');
 foreach ($created as $postId) {

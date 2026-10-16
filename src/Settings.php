@@ -6,6 +6,7 @@ namespace Wireframe;
 
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldRegistry;
+use Wireframe\Framework\Populate;
 
 /**
  * Settings facade.
@@ -54,7 +55,7 @@ final class Settings
         $settings = self::all($optionKey);
 
         $topKey = str_contains($key, '.') ? explode('.', $key, 2)[0] : $key;
-        $value  = self::sanitizeField($optionKey, $topKey, $key === $topKey ? $value : null, $value);
+        $value  = self::sanitizeField($optionKey, $topKey, $key === $topKey ? $value : null, $value, $settings[$topKey] ?? null);
 
         if (str_contains($key, '.')) {
             self::dotSet($settings, $key, $value);
@@ -432,7 +433,8 @@ final class Settings
         string $optionKey,
         string $topKey,
         mixed $topValue,
-        mixed $leafValue
+        mixed $leafValue,
+        mixed $stored = null
     ): mixed {
         $fields = ConfigLoader::flatFields(App::configSlugForOptionKey($optionKey));
 
@@ -442,7 +444,6 @@ final class Settings
 
         $fieldConfig = $fields[$topKey];
         $type        = $fieldConfig['type'] ?? 'text';
-        $args        = $fieldConfig['args'] ?? [];
         $handler     = FieldRegistry::instance()->get($type);
 
         if ($handler::isStateless()) {
@@ -450,7 +451,7 @@ final class Settings
         }
 
         if ($topValue !== null) {
-            return $handler::sanitize($topValue, $args);
+            return $handler::sanitize($topValue, Populate::argsFor($fieldConfig, $topValue, $stored));
         }
 
         return $leafValue;

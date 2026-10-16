@@ -382,9 +382,18 @@ final class Meta
      */
     private static function write(int $postId, string $key, array $field, mixed $value, bool $sanitize): bool
     {
-        $kind  = StorageKind::for($field);
-        $value = $sanitize ? self::sanitize($kind, $field, $value) : $value;
+        $kind   = StorageKind::for($field);
+        $stored = self::stored($postId, $key, $field);
+        $value  = $sanitize ? self::sanitize($kind, $field, $value, $stored) : $value;
 
+        return MetaRegistrar::whileSaving($postId, static fn (): bool => self::store($postId, $key, $kind, $value), [$key => $stored]);
+    }
+
+    /**
+     * Write a sanitised value's rows.
+     */
+    private static function store(int $postId, string $key, string $kind, mixed $value): bool
+    {
         if ($kind === StorageKind::MULTI) {
             $rows = array_values((array) $value);
 
@@ -410,7 +419,7 @@ final class Meta
     /**
      * Sanitise a value with its field class into its stored shape; the registered meta callback then re-runs it idempotently.
      */
-    private static function sanitize(string $kind, array $field, mixed $value): mixed
+    private static function sanitize(string $kind, array $field, mixed $value, mixed $stored): mixed
     {
         $handler = FieldRegistry::instance()->get((string) ($field['type'] ?? 'text'));
 
@@ -418,7 +427,7 @@ final class Meta
             $value = array_map('strval', array_filter((array) $value, 'is_scalar'));
         }
 
-        $clean = $handler::sanitize($value, Populate::argsFor($field, $value));
+        $clean = $handler::sanitize($value, Populate::argsFor($field, $value, $stored));
 
         if ($kind === StorageKind::SCALAR && ($field['type'] ?? '') === 'file') {
             return (int) (array_values((array) $clean)[0] ?? 0);

@@ -39,9 +39,10 @@ final class Validator
     }
 
     /**
+     * @param array<string, mixed> $stored Stored values by field id; a populated value stays valid while stored.
      * @return array{errors: array<string, string|array>, clean: array<string, mixed>}
      */
-    public static function validate(array $payload, array $fields, array $visibility = []): array
+    public static function validate(array $payload, array $fields, array $visibility = [], array $stored = []): array
     {
         $registry = FieldRegistry::instance();
         $errors   = [];
@@ -59,7 +60,7 @@ final class Validator
             $type    = $fieldConfig['type'] ?? 'text';
             $handler = $registry->get($type);
             $value   = $payload[$fieldId] ?? null;
-            $args    = Populate::argsFor($fieldConfig, $value);
+            $args    = Populate::argsFor($fieldConfig, $value, $stored[$fieldId] ?? null);
 
             if ($handler::isStateless()) {
                 continue;

@@ -19,6 +19,7 @@ import {
 	ComboboxControl,
 } from '@wordpress/components';
 import { useEffect, useMemo, useState } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { getFieldHelp } from './useFieldError';
 import { useFieldStore } from '../../hooks/useFieldStore';
 import { mergeOptions, optionValue, searchOptions } from '../../utils/populate';
@@ -92,7 +93,7 @@ export default function SelectEdit( { data, field, onChange, error } ) {
  * Starts from the field's elements, which hold the labels of the stored values.
  *
  * @param {Object} field Mapped field descriptor.
- * @return {{ known: Array, results: Array, loading: boolean, setSearch: Function }} Options seen, the latest results, and a search setter.
+ * @return {{ known: Array, results: Array, loading: boolean, failure: (string|undefined), setSearch: Function }} Options seen, the latest results, a failed search's message, and a search setter.
  */
 function useOptionSearch( field ) {
 	const { populate: endpoint } = useFieldStore();
@@ -101,6 +102,7 @@ function useOptionSearch( field ) {
 	const [ results, setResults ] = useState( [] );
 	const [ known, setKnown ] = useState( () => field.elements || [] );
 	const [ loading, setLoading ] = useState( false );
+	const [ failed, setFailed ] = useState( false );
 
 	useEffect( () => {
 		if ( search === null || ! endpoint?.prefix ) {
@@ -113,13 +115,19 @@ function useOptionSearch( field ) {
 			searchOptions( { ...endpoint, field: path, search } )
 				.then( ( found ) => {
 					if ( active ) {
+						setFailed( false );
 						setResults( found );
 						setKnown( ( previous ) =>
 							mergeOptions( previous, found )
 						);
 					}
 				} )
-				.catch( () => active && setResults( [] ) )
+				.catch( () => {
+					if ( active ) {
+						setFailed( true );
+						setResults( [] );
+					}
+				} )
 				.finally( () => active && setLoading( false ) );
 		}, SEARCH_DELAY );
 
@@ -129,7 +137,11 @@ function useOptionSearch( field ) {
 		};
 	}, [ search, endpoint, path ] );
 
-	return { known, results, loading, setSearch };
+	const failure = failed
+		? __( 'Search failed. Try again.', 'wp-wireframe' )
+		: undefined;
+
+	return { known, results, loading, failure, setSearch };
 }
 
 /**
@@ -142,7 +154,7 @@ function useOptionSearch( field ) {
  * @param {string}   [props.error]  Validation error message.
  */
 function SingleSearch( { data, field, onChange, error } ) {
-	const { known, loading, setSearch } = useOptionSearch( field );
+	const { known, loading, failure, setSearch } = useOptionSearch( field );
 	const disabled = !! field.readOnly;
 	const stored = data[ field.id ] ?? field.defaultValue ?? null;
 
@@ -151,7 +163,7 @@ function SingleSearch( { data, field, onChange, error } ) {
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error, data ) }
+			help={ getFieldHelp( field.description, error || failure, data ) }
 			value={ optionValue( known, stored ) }
 			options={ known }
 			isLoading={ loading }
@@ -178,17 +190,23 @@ function SingleSearch( { data, field, onChange, error } ) {
  * @param {string}   [props.error]  Validation error message.
  */
 function MultiSearch( { data, field, onChange, error } ) {
-	const { known, results, setSearch } = useOptionSearch( field );
+	const { known, results, failure, setSearch } = useOptionSearch( field );
 	const disabled = !! field.readOnly;
 	const selected = Array.isArray( data[ field.id ] )
 		? data[ field.id ]
 		: field.defaultValue || [];
 
+	// A stored value with no known label shows, and stays, as its ID.
 	const labelOf = ( value ) =>
 		known.find( ( option ) => String( option.value ) === String( value ) )
-			?.label;
-	const valueOf = ( label ) =>
-		known.find( ( option ) => option.label === label )?.value;
+			?.label ?? String( value );
+	const valueOf = ( label ) => {
+		const option = known.find( ( candidate ) => candidate.label === label );
+
+		return option
+			? option.value
+			: selected.find( ( value ) => String( value ) === label );
+	};
 
 	const handleChange = ( tokens ) => {
 		const values = tokens
@@ -202,7 +220,7 @@ function MultiSearch( { data, field, onChange, error } ) {
 		<BaseControl
 			__nextHasNoMarginBottom
 			label={ field.label }
-			help={ getFieldHelp( field.description, error, data ) }
+			help={ getFieldHelp( field.description, error || failure, data ) }
 			id={ `wireframe-multiselect-${ field.id }` }
 			className={ error ? 'has-error' : undefined }
 		>
@@ -214,7 +232,7 @@ function MultiSearch( { data, field, onChange, error } ) {
 				__experimentalValidateInput={ ( token ) =>
 					valueOf( token ) !== undefined
 				}
-				value={ selected.map( labelOf ).filter( Boolean ) }
+				value={ selected.map( labelOf ) }
 				suggestions={
 					disabled ? [] : results.map( ( option ) => option.label )
 				}

@@ -203,7 +203,7 @@ final class SettingsController
             $mergedValues,
         );
 
-        $validationResult = Validator::validate($payload, $editableFields, $visibilityMap);
+        $validationResult = Validator::validate($payload, $editableFields, $visibilityMap, $savedValues);
 
         if (!empty($validationResult['errors'])) {
             return new WP_Error(
@@ -213,7 +213,7 @@ final class SettingsController
             );
         }
 
-        $cleanValues = Sanitizer::sanitize($payload, $editableFields, $visibilityMap);
+        $cleanValues = Sanitizer::sanitize($payload, $editableFields, $visibilityMap, false, $savedValues);
 
         /**
          * Filter the sanitized payload right before it's merged into saved state.

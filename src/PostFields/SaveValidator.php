@@ -11,7 +11,6 @@ use WP_User;
 use Wireframe\App;
 use Wireframe\Framework\Conditions;
 use Wireframe\Framework\ConfigLoader;
-use Wireframe\Framework\Populate;
 use Wireframe\Framework\Validator;
 use Wireframe\Meta;
 
@@ -83,9 +82,9 @@ final class SaveValidator
         }
 
         $values = self::mergedValues($postId, $postType, $incoming);
-        $fields = self::acceptingUntouched($fields, $incoming, $values);
+        $stored = $postId > 0 ? Meta::all($postId) : [];
 
-        return Validator::validate($values, $fields, self::visibility($groups, $values))['errors'];
+        return Validator::validate($values, $fields, self::visibility($groups, $values), $stored)['errors'];
     }
 
     /**
@@ -214,22 +213,6 @@ final class SaveValidator
         }
 
         return $defaults;
-    }
-
-    /**
-     * Accept the stored values of fields the save doesn't touch, so a populated post unpublished since can't block other edits.
-     *
-     * @return array<string, array>
-     */
-    private static function acceptingUntouched(array $fields, array $incoming, array $values): array
-    {
-        foreach ($fields as $key => $field) {
-            if (!array_key_exists($key, $incoming)) {
-                $fields[$key] = Populate::accepting($field, $values[$key] ?? null);
-            }
-        }
-
-        return $fields;
     }
 
     /**

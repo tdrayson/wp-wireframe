@@ -17,6 +17,9 @@ final class Populate
 
     private const TYPES = ['select', 'radio', 'checkboxes'];
 
+    /** Internal `populate` key for a field's stored values, which stay valid once the query no longer returns them. */
+    private const STORED = '_stored';
+
     /** Default `return_format` value and label properties, by query. */
     private const FORMATS = [
         'posts' => ['ID', 'post_title'],
@@ -57,8 +60,13 @@ final class Populate
             $onlyValues = [];
         }
 
-        $found = self::lookup($field, $onlyValues === null ? null : self::valuesOf($onlyValues));
-        $field['args']['options'] = self::merge($field['args']['populate'], self::staticOptions($field), $found);
+        $only     = $onlyValues === null ? null : self::valuesOf($onlyValues);
+        $populate = $field['args']['populate'];
+        $static   = self::staticOptions($field);
+        $found    = self::lookup($field, $only);
+        $found   += self::kept($populate, $only, $static + $found);
+
+        $field['args']['options'] = self::merge($populate, $static, $found);
 
         return $field;
     }
@@ -109,14 +117,17 @@ final class Populate
     }
 
     /**
-     * Get a field's args with populated options resolved for the given value or values.
+     * Get a field's args with populated options resolved for the given value or values, stored ones staying valid.
      *
-     * @param array $field Field config.
-     * @param mixed $value Submitted or stored value.
+     * @param array $field  Field config.
+     * @param mixed $value  Submitted value.
+     * @param mixed $stored The field's stored value, or repeater rows; null when nothing is stored.
      * @return array Field args.
      */
-    public static function argsFor(array $field, mixed $value): array
+    public static function argsFor(array $field, mixed $value, mixed $stored = null): array
     {
+        $field = self::keepingStored($field, $stored);
+
         if (!self::isPopulated($field)) {
             return $field['args'] ?? [];
         }
@@ -139,37 +150,6 @@ final class Populate
             static fn (mixed $sub): mixed => is_array($sub) ? self::resolve($sub, self::column($rows, (string) ($sub['id'] ?? ''))) : $sub,
             $subfields
         );
-    }
-
-    /**
-     * Accept a field's given values as options in place of its lookup, repeater subfields included.
-     *
-     * @param array $field Field config.
-     * @param mixed $value Value to accept.
-     * @return array The field, without `populate`.
-     */
-    public static function accepting(array $field, mixed $value): array
-    {
-        if (($field['type'] ?? '') === 'repeater' && is_array($field['args']['subfields'] ?? null)) {
-            $rows = is_array($value) ? array_filter($value, 'is_array') : [];
-
-            $field['args']['subfields'] = array_map(
-                static fn (mixed $sub): mixed => is_array($sub) ? self::accepting($sub, self::column($rows, (string) ($sub['id'] ?? ''))) : $sub,
-                $field['args']['subfields']
-            );
-
-            return $field;
-        }
-
-        if (!self::isPopulated($field)) {
-            return $field;
-        }
-
-        $values = self::valuesOf($value);
-        $field['args']['options'] = self::staticOptions($field) + array_combine($values, array_map('strval', $values));
-        unset($field['args']['populate']);
-
-        return $field;
     }
 
     /**
@@ -276,6 +256,7 @@ final class Populate
             return $field;
         }
 
+        $field    = self::keepingStored($field, $stored);
         $fetch    = self::fetches($field);
         $resolved = self::resolve($field, $fetch ? self::valuesOf($stored) : null);
 
@@ -283,6 +264,57 @@ final class Populate
         $resolved['args']['populate'] = ['fetch' => $fetch, 'field' => $path];
 
         return $resolved;
+    }
+
+    /**
+     * Mark a field's stored values, or each repeater subfield's across the stored rows, as valid options.
+     */
+    private static function keepingStored(array $field, mixed $stored): array
+    {
+        if (($field['type'] ?? '') === 'repeater' && is_array($field['args']['subfields'] ?? null)) {
+            $rows = is_array($stored) ? array_filter($stored, 'is_array') : [];
+
+            $field['args']['subfields'] = array_map(
+                static fn (mixed $sub): mixed => is_array($sub) ? self::keepingStored($sub, self::column($rows, (string) ($sub['id'] ?? ''))) : $sub,
+                $field['args']['subfields']
+            );
+
+            return $field;
+        }
+
+        if ($stored === null || !self::isPopulated($field)) {
+            return $field;
+        }
+
+        $field['args']['populate'][self::STORED] = self::valuesOf($stored);
+
+        return $field;
+    }
+
+    /**
+     * Get the stored values, limited to `$only`, that aren't already options, each labelled by its value.
+     *
+     * @param list<int|string>|null     $only  Values being resolved; null for all.
+     * @param array<int|string, string> $known Options found so far.
+     * @return array<int|string, string>
+     */
+    private static function kept(array $populate, ?array $only, array $known): array
+    {
+        $stored = array_map('strval', (array) ($populate[self::STORED] ?? []));
+
+        if ($only !== null) {
+            $stored = array_intersect($stored, array_map('strval', $only));
+        }
+
+        $kept = [];
+
+        foreach ($stored as $value) {
+            if (!array_key_exists($value, $known)) {
+                $kept[$value] = $value;
+            }
+        }
+
+        return $kept;
     }
 
     /**
@@ -298,6 +330,10 @@ final class Populate
 
         if ($type !== 'query') {
             $map = self::callbackOptions($field, $populate, $type);
+
+            if ($only !== null) {
+                return array_intersect_key($map, array_flip($only));
+            }
 
             return $search === null ? $map : array_slice(self::matching($map, $search), 0, $limit, true);
         }
@@ -435,8 +471,8 @@ final class Populate
         }
 
         return $args + match ($query) {
-            'posts' => ['s' => $search],
-            'users' => ['search' => "*{$search}*"],
+            'posts' => ['s' => $search, 'search_columns' => ['post_title']],
+            'users' => ['search' => "*{$search}*", 'search_columns' => ['display_name', 'user_nicename']],
             default => ['search' => $search],
         };
     }
