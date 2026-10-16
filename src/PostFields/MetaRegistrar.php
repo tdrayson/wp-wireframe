@@ -31,7 +31,7 @@ final class MetaRegistrar
     }
 
     /**
-     * Register one post type's top-level fields as post meta; safe to call again.
+     * Register one post type's top-level fields as post meta, with REST privacy and save validation; safe to call again.
      *
      * @param string $postType Post type slug.
      */
@@ -42,6 +42,7 @@ final class MetaRegistrar
         }
 
         add_filter("rest_prepare_{$postType}", [self::class, 'filterResponse'], 10, 3);
+        add_filter("rest_pre_insert_{$postType}", [SaveValidator::class, 'check'], 10, 2);
         add_filter('rest_prepare_revision', [self::class, 'filterResponse'], 10, 3);
         add_filter('rest_prepare_autosave', [self::class, 'filterResponse'], 10, 3);
     }
@@ -274,8 +275,15 @@ final class MetaRegistrar
      * Check a field's `access`, inherited from its section and tab as on settings pages.
      *
      * Fields with no rule anywhere above them defer to post capabilities, so public fields stay readable logged out.
+     *
+     * @param string  $verb     `view` or `edit`.
+     * @param string  $postType Post type slug.
+     * @param array   $group    Normalised group owning the field.
+     * @param string  $key      Top-level field id.
+     * @param WP_User $user     User being checked.
+     * @return bool
      */
-    private static function allowed(string $verb, string $postType, array $group, string $key, WP_User $user): bool
+    public static function allowed(string $verb, string $postType, array $group, string $key, WP_User $user): bool
     {
         $config = ConfigLoader::load($group['config']);
 

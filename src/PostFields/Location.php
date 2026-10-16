@@ -53,14 +53,15 @@ final class Location
     /**
      * Build the values location rules are evaluated against.
      *
-     * @param int          $postId Post being edited or read.
-     * @param WP_User|null $user   Current user, or null when logged out.
+     * @param int          $postId   Post being edited or read; 0 for one not yet created.
+     * @param WP_User|null $user     Current user, or null when logged out.
+     * @param string|null  $postType Post type, for a post not yet created; defaults to the post's.
      * @return array<string, mixed>
      */
-    public static function context(int $postId, ?WP_User $user): array
+    public static function context(int $postId, ?WP_User $user, ?string $postType = null): array
     {
         $context = [
-            'post_type' => (string) get_post_type($postId),
+            'post_type' => $postType ?? (string) get_post_type($postId),
             'post_id'   => $postId,
             'user_role' => $user === null ? [] : array_values($user->roles),
         ];
@@ -71,14 +72,15 @@ final class Location
     /**
      * Whether a group's location matches a post and user.
      *
-     * @param array        $group  Normalised group, or any array with a `location` rule tree.
-     * @param int          $postId Post ID.
-     * @param WP_User|null $user   Current user, or null when logged out.
+     * @param array        $group    Normalised group, or any array with a `location` rule tree.
+     * @param int          $postId   Post ID; 0 for one not yet created.
+     * @param WP_User|null $user     Current user, or null when logged out.
+     * @param string|null  $postType Post type, for a post not yet created; defaults to the post's.
      * @return bool
      */
-    public static function applies(array $group, int $postId, ?WP_User $user): bool
+    public static function applies(array $group, int $postId, ?WP_User $user, ?string $postType = null): bool
     {
-        $context = self::context($postId, $user);
+        $context = self::context($postId, $user, $postType);
 
         return Conditions::evaluate(self::expandListMembership($group['location'] ?? [], $context), $context);
     }

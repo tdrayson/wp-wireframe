@@ -65,7 +65,8 @@ update_post_meta($id, 'price', '12abc');
 $priceArgs = FieldGroups::flatFields('event')['price']['args'] ?? [];
 check('price sanitised by NumberField', (string) NumberField::sanitize('12abc', $priceArgs), get_post_meta($id, 'price', true));
 
-$published = make_event(['secret_code' => 's3cret', 'public_tagline' => 'Hi', 'genres' => 'jazz', 'admin_notes' => 'private', 'internal_ref' => 'R1', 'extra_note' => 'hidden'], 'publish');
+// Saves to a published post must pass its required fields.
+$published = make_event(['event_starts' => '2026-11-01', 'ticket_url' => 'https://example.com/tickets', 'secret_code' => 's3cret', 'public_tagline' => 'Hi', 'genres' => 'jazz', 'admin_notes' => 'private', 'internal_ref' => 'R1', 'extra_note' => 'hidden'], 'publish');
 wp_update_post(['ID' => $published, 'post_title' => 'Event, revised']);
 
 as_user('');
