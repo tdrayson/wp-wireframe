@@ -16,3 +16,8 @@
 .wireframe-token-field.is-pending .components-form-token-field__suggestions-list:has(.is-empty) {
   display: none;
 }
+
+// Before 7.1 the token field ignores `help=""` and shows its how-to text.
+.wireframe-token-field .components-form-token-field__help {
+  display: none;
+}

@@ -264,7 +264,7 @@ function MultiSearch( { data, field, onChange, error } ) {
 		>
 			<FormTokenField
 				__next40pxDefaultSize
-				__experimentalShowHowTo={ false }
+				help=""
 				__experimentalExpandOnFocus
 				__experimentalAutoSelectFirstMatch
 				label={ field.label }
@@ -341,7 +341,7 @@ function MultiSelect( { data, field, onChange, error } ) {
 		>
 			<FormTokenField
 				__next40pxDefaultSize
-				__experimentalShowHowTo={ false }
+				help=""
 				__experimentalExpandOnFocus
 				__experimentalAutoSelectFirstMatch
 				label={ field.label }
