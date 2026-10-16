@@ -370,6 +370,7 @@ Renamed repeaters are reindexed. A `previous_ids` entry that collides with anoth
 - Post meta only: no term, user, comment or option storage, and no admin UI for building groups. Config is PHP.
 - Autosaves are not validated, and an autosave can never publish a draft.
 - Programmatic writes (`update_post_meta`, `Meta::set`) are sanitised but not validated. Quick Edit and bulk edit don't touch field values.
+- Quick Edit and bulk edit skip field validation, so they can publish a post whose `required` fields are empty.
 - A `content` group locks the canvas and leaves `post_content` empty. Use `meta_box` or `sidebar` groups to keep block editing.
 - A `sidebar` group ignores tabs: tab titles and tab conditions are dropped (noted under `WP_DEBUG`).
 
