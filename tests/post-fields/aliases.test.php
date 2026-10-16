@@ -113,6 +113,32 @@ add_post_meta($id, 'cost', '15');
 Meta::update($id, ['ticket_url' => 'https://example.com']);
 check('Meta::update, leaving the field out, removes the previous key', false, metadata_exists('post', $id, 'cost'));
 
+// ─── Clearing a field held only under an old key ──
+
+$id = $event();
+add_post_meta($id, 'cost', '15');
+$response = rest('POST', "/wp/v2/event/$id", ['meta' => ['price' => null]]);
+check('REST null on an aliased-only field succeeds', 200, $response->get_status());
+check('REST null removes the previous key', false, metadata_exists('post', $id, 'cost'));
+check('REST null leaves the field unset', false, Meta::has($id, 'price'));
+
+$id = $event();
+add_post_meta($id, 'cost', '15');
+check('delete_post_meta on an aliased-only field succeeds', true, delete_post_meta($id, 'price'));
+check('delete_post_meta removes the previous key', false, metadata_exists('post', $id, 'cost'));
+
+$id = $event();
+add_post_meta($id, 'cost', '15');
+check('deleting a value that is not there still fails', false, delete_post_meta($id, 'other_key_that_is_not_aliased'));
+check('and keeps the previous key', true, metadata_exists('post', $id, 'cost'));
+wp_delete_post($id, true);
+
+$id = $event();
+add_post_meta($id, 'cost', '15');
+add_post_meta($id, 'price', '8');
+delete_post_meta($id, 'price');
+check('deleting a current field also clears a stale previous key', false, metadata_exists('post', $id, 'cost'));
+
 // ─── Migrate ──────────────────────────────────────
 
 $id = $event();
@@ -128,9 +154,9 @@ check('a second migrate has nothing to do', 0, Meta::migrate('event'));
 
 $id = $event();
 add_post_meta($id, 'cost', '15');
-remove_action('added_post_meta', [Aliases::class, 'onChange'], 10);
+remove_action('added_post_meta', [Aliases::class, 'onChange'], 5);
 add_post_meta($id, 'price', '8');
-add_action('added_post_meta', [Aliases::class, 'onChange'], 10, 3);
+add_action('added_post_meta', [Aliases::class, 'onChange'], 5, 3);
 check('migrate counts a post whose previous key is stale', 1, Meta::migrate('event'));
 check('migrate never overwrites the current value', '8', get_post_meta($id, 'price', true));
 check('migrate drops the stale previous key', false, metadata_exists('post', $id, 'cost'));
@@ -201,6 +227,86 @@ check('migrate moves a repeater', 1, Meta::migrate('alias_cpt'));
 check('the repeater lands under the new key', [['venue' => 'Hull']], get_post_meta($id, 'sessions', true));
 check('wireframe_query finds the migrated repeater', [$id], $found('Hull'));
 check('the old key is gone', false, metadata_exists('post', $id, 'old_sessions'));
+
+$id = $cpt();
+add_post_meta($id, 'old_genres', 'rock');
+add_post_meta($id, 'old_genres', 'folk');
+$response = rest('POST', "/wp/v2/alias_cpt/$id", ['meta' => ['genres' => ['jazz']]]);
+check('REST write over aliased-only rows succeeds', 200, $response->get_status());
+check('REST write over aliased-only rows stores the new rows', ['jazz'], get_post_meta($id, 'genres'));
+check('REST write over aliased-only rows clears the old ones', false, metadata_exists('post', $id, 'old_genres'));
+
+$id = $cpt();
+add_post_meta($id, 'old_genres', 'rock');
+add_post_meta($id, 'old_genres', 'folk');
+$response = rest('POST', "/wp/v2/alias_cpt/$id", ['meta' => ['genres' => ['rock']]]);
+check('REST write dropping one aliased row succeeds', 200, $response->get_status());
+check('REST write dropping one aliased row keeps the others', ['rock'], get_post_meta($id, 'genres'));
+
+$id = $cpt();
+add_post_meta($id, 'old_genres', 'rock');
+$response = rest('POST', "/wp/v2/alias_cpt/$id", ['meta' => ['genres' => []]]);
+check('REST empty list over aliased-only rows succeeds', 200, $response->get_status());
+check('REST empty list clears the old rows', false, metadata_exists('post', $id, 'old_genres'));
+check('and the field stays empty', [], Meta::get($id, 'genres'));
+
+$id = $cpt();
+add_post_meta($id, 'old_genres', 'rock');
+$response = rest('POST', "/wp/v2/alias_cpt/$id", ['meta' => ['genres' => null]]);
+check('REST null on aliased-only rows clears them', false, metadata_exists('post', $id, 'old_genres'));
+
+$id = $cpt();
+add_post_meta($id, 'old_genres', 'rock');
+add_post_meta($id, 'old_genres', 'folk');
+check('deleting one value of an aliased-only field succeeds', true, delete_post_meta($id, 'genres', 'rock'));
+check('it keeps the other rows', ['folk'], get_post_meta($id, 'genres'));
+check('and clears the previous key', false, metadata_exists('post', $id, 'old_genres'));
+
+// A current repeater delete must not rebuild the index from the old key about to go.
+$id = $cpt();
+Meta::set($id, 'sessions', [['venue' => 'Leeds']]);
+remove_action('added_post_meta', [Aliases::class, 'onChange'], 5);
+add_post_meta($id, 'old_sessions', [['venue' => 'York']]);
+add_action('added_post_meta', [Aliases::class, 'onChange'], 5, 3);
+delete_post_meta($id, 'sessions');
+check('deleting a repeater leaves nothing in the index', [], array_merge($found('Leeds'), $found('York')));
+check('and clears the stale previous key', false, metadata_exists('post', $id, 'old_sessions'));
+
+// ─── Failed copies and orphaned index rows ────
+
+$id = $cpt();
+add_post_meta($id, 'old_sessions', [['venue' => 'Ripon']]);
+$failAll = static fn (): bool => false;
+add_filter('add_post_metadata', $failAll);
+check('migrate reports nothing when the copy fails', 0, Meta::migrate('alias_cpt'));
+remove_filter('add_post_metadata', $failAll);
+check('a failed copy keeps the previous key', true, metadata_exists('post', $id, 'old_sessions'));
+check('a failed copy leaves no current key', false, metadata_exists('post', $id, 'sessions'));
+check('and the next migrate succeeds', 1, Meta::migrate('alias_cpt'));
+check('which moves the value', [['venue' => 'Ripon']], get_post_meta($id, 'sessions', true));
+
+$id = $cpt();
+add_post_meta($id, 'old_genres', 'rock');
+add_post_meta($id, 'old_genres', 'folk');
+$adds = 0;
+$failSecond = static function (mixed $check) use (&$adds): mixed {
+    return ++$adds === 2 ? false : $check;
+};
+add_filter('add_post_metadata', $failSecond);
+check('migrate reports nothing when a later row fails', 0, Meta::migrate('alias_cpt'));
+remove_filter('add_post_metadata', $failSecond);
+check('a partial copy is undone', false, metadata_exists('post', $id, 'genres'));
+check('and every previous row is kept', ['rock', 'folk'], get_post_meta($id, 'old_genres'));
+Meta::migrate('alias_cpt');
+
+$id = $cpt();
+add_post_meta($id, 'old_sessions', [['venue' => 'Rye']]);
+$wpdb->insert($wpdb->prefix . 'wireframe_index', ['post_id' => $id, 'field' => 'old_sessions', 'row_index' => 0, 'subfield' => 'venue', 'value_str' => 'Rye']);
+$orphans = static fn (): int => (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}wireframe_index WHERE post_id = %d AND field = 'old_sessions'", $id));
+check('the old repeater name has index rows before migrate', 1, $orphans());
+Meta::migrate('alias_cpt');
+check('migrate drops the index rows of the old repeater name', 0, $orphans());
+check('and indexes the new name', [$id], $found('Rye'));
 
 $unregistered = [];
 add_filter('query', static function (string $sql) use (&$unregistered): string {

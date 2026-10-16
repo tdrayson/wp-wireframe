@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Wireframe\PostFields;
 
+use WP_Post;
+use WP_REST_Request;
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\PostFields\Index\IndexSync;
 
 /**
  * Rename aliases: a field's `previous_ids` stay readable until a write or `Meta::migrate()` moves them to the current key.
@@ -22,6 +25,9 @@ final class Aliases
     /** @var array<string, true>|null Every previous key, over all post types. */
     private static ?array $previous = null;
 
+    /** Whether a migrate copy is running, which must not purge the old rows it hasn't copied yet. */
+    private static bool $copying = false;
+
     /**
      * Hook the read fallback and the write cleanup.
      */
@@ -29,9 +35,11 @@ final class Aliases
     {
         // After core's registered-default filter (10), which would otherwise replace the previous value.
         add_filter('default_post_metadata', [self::class, 'fallback'], 20, 5);
-        add_action('added_post_meta', [self::class, 'onChange'], 10, 3);
-        add_action('updated_post_meta', [self::class, 'onChange'], 10, 3);
-        add_action('deleted_post_meta', [self::class, 'onChange'], 10, 3);
+        add_filter('delete_post_metadata', [self::class, 'beforeDelete'], 10, 5);
+        // Before IndexSync (10), so it never rebuilds from an old key that is about to go.
+        add_action('added_post_meta', [self::class, 'onChange'], 5, 3);
+        add_action('updated_post_meta', [self::class, 'onChange'], 5, 3);
+        add_action('deleted_post_meta', [self::class, 'onChange'], 5, 3);
     }
 
     /**
@@ -76,7 +84,69 @@ final class Aliases
      */
     public static function onChange(mixed $metaId, int $postId, string $key): void
     {
+        if (self::$copying) {
+            return;
+        }
+
         self::purge($postId, $key);
+    }
+
+    /**
+     * Let a delete of a current key that has no rows of its own act on the old rows, which core would skip.
+     *
+     * Deleting every row clears the old keys; deleting one value first moves the old rows over so that value can go.
+     *
+     * @param mixed  $check     Short-circuit value so far.
+     * @param int    $postId    Post ID.
+     * @param string $key       Meta key.
+     * @param mixed  $value     Value to delete, or '' for every row.
+     * @param bool   $deleteAll Whether the key is deleted on every post.
+     * @return mixed True when handled, else `$check`.
+     */
+    public static function beforeDelete(mixed $check, int $postId, string $key, mixed $value, bool $deleteAll): mixed
+    {
+        if ($check !== null || $deleteAll || $postId <= 0 || self::$copying || metadata_exists('post', $postId, $key)) {
+            return $check;
+        }
+
+        $previous = self::previousFor($postId, $key);
+
+        if (self::source($postId, $previous) === null) {
+            return $check;
+        }
+
+        if ($value === '') {
+            self::purge($postId, $key);
+
+            return true;
+        }
+
+        self::relocate($postId, $key, $previous);
+
+        return $check;
+    }
+
+    /**
+     * Clear the old keys of a field a REST save emptied with `null` or `[]`, which core skips when the field has no rows of its own.
+     *
+     * @param WP_Post         $post    Saved post.
+     * @param WP_REST_Request $request Save request.
+     */
+    public static function afterRestSave(WP_Post $post, WP_REST_Request $request): void
+    {
+        $meta = $request['meta'];
+
+        if (!is_array($meta)) {
+            return;
+        }
+
+        foreach ($meta as $key => $value) {
+            $cap = $value === null ? 'delete_post_meta' : 'edit_post_meta';
+
+            if (($value === null || $value === []) && current_user_can($cap, $post->ID, (string) $key)) {
+                self::purge($post->ID, (string) $key);
+            }
+        }
     }
 
     /**
@@ -226,36 +296,96 @@ final class Aliases
     }
 
     /**
-     * Run one post's aliased fields through the move; true when anything was found.
+     * Run one post's aliased fields through the move; true when any moved.
      *
      * @param array<string, list<string>> $aliases Previous ids by meta key.
      */
     private static function migratePost(int $postId, string $postType, array $aliases): bool
     {
-        $fields  = FieldGroups::flatFields($postType);
-        $touched = false;
+        $fields = FieldGroups::flatFields($postType);
+        $moved  = false;
 
         foreach ($aliases as $key => $previous) {
-            $source = array_values(array_filter($previous, static fn (string $old): bool => metadata_exists('post', $postId, $old)))[0] ?? null;
-
-            if ($source === null) {
+            if (self::source($postId, $previous) === null || !self::relocate($postId, $key, $previous)) {
                 continue;
             }
 
-            $touched = true;
+            $moved = true;
 
-            if (!metadata_exists('post', $postId, $key)) {
-                $rows = get_post_meta($postId, $source);
+            if (StorageKind::for($fields[$key]) !== StorageKind::REPEATER) {
+                continue;
+            }
 
-                foreach (StorageKind::for($fields[$key]) === StorageKind::MULTI ? $rows : array_slice($rows, 0, 1) as $row) {
-                    add_post_meta($postId, $key, wp_slash($row));
+            foreach ($previous as $old) {
+                IndexSync::syncField($postId, $old);
+            }
+        }
+
+        return $moved;
+    }
+
+    /**
+     * Get the first previous key that has a value on the post.
+     *
+     * @param list<string> $previous Previous ids, in priority order.
+     */
+    private static function source(int $postId, array $previous): ?string
+    {
+        foreach ($previous as $old) {
+            if (metadata_exists('post', $postId, $old)) {
+                return $old;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Copy the first old key's rows to a current key that has none, then delete the old keys; false, with the old keys kept, if the copy fails.
+     *
+     * @param list<string> $previous Previous ids, in priority order.
+     */
+    private static function relocate(int $postId, string $key, array $previous): bool
+    {
+        $source = self::source($postId, $previous);
+
+        if ($source === null) {
+            return false;
+        }
+
+        if (!metadata_exists('post', $postId, $key) && !self::copy($postId, $key, $source)) {
+            return false;
+        }
+
+        self::purge($postId, $key);
+
+        return true;
+    }
+
+    /**
+     * Copy a source key's rows, all of them for a multi-value field, else the first; undone if any row fails.
+     */
+    private static function copy(int $postId, string $key, string $source): bool
+    {
+        $field = FieldGroups::flatFields((string) get_post_type($postId))[$key] ?? [];
+        $rows  = get_post_meta($postId, $source);
+        $rows  = StorageKind::for($field) === StorageKind::MULTI ? $rows : array_slice($rows, 0, 1);
+
+        self::$copying = true;
+
+        try {
+            foreach ($rows as $row) {
+                if (add_post_meta($postId, $key, wp_slash($row)) === false) {
+                    delete_post_meta($postId, $key);
+
+                    return false;
                 }
             }
 
-            self::purge($postId, $key);
+            return metadata_exists('post', $postId, $key);
+        } finally {
+            self::$copying = false;
         }
-
-        return $touched;
     }
 
     /**

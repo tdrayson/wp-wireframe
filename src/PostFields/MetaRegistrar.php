@@ -54,6 +54,7 @@ final class MetaRegistrar
         add_filter("rest_pre_insert_{$postType}", [SaveValidator::class, 'check'], 10, 2);
         add_action("rest_insert_{$postType}", [self::class, 'beginSave']);
         add_action("rest_after_insert_{$postType}", [self::class, 'endSave']);
+        add_action("rest_after_insert_{$postType}", [Aliases::class, 'afterRestSave'], 10, 2);
         add_filter('rest_request_after_callbacks', [self::class, 'endSave']);
         add_filter('rest_prepare_revision', [self::class, 'filterResponse'], 10, 3);
         add_filter('rest_prepare_autosave', [self::class, 'filterResponse'], 10, 3);
