@@ -129,6 +129,7 @@
       },
       "allOf": [
         { "$ref": "#/$defs/argsByType/choice" },
+        { "$ref": "#/$defs/argsByType/imageChoice" },
         { "$ref": "#/$defs/argsByType/repeater" },
         { "$ref": "#/$defs/argsByType/table" },
         { "$ref": "#/$defs/argsByType/html" },
@@ -242,7 +243,7 @@
         "if": {
           "properties": {
             "type": {
-              "enum": ["select", "radio", "image_radio", "checkboxes", "image_checkboxes"]
+              "enum": ["select", "radio", "checkboxes"]
             }
           },
           "required": ["type"]
@@ -255,6 +256,33 @@
               "properties": {
                 "options": { "$ref": "#/$defs/optionMap" },
                 "populate": { "$ref": "#/$defs/populate" },
+                "multiple": { "type": "boolean" },
+                "allow_custom": { "type": "boolean" },
+                "placeholder": { "type": "string" },
+                "max": { "type": "integer" }
+              }
+            }
+          },
+          "required": ["args"]
+        }
+      },
+      "imageChoice": {
+        "if": {
+          "properties": {
+            "type": {
+              "enum": ["image_radio", "image_checkboxes"]
+            }
+          },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "required": ["options"],
+              "not": { "required": ["populate"] },
+              "properties": {
+                "options": { "$ref": "#/$defs/optionMap" },
                 "multiple": { "type": "boolean" },
                 "allow_custom": { "type": "boolean" },
                 "placeholder": { "type": "string" },

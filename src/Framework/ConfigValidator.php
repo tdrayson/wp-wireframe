@@ -132,7 +132,7 @@ final class ConfigValidator
         }
 
         if ($populated) {
-            self::validatePopulate($args['populate'], $label, $where, $issues);
+            self::validatePopulate($args['populate'], $type, $label, $where, $issues);
         }
 
         if ($type === 'html' && empty($args['content'])) {
@@ -161,16 +161,18 @@ final class ConfigValidator
     /**
      * Check a `populate` definition's type, query and callback key.
      *
-     * @param array        $populate `args.populate`.
-     * @param string       $label    Field label for messages.
-     * @param string       $where    Location label for messages.
-     * @param list<string> $issues   Collected issue messages (by reference).
+     * @param array        $populate  `args.populate`.
+     * @param string       $fieldType Field type.
+     * @param string       $label     Field label for messages.
+     * @param string       $where     Location label for messages.
+     * @param list<string> $issues    Collected issue messages (by reference).
      */
-    private static function validatePopulate(array $populate, string $label, string $where, array &$issues): void
+    private static function validatePopulate(array $populate, string $fieldType, string $label, string $where, array &$issues): void
     {
         $type = $populate['type'] ?? 'query';
 
         $problem = match (true) {
+            !empty($populate['fetch']) && $fieldType !== 'select'                                     => '"fetch" only applies to select fields',
             !in_array($type, ['query', 'function', 'custom'], true)                                   => '"type" must be query, function or custom',
             $type === 'query' && !in_array($populate['query'] ?? 'posts', ['posts', 'users', 'terms'], true) => '"query" must be posts, users or terms',
             $type === 'function' && empty($populate['function'])                                      => 'type "function" requires "function"',
