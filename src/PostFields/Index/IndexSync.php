@@ -39,6 +39,13 @@ final class IndexSync
      */
     public static function onMetaChange(mixed $metaId, int $postId, string $key): void
     {
+        // delete_post_meta_by_key() reports object id 0 after deleting the key from every post.
+        if ($postId === 0) {
+            self::deleteField($key);
+
+            return;
+        }
+
         if (wp_is_post_revision($postId) !== false) {
             return;
         }
@@ -129,6 +136,25 @@ final class IndexSync
 
         IndexTable::install();
         $wpdb->delete(IndexTable::name(), ['post_id' => $postId], ['%d']);
+    }
+
+    /**
+     * Remove every post's index rows for a repeater key that is indexed on one of this copy's post types.
+     */
+    private static function deleteField(string $key): void
+    {
+        global $wpdb;
+
+        foreach (array_keys(FieldGroups::all()) as $postType) {
+            if (self::indexedSubfields((string) $postType, $key) === []) {
+                continue;
+            }
+
+            IndexTable::install();
+            $wpdb->delete(IndexTable::name(), ['field' => $key], ['%s']);
+
+            return;
+        }
     }
 
     /**

@@ -146,6 +146,11 @@ check('a write installs a missing table first', [IndexTable::VERSION, 1], [(int)
 $wpdb->query("DROP TABLE {$table}");
 $wpdb->query("RENAME TABLE {$table}_kept TO {$table}");
 
+$byKey = make_event();
+Meta::set($byKey, 'sessions', [['venue' => 'Bradford']]);
+delete_post_meta_by_key('sessions');
+check('deleting a repeater key across posts drops its index rows', 0, (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE field = 'sessions'"));
+
 $lastChanged = wp_cache_get_last_changed('posts');
 Meta::reindex('event');
 check('reindex invalidates cached post queries', true, $lastChanged !== wp_cache_get_last_changed('posts'));
