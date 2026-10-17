@@ -34,6 +34,9 @@ final class MetaRegistrar
 
     private static int $restDepth = 0;
 
+    /** @var list<array{0: int, 1: array, 2: int}> Save scopes REST saves replaced: post ID, stored values, and the request depth they began at. */
+    private static array $saveScopes = [];
+
     /** @var array<string, true>|null Registered field keys of every grouped post type, for protect(). */
     private static ?array $protectedKeys = null;
 
@@ -63,9 +66,8 @@ final class MetaRegistrar
         add_filter("rest_prepare_{$postType}", [self::class, 'filterResponse'], 10, 3);
         add_filter("rest_pre_insert_{$postType}", [SaveValidator::class, 'check'], 10, 2);
         add_action("rest_insert_{$postType}", [self::class, 'beginSave']);
-        add_action("rest_after_insert_{$postType}", [self::class, 'endSave']);
+        add_action("rest_after_insert_{$postType}", [self::class, 'endSave'], 10, 0);
         add_action("rest_after_insert_{$postType}", [Aliases::class, 'afterRestSave'], 10, 2);
-        add_filter('rest_request_after_callbacks', [self::class, 'endSave']);
         add_filter('rest_prepare_revision', [self::class, 'filterResponse'], 10, 3);
         add_filter('rest_prepare_autosave', [self::class, 'filterResponse'], 10, 3);
     }
@@ -98,20 +100,19 @@ final class MetaRegistrar
      */
     public static function beginSave(WP_Post $post): void
     {
+        self::$saveScopes[] = [self::$savingPostId, self::$savingStored, self::$restDepth];
+
         [self::$savingPostId, self::$savingStored] = [$post->ID, []];
     }
 
     /**
-     * End a REST save's scope, after the insert or, should it fail, after the request.
-     *
-     * @param mixed $passthrough Filtered response, returned as-is.
-     * @return mixed
+     * End a REST save's scope after its insert, restoring the one it began inside; endRequest() ends one whose insert failed.
      */
-    public static function endSave(mixed $passthrough = null): mixed
+    public static function endSave(): void
     {
-        [self::$savingPostId, self::$savingStored] = [0, []];
+        $previous = array_pop(self::$saveScopes);
 
-        return $passthrough;
+        [self::$savingPostId, self::$savingStored] = $previous === null ? [0, []] : [$previous[0], $previous[1]];
     }
 
     /**
@@ -152,7 +153,7 @@ final class MetaRegistrar
     }
 
     /**
-     * Filter `rest_request_before_callbacks`: keep access maps for the request's callbacks.
+     * Filter `rest_request_before_callbacks`: keep access maps for the request's callbacks, and track saves begun in it.
      *
      * @param mixed $response Response so far, returned as-is.
      * @return mixed
@@ -165,13 +166,17 @@ final class MetaRegistrar
     }
 
     /**
-     * Filter `rest_request_after_callbacks`: forget the request's access maps once the outermost request is done.
+     * Filter `rest_request_after_callbacks`: end saves the request began and never closed; forget access maps once the outermost request is done.
      *
      * @param mixed $response Response, returned as-is.
      * @return mixed
      */
     public static function endRequest(mixed $response): mixed
     {
+        while (self::$saveScopes !== [] && end(self::$saveScopes)[2] >= self::$restDepth && self::$restDepth > 0) {
+            self::endSave();
+        }
+
         self::$restDepth = max(0, self::$restDepth - 1);
 
         if (self::$restDepth === 0) {

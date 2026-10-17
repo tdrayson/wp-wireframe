@@ -4,6 +4,7 @@ use Wireframe\App;
 use Wireframe\Framework\Conditions;
 use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
+use Wireframe\PostFields\MetaRegistrar;
 use Wireframe\PostFields\SaveValidator;
 
 require __DIR__ . '/assert.php';
@@ -36,6 +37,16 @@ App::boot(['prefix' => 'gate', 'field_groups' => [[
     ]],
 ]]]);
 
+register_post_type('pick_cpt', ['public' => true, 'show_in_rest' => true, 'supports' => ['title']]);
+App::boot(['prefix' => 'pick', 'field_groups' => [[
+    'id'       => 'pick_group',
+    'title'    => 'Pick',
+    'location' => ['pick_cpt'],
+    'config'   => ['fields' => [
+        ['id' => 'pick_choice', 'type' => 'select', 'default' => 'legacy', 'args' => ['populate' => ['type' => 'function', 'function' => static fn (): array => ['fresh' => 'Fresh']]]],
+    ]],
+]]]);
+
 $save   = static fn (int $id, array $body): WP_REST_Response => rest('POST', "/wp/v2/event/$id", $body);
 $errors = static fn (WP_REST_Response $response): array => (array) ($response->as_error()?->get_error_data()['errors'] ?? []);
 $ticket = 'https://example.com/tickets';
@@ -43,6 +54,27 @@ $ticket = 'https://example.com/tickets';
 as_user('administrator');
 
 $draft = make_event();
+$pick = (int) wp_insert_post(['post_type' => 'pick_cpt', 'post_status' => 'draft', 'post_title' => 'Pick']);
+check('a config default counts as stored, so echoing it back stays valid', [], SaveValidator::validate($pick, 'pick_cpt', ['pick_choice' => 'legacy'], 'draft'));
+check('a value neither stored, default nor populated is refused', ['pick_choice'], array_keys(SaveValidator::validate($pick, 'pick_cpt', ['pick_choice' => 'other'], 'draft')));
+wp_delete_post($pick, true);
+
+$savingPostId = static fn (): int => (new ReflectionProperty(MetaRegistrar::class, 'savingPostId'))->getValue();
+MetaRegistrar::beginSave(get_post(make_event()));
+$outer = $savingPostId();
+$inner = get_post(make_event());
+MetaRegistrar::beginSave($inner);
+MetaRegistrar::endSave();
+check('a nested save scope restores the outer one', $outer, $savingPostId());
+MetaRegistrar::endSave();
+check('closing the outer scope leaves none', 0, $savingPostId());
+MetaRegistrar::beginSave($inner);
+MetaRegistrar::beginRequest(null);
+MetaRegistrar::beginSave(get_post(make_event()));
+MetaRegistrar::endRequest(null);
+check('a REST request unwinds a save its insert never closed', $inner->ID, $savingPostId());
+MetaRegistrar::endSave();
+
 $gated = (int) wp_insert_post(['post_type' => 'gate_cpt', 'post_status' => 'draft', 'post_title' => 'Gated', 'meta_input' => ['gate_flag' => true]]);
 check('a required field shown by a value the user can read is enforced', ['gate_reason'], array_keys(SaveValidator::validate($gated, 'gate_cpt', [], 'publish')));
 as_user('editor');

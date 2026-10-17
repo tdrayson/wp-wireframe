@@ -87,7 +87,7 @@ final class SaveValidator
         }
 
         $values = self::mergedValues($postId, $postType, $incoming, $user, array_keys($fields));
-        $stored = $postId > 0 ? Meta::all($postId) : [];
+        $stored = ($postId > 0 ? Meta::all($postId) : []) + self::defaults($postType);
 
         return Validator::validate($values, $fields, self::visibility($groups, $values), $stored)['errors'];
     }
