@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe;
 
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\Framework\Dot;
 use Wireframe\Framework\Fields\FieldRegistry;
 use Wireframe\Framework\Populate;
 
@@ -34,7 +35,7 @@ final class Settings
         $settings = self::all($optionKey);
 
         if (str_contains($key, '.')) {
-            return self::dotGet($settings, $key) ?? self::fieldDefault($optionKey, $key, $default);
+            return Dot::get($settings, $key) ?? self::fieldDefault($optionKey, $key, $default);
         }
 
         if (array_key_exists($key, $settings)) {
@@ -58,7 +59,7 @@ final class Settings
         $value  = self::sanitizeField($optionKey, $topKey, $key === $topKey ? $value : null, $value, $settings[$topKey] ?? null);
 
         if (str_contains($key, '.')) {
-            self::dotSet($settings, $key, $value);
+            Dot::set($settings, $key, $value);
         } else {
             $settings[$key] = $value;
         }
@@ -74,7 +75,7 @@ final class Settings
         $settings = self::all($optionKey);
 
         if (str_contains($key, '.')) {
-            return self::dotGet($settings, $key) !== null;
+            return Dot::get($settings, $key) !== null;
         }
 
         return array_key_exists($key, $settings) && $settings[$key] !== null;
@@ -88,7 +89,7 @@ final class Settings
         $settings = self::all($optionKey);
 
         if (str_contains($key, '.')) {
-            self::dotForget($settings, $key);
+            Dot::forget($settings, $key);
         } else {
             unset($settings[$key]);
         }
@@ -355,65 +356,6 @@ final class Settings
     public static function resetFor(string $optionKey): bool
     {
         return self::reset($optionKey);
-    }
-
-    // ─── Dot notation internals ───────────────────────
-
-    /**
-     * Dot-notation helper shared with Meta.
-     *
-     * @internal
-     */
-    public static function dotGet(array $array, string $key): mixed
-    {
-        foreach (explode('.', $key) as $segment) {
-            if (!is_array($array) || !array_key_exists($segment, $array)) {
-                return null;
-            }
-            $array = $array[$segment];
-        }
-
-        return $array;
-    }
-
-    /**
-     * Dot-notation helper shared with Meta.
-     *
-     * @internal
-     */
-    public static function dotSet(array &$array, string $key, mixed $value): void
-    {
-        $keys = explode('.', $key);
-        $last = array_pop($keys);
-
-        foreach ($keys as $segment) {
-            if (!isset($array[$segment]) || !is_array($array[$segment])) {
-                $array[$segment] = [];
-            }
-            $array = &$array[$segment];
-        }
-
-        $array[$last] = $value;
-    }
-
-    /**
-     * Dot-notation helper shared with Meta.
-     *
-     * @internal
-     */
-    public static function dotForget(array &$array, string $key): void
-    {
-        $keys = explode('.', $key);
-        $last = array_pop($keys);
-
-        foreach ($keys as $segment) {
-            if (!isset($array[$segment]) || !is_array($array[$segment])) {
-                return;
-            }
-            $array = &$array[$segment];
-        }
-
-        unset($array[$last]);
     }
 
     private static function fieldDefault(string $optionKey, string $key, mixed $fallback): mixed

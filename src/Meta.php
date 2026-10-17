@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Wireframe;
 
+use Wireframe\Framework\Dot;
 use Wireframe\Framework\Fields\FieldRegistry;
 use Wireframe\Framework\Populate;
 use Wireframe\PostFields\Aliases;
@@ -46,7 +47,7 @@ final class Meta
             return $value ?? $default ?? self::blank($field);
         }
 
-        $nested = Settings::dotGet(is_array($value) ? $value : [], self::path($key, $top));
+        $nested = Dot::get(is_array($value) ? $value : [], self::path($key, $top));
 
         return $nested ?? (self::flat($postId)[$key]['default'] ?? $default);
     }
@@ -81,7 +82,7 @@ final class Meta
             return $stored !== null;
         }
 
-        return Settings::dotGet(is_array($stored) ? $stored : [], self::path($key, $top)) !== null;
+        return Dot::get(is_array($stored) ? $stored : [], self::path($key, $top)) !== null;
     }
 
     /**
@@ -112,7 +113,7 @@ final class Meta
             return false;
         }
 
-        Settings::dotForget($stored, self::path($key, $top));
+        Dot::forget($stored, self::path($key, $top));
 
         return self::write($postId, $top, $field, $stored, true);
     }
@@ -382,7 +383,7 @@ final class Meta
 
             $nested = self::stored($postId, $top, $field);
             $nested = is_array($nested) ? $nested : [];
-            Settings::dotSet($nested, self::path($key, $top), $value);
+            Dot::set($nested, self::path($key, $top), $value);
             $value  = $nested;
         }
 
