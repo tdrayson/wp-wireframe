@@ -105,13 +105,13 @@ final class Aliases
      */
     public static function beforeDelete(mixed $check, int $postId, string $key, mixed $value, bool $deleteAll): mixed
     {
-        if ($check !== null || $deleteAll || $postId <= 0 || self::$copying || metadata_exists('post', $postId, $key)) {
+        if ($check !== null || $deleteAll || $postId <= 0 || self::$copying) {
             return $check;
         }
 
         $previous = self::previousFor($postId, $key);
 
-        if (self::source($postId, $previous) === null) {
+        if ($previous === [] || metadata_exists('post', $postId, $key) || self::source($postId, $previous) === null) {
             return $check;
         }
 

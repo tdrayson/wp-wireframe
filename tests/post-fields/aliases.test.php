@@ -371,6 +371,11 @@ $sameKeyElsewhere = static function (): array {
 };
 check('the same previous id on another post type is fine', ['coll_f_group'], $sameKeyElsewhere());
 
+$id = $cpt();
+add_post_meta($id, 'wf_unaliased', 'x');
+clean_post_cache($id);
+check('deleting a key with no aliases loads no meta', 0, count_meta_loads(static fn () => delete_post_meta($id, 'wf_unaliased'), 'wf_alias')['meta']);
+
 $bulk = bulk_posts('alias_cpt', 201);
 foreach ($bulk as $postId) {
     add_post_meta($postId, 'old_genres', 'rock');
