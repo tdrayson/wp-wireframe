@@ -227,9 +227,15 @@ final class Aliases
                     [$type, $last, ...$old, self::BATCH]
                 )));
 
+                _prime_post_caches($ids, false, true);
+
                 foreach ($ids as $id) {
                     $changed += self::migratePost($id, $type, $aliases) ? 1 : 0;
                     $last     = $id;
+                }
+
+                if (count($ids) === self::BATCH) {
+                    IndexSync::releaseBatch();
                 }
             } while (count($ids) === self::BATCH);
         }

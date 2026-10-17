@@ -2,6 +2,7 @@
 
 use Wireframe\Meta;
 use Wireframe\PostFields\FieldGroups;
+use Wireframe\PostFields\Index\IndexSync;
 use Wireframe\PostFields\Index\IndexTable;
 
 require __DIR__ . '/assert.php';
@@ -154,5 +155,26 @@ check('deleting a repeater key across posts drops its index rows', 0, (int) $wpd
 $lastChanged = wp_cache_get_last_changed('posts');
 Meta::reindex('event');
 check('reindex invalidates cached post queries', true, $lastChanged !== wp_cache_get_last_changed('posts'));
+
+// Bulk runs prime meta per batch and drop the runtime cache between batches.
+register_post_type('bulk_cpt', ['public' => true, 'show_in_rest' => true]);
+FieldGroups::register('wf-test', ['id' => 'bulk_group', 'title' => 'Bulk', 'location' => ['bulk_cpt'], 'config' => ['fields' => [
+    ['id' => 'bulk_rows', 'type' => 'repeater', 'args' => ['subfields' => [['id' => 'v', 'type' => 'text', 'indexed' => true]]]],
+    ['id' => 'bulk_plain', 'type' => 'repeater', 'args' => ['subfields' => [['id' => 'v', 'type' => 'text']]]],
+]]]);
+$bulk = bulk_posts('bulk_cpt', 201);
+add_post_meta($bulk[0], 'bulk_rows', [['v' => 'first']]);
+add_post_meta(end($bulk), 'bulk_rows', [['v' => 'last']]);
+wp_cache_flush();
+
+$loads = count_meta_loads(static fn () => Meta::reindex('bulk_cpt'), 'wf_bulk');
+check('reindex loads meta once per batch', 2, $loads['meta']);
+check('reindex drops the runtime cache between batches', false, $loads['kept']);
+check('reindex indexes both batches', ['first', 'last'], $wpdb->get_col("SELECT value_str FROM {$table} WHERE field = 'bulk_rows' ORDER BY post_id"));
+
+clean_post_cache($bulk[1]);
+check('a repeater with nothing indexed is not read', 0, count_meta_loads(static fn () => IndexSync::syncField($bulk[1], 'bulk_plain'), 'wf_bulk')['meta']);
+
+delete_bulk_posts($bulk);
 
 finish();

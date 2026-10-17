@@ -122,3 +122,70 @@ function make_event(array $meta = [], string $status = 'draft'): int
 
     return $id;
 }
+
+/**
+ * Insert bare posts straight into the table, for batch tests that need hundreds.
+ *
+ * @param string $postType Post type.
+ * @param int    $count    How many.
+ * @return list<int> Post IDs, ascending.
+ */
+function bulk_posts(string $postType, int $count): array
+{
+    global $wpdb;
+
+    $blank = array_fill_keys(['post_content', 'post_excerpt', 'to_ping', 'pinged', 'post_content_filtered'], '');
+    $ids   = [];
+
+    for ($i = 0; $i < $count; $i++) {
+        $wpdb->insert($wpdb->posts, $blank + ['post_type' => $postType, 'post_status' => 'publish', 'post_title' => "Bulk {$i}"]);
+        $ids[] = (int) $wpdb->insert_id;
+    }
+
+    return $ids;
+}
+
+/**
+ * Delete posts made by `bulk_posts()`, with their meta and index rows.
+ *
+ * @param list<int> $ids Post IDs.
+ */
+function delete_bulk_posts(array $ids): void
+{
+    global $wpdb;
+
+    $in = implode(',', array_map('intval', $ids));
+
+    $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE post_id IN ({$in})");
+    $wpdb->query("DELETE FROM {$wpdb->prefix}wireframe_index WHERE post_id IN ({$in})");
+    $wpdb->query("DELETE FROM {$wpdb->posts} WHERE ID IN ({$in})");
+    wp_cache_flush();
+}
+
+/**
+ * Run a callback, counting post meta cache loads and whether a cached sentinel survives it.
+ *
+ * @param callable $run   Callback.
+ * @param string   $group Cache group for the sentinel.
+ * @return array{meta: int, kept: mixed}
+ */
+function count_meta_loads(callable $run, string $group): array
+{
+    global $wpdb;
+
+    $loads = 0;
+    $count = static function (string $sql) use (&$loads, $wpdb): string {
+        if (str_contains($sql, "meta_key, meta_value FROM {$wpdb->postmeta}")) {
+            $loads++;
+        }
+
+        return $sql;
+    };
+
+    wp_cache_set('kept', 1, $group);
+    add_filter('query', $count);
+    $run();
+    remove_filter('query', $count);
+
+    return ['meta' => $loads, 'kept' => wp_cache_get('kept', $group)];
+}

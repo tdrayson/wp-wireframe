@@ -371,6 +371,18 @@ $sameKeyElsewhere = static function (): array {
 };
 check('the same previous id on another post type is fine', ['coll_f_group'], $sameKeyElsewhere());
 
+$bulk = bulk_posts('alias_cpt', 201);
+foreach ($bulk as $postId) {
+    add_post_meta($postId, 'old_genres', 'rock');
+}
+wp_cache_flush();
+
+$loads = count_meta_loads(static fn () => check('migrate covers both batches', 201, Meta::migrate('alias_cpt')), 'wf_bulk');
+check('migrate primes each batch, saving a meta load per post', true, $loads['meta'] <= 2 * 201 + 2);
+check('migrate drops the runtime cache between batches', false, $loads['kept']);
+check('migrate moves the last batch', [['rock'], false], [get_post_meta(end($bulk), 'genres'), metadata_exists('post', end($bulk), 'old_genres')]);
+delete_bulk_posts($bulk);
+
 foreach ($created as $postId) {
     wp_delete_post($postId, true);
 }

@@ -75,16 +75,16 @@ final class IndexSync
         $table = IndexTable::name();
         $wpdb->delete($table, ['post_id' => $postId, 'field' => $field], ['%d', '%s']);
 
-        $postType = get_post_type($postId);
-        $rows     = get_post_meta($postId, $field, true);
+        $postType  = get_post_type($postId);
+        $subfields = $postType === false ? [] : self::indexedSubfields($postType, $field);
 
-        if ($postType === false || !is_array($rows)) {
+        if ($subfields === []) {
             return;
         }
 
-        $subfields = self::indexedSubfields($postType, $field);
+        $rows = get_post_meta($postId, $field, true);
 
-        if ($subfields === []) {
+        if (!is_array($rows)) {
             return;
         }
 
@@ -187,6 +187,8 @@ final class IndexSync
                     self::BATCH
                 )));
 
+                _prime_post_caches($ids, false, true);
+
                 foreach ($ids as $id) {
                     foreach ($repeaters as $repeater) {
                         self::syncField($id, $repeater);
@@ -194,6 +196,10 @@ final class IndexSync
 
                     $last = $id;
                     $processed++;
+                }
+
+                if (count($ids) === self::BATCH) {
+                    self::releaseBatch();
                 }
             } while (count($ids) === self::BATCH);
         }
@@ -203,6 +209,18 @@ final class IndexSync
         }
 
         return $processed;
+    }
+
+    /**
+     * Drop the runtime object cache between batches, so a long run doesn't hold every post it has seen.
+     */
+    public static function releaseBatch(): void
+    {
+        if (!wp_cache_supports('flush_runtime')) {
+            return;
+        }
+
+        wp_cache_flush_runtime();
     }
 
     /**
