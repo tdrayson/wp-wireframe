@@ -66,6 +66,10 @@ final class QueryClauses
             return;
         }
 
+        if (!self::hasClause($tree)) {
+            return;
+        }
+
         $query->set('suppress_filters', false);
     }
 
@@ -214,6 +218,24 @@ final class QueryClauses
     private static function isTree(mixed $tree): bool
     {
         return is_array($tree) && (isset($tree['field']) || array_filter($tree, 'is_array') !== []);
+    }
+
+    /**
+     * Whether a tree holds at least one clause, however deeply nested.
+     */
+    private static function hasClause(array $tree): bool
+    {
+        if (isset($tree['field'])) {
+            return true;
+        }
+
+        foreach ($tree as $child) {
+            if (is_array($child) && self::hasClause($child)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -442,19 +464,21 @@ final class QueryClauses
             return self::NONE;
         }
 
-        return match ($compare) {
-            '>='    => ["{$column} >= %s", [$from[0]]],
-            '>'     => ["{$column} >= %s", [$from[1]]],
-            '<'     => ["{$column} < %s", [$from[0]]],
-            '<='    => ["{$column} < %s", [$from[1]]],
-            default => ["{$column} >= %s AND {$column} < %s", [$from[0], $to[1]]],
+        // The day after 9999-12-31 is no DATETIME, so a range ending there has no upper bound.
+        return match (true) {
+            $compare === '>='  => ["{$column} >= %s", [$from[0]]],
+            $compare === '>'   => $from[1] === null ? self::NONE : ["{$column} >= %s", [$from[1]]],
+            $compare === '<'   => ["{$column} < %s", [$from[0]]],
+            $compare === '<='  => $from[1] === null ? ["{$column} IS NOT NULL", []] : ["{$column} < %s", [$from[1]]],
+            $to[1] === null    => ["{$column} >= %s", [$from[0]]],
+            default            => ["{$column} >= %s AND {$column} < %s", [$from[0], $to[1]]],
         };
     }
 
     /**
      * Get the start of a value's day and of the next day, or null when it isn't a date.
      *
-     * @return array{0: string, 1: string}|null
+     * @return array{0: string, 1: string|null}|null The next day is null past year 9999.
      */
     private static function day(mixed $value): ?array
     {
@@ -464,9 +488,10 @@ final class QueryClauses
             return null;
         }
 
-        $day = new \DateTimeImmutable(substr($date, 0, 10), new \DateTimeZone('UTC'));
+        $day  = new \DateTimeImmutable(substr($date, 0, 10), new \DateTimeZone('UTC'));
+        $next = $day->modify('+1 day');
 
-        return [$day->format('Y-m-d H:i:s'), $day->modify('+1 day')->format('Y-m-d H:i:s')];
+        return [$day->format('Y-m-d H:i:s'), (int) $next->format('Y') > 9999 ? null : $next->format('Y-m-d H:i:s')];
     }
 
     /**

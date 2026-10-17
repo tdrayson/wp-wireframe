@@ -101,6 +101,25 @@ check('DATE ranges compare the raw column', false, str_contains(
     'DATE('
 ));
 
+$farthest = make_event(['sessions' => [['starts' => '9999-12-31']]], 'publish');
+$edge     = [$farthest];
+check('DATE = on the last representable day matches it', $edge, $ids([$clause('starts', '9999-12-31', '=', 'DATE')], $edge));
+check('DATE <= on the last representable day matches it', $edge, $ids([$clause('starts', '9999-12-31', '<=', 'DATE')], $edge));
+check('DATE BETWEEN up to the last representable day matches it', $edge, $ids([$clause('starts', ['9999-01-01', '9999-12-31'], 'BETWEEN', 'DATE')], $edge));
+check('DATE > the last representable day matches nothing', [], $ids([$clause('starts', '9999-12-31', '>', 'DATE')], $edge));
+wp_delete_post($farthest, true);
+
+$prepared = static function (mixed $tree): mixed {
+    $query = new WP_Query();
+    $query->set('suppress_filters', true);
+    $query->set('wireframe_query', $tree);
+    QueryClauses::prepare($query);
+
+    return $query->get('suppress_filters');
+};
+check('a clause lifts suppress_filters', false, $prepared([$clause('venue', 'Leeds')]));
+check('an empty nested group leaves suppress_filters alone', true, $prepared([[]]));
+
 check('an empty child of an OR group is dropped', [$a], $ids(['relation' => 'OR', [], $clause('venue', 'York')]));
 check('a query of empty groups adds no condition', [$a, $b, $c], $ids([[], [[]]]));
 check('combines with meta_query', [$a], $ids([$clause('venue', 'Leeds')], null, [
