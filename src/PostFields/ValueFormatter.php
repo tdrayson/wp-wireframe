@@ -116,6 +116,7 @@ final class ValueFormatter
             return '';
         }
 
+        /* translators: %d: number of repeater rows. */
         return sprintf(_n('%d row', '%d rows', $count, 'wp-wireframe'), $count);
     }
 

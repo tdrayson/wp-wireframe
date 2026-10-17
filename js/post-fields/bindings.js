@@ -222,12 +222,15 @@ function formatValue( field, value, attribute, format, select ) {
 	if ( type === 'repeater' ) {
 		const count = Array.isArray( value ) ? value.length : 0;
 
-		return count === 0
-			? ''
-			: sprintf(
-					_n( '%d row', '%d rows', count, 'wp-wireframe' ),
-					count
-			  );
+		if ( count === 0 ) {
+			return '';
+		}
+
+		return sprintf(
+			// translators: %d: number of repeater rows.
+			_n( '%d row', '%d rows', count, 'wp-wireframe' ),
+			count
+		);
 	}
 
 	if ( type === 'file' ) {
