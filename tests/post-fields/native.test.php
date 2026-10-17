@@ -135,6 +135,9 @@ check('get_posts orders by a dotted meta_key', [$a, $b, $c], array_map('intval',
 check('orderby causes no SQL error', '', $wpdb->last_error);
 
 check("'=' with no value asks for the key", [$a, $b], $ids([['key' => 'sessions.venue', 'compare' => '=']]));
+check("'>' with no value asks for the key", [$a, $b], $ids([['key' => 'sessions.venue', 'compare' => '>']]));
+check("'NOT IN' with no value asks for the key", [$a, $b], $ids([['key' => 'sessions.venue', 'compare' => 'NOT IN']]));
+check("'not exists' stays a negation in any case", [$c], $ids([['key' => 'sessions.starts', 'compare' => 'not exists']]));
 
 $found = $query(['meta_key' => 'sessions.starts']);
 sort($found);

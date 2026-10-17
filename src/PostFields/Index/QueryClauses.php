@@ -179,8 +179,9 @@ final class QueryClauses
         }
 
         $compare = $clause['compare'] ?? '';
-        // As in core, '=' with no value only asks for the key.
-        $keyOnly = $compare === '=' && !isset($clause['value']);
+        // As in core, any compare but NOT EXISTS only asks for the key when there is no value.
+        $negated = is_string($compare) && strtoupper(trim($compare)) === 'NOT EXISTS';
+        $keyOnly = !isset($clause['value']) && !$negated;
 
         if ($compare !== '' && !$keyOnly) {
             $converted['compare'] = $compare;
