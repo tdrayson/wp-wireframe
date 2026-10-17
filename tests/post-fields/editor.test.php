@@ -185,6 +185,9 @@ $inline = implode("\n", (array) wp_scripts()->get_data('wp-wireframe-post-fields
 check('bundle enqueued on a grouped post type', true, wp_script_is('wp-wireframe-post-fields', 'enqueued'));
 check('payload printed before the bundle', true, str_contains($inline, 'window.wireframePostFields=window.wireframePostFields||') && str_contains($inline, '({"postId":' . $event->ID));
 check('media enqueued once', 1, did_action('wp_enqueue_media'));
+$notices = [];
+check('a payload that cannot be encoded prints no script', null, EditorIntegration::payloadScript(['groups' => [], 'bad' => NAN]));
+check('the encoding failure is reported', 1, $mentions('could not be encoded'));
 check('media uploads still attach to the post', true, str_contains((string) wp_scripts()->get_data('media-views', 'data'), '"post":{"id":' . $event->ID));
 
 wp_dequeue_script('wp-wireframe-post-fields');

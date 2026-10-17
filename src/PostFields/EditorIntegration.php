@@ -155,9 +155,10 @@ final class EditorIntegration
             return;
         }
 
-        $data = self::data($post);
+        $data   = self::data($post);
+        $script = $data['groups'] === [] ? null : self::payloadScript($data);
 
-        if ($data['groups'] === []) {
+        if ($script === null) {
             return;
         }
 
@@ -173,7 +174,7 @@ final class EditorIntegration
 
         AdminPage::enqueueWordPressEditors();
 
-        wp_add_inline_script(self::HANDLE, self::payloadScript($data), 'before');
+        wp_add_inline_script(self::HANDLE, $script, 'before');
     }
 
     /**
@@ -182,12 +183,18 @@ final class EditorIntegration
      * The first copy's payload seeds the global; each copy's groups (and classic readable values) are added, and one bundle renders them all.
      *
      * @param array $data Payload from data(), or the classic editor's.
-     * @return string
+     * @return string|null Null when the payload can't be encoded, reported through `_doing_it_wrong`.
      */
-    public static function payloadScript(array $data): string
+    public static function payloadScript(array $data): ?string
     {
         // Not wp_localize_script(): it stringifies top-level scalars, so `false` arrives as "".
         $json = wp_json_encode($data);
+
+        if ($json === false) {
+            _doing_it_wrong(__METHOD__, esc_html(sprintf('The post fields payload could not be encoded (%s), so its groups were not loaded.', json_last_error_msg())), '1.2.0');
+
+            return null;
+        }
 
         return '(function(d){var w=window.wireframePostFields=window.wireframePostFields||Object.assign({},d,{groups:[]});'
             . 'w.groups=w.groups.concat(d.groups);if(d.values){w.values=Object.assign({},w.values,d.values);}})(' . $json . ');';

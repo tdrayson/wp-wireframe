@@ -163,9 +163,10 @@ final class ClassicEditor
             return;
         }
 
-        $data = self::data($post);
+        $data   = self::data($post);
+        $script = $data['groups'] === [] ? null : EditorIntegration::payloadScript($data);
 
-        if ($data['groups'] === []) {
+        if ($script === null) {
             return;
         }
 
@@ -183,7 +184,7 @@ final class ClassicEditor
         wp_enqueue_media(['post' => $post->ID]);
         AdminPage::enqueueWordPressEditors();
 
-        wp_add_inline_script(self::HANDLE, EditorIntegration::payloadScript($data), 'before');
+        wp_add_inline_script(self::HANDLE, $script, 'before');
     }
 
     /**
