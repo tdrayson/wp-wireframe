@@ -257,6 +257,37 @@ Settings::set('wf_populate_settings', 'lineup', [$grace, $ada, $drafty]);
 check('Settings::set keeps the stale ID and drops a new draft', [$grace, $ada], get_option('wf_populate_settings')['lineup'] ?? null);
 wp_update_post(['ID' => $grace, 'post_status' => 'publish']);
 
+// A multi-value field resolves its populated options once per write, not once per value.
+FieldGroups::register('wf-populate', [
+    'id'       => 'pop_multi',
+    'title'    => 'Multi',
+    'location' => ['pop_cpt'],
+    'config'   => ['fields' => [['id' => 'pop_lineup', 'type' => 'checkboxes', 'args' => ['populate' => ['type' => 'query', 'query' => 'posts', 'arguments' => ['post_type' => 'speaker']]]]]],
+]);
+$multiPost    = (int) wp_insert_post(['post_type' => 'pop_cpt', 'post_status' => 'draft', 'post_title' => 'Multi']);
+$created[]    = $multiPost;
+$picks        = [$speaker('Multi A'), $speaker('Multi B'), $speaker('Multi C')];
+$speakerReads = 0;
+$countReads   = static function (WP_Query $query) use (&$speakerReads): void {
+    $speakerReads += $query->get('post_type') === 'speaker' ? 1 : 0;
+};
+add_action('pre_get_posts', $countReads);
+Meta::set($multiPost, 'pop_lineup', $picks);
+$viaMeta      = $speakerReads;
+$restReads = static function (array $values) use (&$speakerReads, $multiPost): int {
+    delete_post_meta($multiPost, 'pop_lineup');
+    $speakerReads = 0;
+    rest('POST', "/wp/v2/pop_cpt/$multiPost", ['meta' => ['pop_lineup' => $values]]);
+
+    return $speakerReads;
+};
+$oneValue    = $restReads([$picks[0]]);
+$threeValues = $restReads($picks);
+remove_action('pre_get_posts', $countReads);
+check('Meta::set of three values queries the options at most twice', true, $viaMeta <= 2);
+check('a REST write of three values queries the options no more than one of one value', $oneValue, $threeValues);
+check('all three values are stored', array_map('strval', $picks), get_post_meta($multiPost, 'pop_lineup'));
+
 delete_option('wf_populate_settings');
 foreach ($created as $postId) {
     wp_delete_post($postId, true);

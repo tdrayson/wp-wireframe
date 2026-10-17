@@ -399,7 +399,9 @@ final class Meta
         $stored = self::stored($postId, $key, $field);
         $value  = $sanitize ? self::sanitize($kind, $field, $value, $stored) : $value;
 
-        return MetaRegistrar::whileSaving($postId, static fn (): bool => self::store($postId, $key, $kind, $value), [$key => $stored]);
+        $pending = $kind === StorageKind::MULTI && is_array($value) ? [$key => $value] : [];
+
+        return MetaRegistrar::whileSaving($postId, static fn (): bool => self::store($postId, $key, $kind, $value), [$key => $stored], $pending);
     }
 
     /**

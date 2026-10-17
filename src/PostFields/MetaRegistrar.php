@@ -29,12 +29,18 @@ final class MetaRegistrar
     /** @var array<string, mixed> Stored values by meta key, read before a write that deletes rows first. */
     private static array $savingStored = [];
 
+    /** @var array<string, array> Every value a multi-value write is about to add, by meta key, so options resolve once. */
+    private static array $savingPending = [];
+
+    /** @var array<string, array> Field args resolved for $savingPending, by meta key. */
+    private static array $savingArgs = [];
+
     /** @var array<string, ConfigAccessMap> Access maps by site, post type, group and user, kept while REST callbacks run. */
     private static array $maps = [];
 
     private static int $restDepth = 0;
 
-    /** @var list<array{0: int, 1: array, 2: int}> Save scopes REST saves replaced: post ID, stored values, and the request depth they began at. */
+    /** @var list<array{0: array, 1: int}> Save scopes REST saves replaced, and the request depth they began at. */
     private static array $saveScopes = [];
 
     /** @var array<string, true>|null Registered field keys of every grouped post type, for protect(). */
@@ -65,7 +71,7 @@ final class MetaRegistrar
 
         add_filter("rest_prepare_{$postType}", [self::class, 'filterResponse'], 10, 3);
         add_filter("rest_pre_insert_{$postType}", [SaveValidator::class, 'check'], 10, 2);
-        add_action("rest_insert_{$postType}", [self::class, 'beginSave']);
+        add_action("rest_insert_{$postType}", [self::class, 'beginSave'], 10, 2);
         add_action("rest_after_insert_{$postType}", [self::class, 'endSave'], 10, 0);
         add_action("rest_after_insert_{$postType}", [Aliases::class, 'afterRestSave'], 10, 2);
         add_filter('rest_prepare_revision', [self::class, 'filterResponse'], 10, 3);
@@ -77,32 +83,35 @@ final class MetaRegistrar
      *
      * @param int                  $postId Post ID.
      * @param callable             $write  Callback doing the write.
-     * @param array<string, mixed> $stored Stored values by meta key, read before the write.
+     * @param array<string, mixed> $stored  Stored values by meta key, read before the write.
+     * @param array<string, array> $pending Values multi-value keys are about to add, by meta key.
      * @return mixed The callback's result.
      */
-    public static function whileSaving(int $postId, callable $write, array $stored = []): mixed
+    public static function whileSaving(int $postId, callable $write, array $stored = [], array $pending = []): mixed
     {
-        $previous = [self::$savingPostId, self::$savingStored];
+        $previous = self::scope();
 
-        [self::$savingPostId, self::$savingStored] = [$postId, $stored];
+        self::enter($postId, $stored, $pending);
 
         try {
             return $write();
         } finally {
-            [self::$savingPostId, self::$savingStored] = $previous;
+            self::restore($previous);
         }
     }
 
     /**
      * Bring a REST save's post into scope for sanitising the meta core writes after `rest_insert_{type}`.
      *
-     * @param WP_Post $post Saved post.
+     * @param WP_Post              $post    Saved post.
+     * @param WP_REST_Request|null $request Save request; its multi-value meta is resolved once.
      */
-    public static function beginSave(WP_Post $post): void
+    public static function beginSave(WP_Post $post, ?WP_REST_Request $request = null): void
     {
-        self::$saveScopes[] = [self::$savingPostId, self::$savingStored, self::$restDepth];
+        $meta = $request?->get_param('meta');
 
-        [self::$savingPostId, self::$savingStored] = [$post->ID, []];
+        self::$saveScopes[] = [self::scope(), self::$restDepth];
+        self::enter($post->ID, [], is_array($meta) ? array_filter($meta, 'is_array') : []);
     }
 
     /**
@@ -112,7 +121,33 @@ final class MetaRegistrar
     {
         $previous = array_pop(self::$saveScopes);
 
-        [self::$savingPostId, self::$savingStored] = $previous === null ? [0, []] : [$previous[0], $previous[1]];
+        self::restore($previous[0] ?? [0, [], [], []]);
+    }
+
+    /**
+     * Get the current save scope.
+     *
+     * @return array{0: int, 1: array, 2: array, 3: array}
+     */
+    private static function scope(): array
+    {
+        return [self::$savingPostId, self::$savingStored, self::$savingPending, self::$savingArgs];
+    }
+
+    /**
+     * Start a save scope with nothing resolved yet.
+     */
+    private static function enter(int $postId, array $stored, array $pending): void
+    {
+        self::restore([$postId, $stored, $pending, []]);
+    }
+
+    /**
+     * Put back a save scope from scope().
+     */
+    private static function restore(array $scope): void
+    {
+        [self::$savingPostId, self::$savingStored, self::$savingPending, self::$savingArgs] = $scope;
     }
 
     /**
@@ -173,7 +208,7 @@ final class MetaRegistrar
      */
     public static function endRequest(mixed $response): mixed
     {
-        while (self::$saveScopes !== [] && end(self::$saveScopes)[2] >= self::$restDepth && self::$restDepth > 0) {
+        while (self::$saveScopes !== [] && end(self::$saveScopes)[1] >= self::$restDepth && self::$restDepth > 0) {
             self::endSave();
         }
 
@@ -297,7 +332,7 @@ final class MetaRegistrar
         $argsFor = static fn (mixed $value): array => Populate::argsFor($field, $value, self::savingValue($key, $kind));
 
         if ($kind === StorageKind::MULTI) {
-            return static fn (mixed $value): mixed => self::sanitizeOption($handler, $value, $argsFor($value));
+            return static fn (mixed $value): mixed => self::sanitizeOption($handler, $value, self::multiArgs($key, $field, $value));
         }
 
         if ($kind === StorageKind::SCALAR && $type === 'file') {
@@ -311,6 +346,21 @@ final class MetaRegistrar
         }
 
         return static fn (mixed $value): mixed => $handler::sanitize($value, $argsFor($value));
+    }
+
+    /**
+     * Get a multi-value field's args for one value; resolved once for every value the write adds, as WP sanitises each row alone.
+     */
+    private static function multiArgs(string $key, array $field, mixed $value): array
+    {
+        $stored  = self::savingValue($key, StorageKind::MULTI);
+        $pending = array_map('strval', array_filter(self::$savingPending[$key] ?? [], 'is_scalar'));
+
+        if (!is_scalar($value) || !in_array((string) $value, $pending, true)) {
+            return Populate::argsFor($field, $value, $stored);
+        }
+
+        return self::$savingArgs[$key] ??= Populate::argsFor($field, $pending, $stored);
     }
 
     /**
