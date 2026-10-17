@@ -155,10 +155,11 @@ final class Bindings
      */
     private static function readable(WP_Post $post, string $id): bool
     {
-        $group = FieldGroups::groupOfField($post->post_type, $id);
-        $user  = wp_get_current_user();
+        $group  = FieldGroups::groupOfField($post->post_type, $id);
+        $user   = wp_get_current_user();
+        $viewer = $user->exists() ? $user : null;
 
-        if ($group === null || !Location::applies($group, $post->ID, $user->exists() ? $user : null)) {
+        if ($group === null || !Location::applies($group, $post->ID, $viewer)) {
             return false;
         }
 

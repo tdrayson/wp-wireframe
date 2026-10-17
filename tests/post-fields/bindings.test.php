@@ -169,6 +169,21 @@ check('a public field with an access rule is empty for a subscriber', '<p></p>',
 as_user('administrator');
 check('an administrator reads the field with an access rule', 'Staff only', $text($para(['key' => 'admin_only'], $gated)));
 
+FieldGroups::register('wf-bind', [
+    'id'       => 'bind_located',
+    'title'    => 'Published only',
+    'location' => ['all' => [
+        ['field' => 'post_type', 'operator' => 'equals', 'value' => 'bind_cpt'],
+        ['field' => 'post_status', 'operator' => 'equals', 'value' => 'publish'],
+    ]],
+    'config'   => ['fields' => [['id' => 'located_note', 'type' => 'text', 'public' => true]]],
+]);
+$locatedPost = $make(['located_note' => 'Located value']);
+$excluded    = $make(['located_note' => 'Located value']);
+wp_update_post(['ID' => $excluded, 'post_status' => 'draft']);
+check('a field whose location applies renders', 'Located value', $text($para(['key' => 'located_note'], $locatedPost)));
+check('a field whose location excludes the post is empty', '<p></p>', $bare($para(['key' => 'located_note'], $excluded)));
+
 as_user('guest');
 $rowsPost = $make(['rows' => [['venue' => 'Leeds']]]);
 check('a guest still reads public dot paths', 'Leeds', $text($para(['key' => 'rows.0.venue'], $rowsPost)));
