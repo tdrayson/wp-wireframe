@@ -22,8 +22,8 @@ final class ClassicSave
     /** Global holding the errors found in the current `save_post`, by transient key; shared by bundled copies. */
     private const SAVE_FAILURES = 'wireframe_classic_save_failures';
 
-    /** @var array<int, string> Status requested for posts kept as drafts by guardStatus(), by post id. */
-    private static array $demoted = [];
+    /** Global holding the status requested for posts kept as drafts by guardStatus(), by post id; shared by bundled copies. */
+    private const DEMOTED = 'wireframe_classic_demoted';
 
     /**
      * Hook the classic save path.
@@ -47,7 +47,7 @@ final class ClassicSave
     public static function guardStatus(array $data, array $postarr): array
     {
         $postId = (int) ($postarr['ID'] ?? 0);
-        $status = (string) ($data['post_status'] ?? '');
+        $status = (string) ($GLOBALS[self::DEMOTED][$postId] ?? $data['post_status'] ?? '');
 
         if (!SaveValidator::enforces($status) || !self::isClassicSave($postId, $postarr)) {
             return $data;
@@ -65,7 +65,7 @@ final class ClassicSave
             return $data;
         }
 
-        self::$demoted[$postId] = $status;
+        $GLOBALS[self::DEMOTED][$postId] = $status;
 
         return self::asDraft($data, $postarr);
     }
@@ -85,7 +85,7 @@ final class ClassicSave
         }
 
         $incoming = self::incoming($postId, $post->post_type, $request);
-        $status = self::$demoted[$postId] ?? $post->post_status;
+        $status = $GLOBALS[self::DEMOTED][$postId] ?? $post->post_status;
         $errors = SaveValidator::validate($postId, $post->post_type, $incoming, $status);
 
         foreach (array_diff_key($incoming, $errors) as $key => $value) {
@@ -104,7 +104,7 @@ final class ClassicSave
      */
     public static function redirectLocation(string $location, int $postId): string
     {
-        if (!isset(self::$demoted[$postId])) {
+        if (!isset($GLOBALS[self::DEMOTED][$postId])) {
             return $location;
         }
 

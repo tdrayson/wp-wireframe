@@ -159,6 +159,25 @@ check('classic: the post stays a draft', 'draft', get_post_status($classic));
 check('classic: the second copy\'s valid save keeps the first copy\'s errors', ['event_starts'], array_keys($errors));
 check('classic: the second copy\'s value is written', 'X1', get_post_meta($classic, 'copy_code', true));
 
+// Classic: a publish one copy keeps as a draft is still validated as a publish by the other.
+$both = $event([], 'classic_event', 'draft');
+$_POST = wp_slash([
+    'post_ID'          => $both,
+    'post_title'       => 'Copy',
+    'post_status'      => 'draft',
+    'publish'          => 'Publish',
+    '_wireframe_nonce' => wp_create_nonce('wireframe_classic_save'),
+    'wireframe_fields' => [
+        'wf-fixture__event_details' => wp_json_encode(['ticket_url' => 'https://example.com/t']),
+        'wf-copy__copy_extras'      => wp_json_encode(['copy_code' => '']),
+    ],
+]);
+edit_post();
+$_POST  = [];
+$errors = array_keys(get_transient('wireframe_errors_' . get_current_user_id() . "_$both")['errors'] ?? []);
+sort($errors);
+check('classic: both copies report required errors on one refused publish', ['copy_code', 'event_starts'], $errors);
+
 foreach ($created as $id) {
     wp_delete_post($id, true);
 }
