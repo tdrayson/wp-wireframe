@@ -4,7 +4,7 @@
 #
 #   run.sh [name...]   run the named tests (all of them if none given)
 #   run.sh --serve     serve the test site on http://localhost:8890 (admin / admin)
-#   run.sh --reset     drop the database and reinstall the site
+#   run.sh --reset     drop the database and reinstall the site, clearing posts left by older runs
 #
 # Needs php, composer, wp-cli and a MySQL server on 127.0.0.1 (user root, no password).
 

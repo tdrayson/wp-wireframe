@@ -11,6 +11,16 @@ add_filter('doing_it_wrong_trigger_error', '__return_false');
 
 $GLOBALS['wf_test_passed'] = 0;
 $GLOBALS['wf_test_failed'] = 0;
+$GLOBALS['wf_test_posts']  = [];
+
+add_action('wp_insert_post', static function (int $postId, WP_Post $post, bool $update): void {
+    if (!$update && $post->post_type !== 'revision') {
+        $GLOBALS['wf_test_posts'][] = $postId;
+    }
+}, 10, 3);
+add_action('add_attachment', static function (int $postId): void {
+    $GLOBALS['wf_test_posts'][] = $postId;
+});
 
 /**
  * Record one assertion and print its result.
@@ -35,10 +45,14 @@ function check(string $label, mixed $expected, mixed $actual): void
 }
 
 /**
- * Print the totals and exit non-zero if any check failed.
+ * Delete the posts the suite created, print the totals and exit non-zero if any check failed.
  */
 function finish(): never
 {
+    foreach (array_reverse($GLOBALS['wf_test_posts']) as $postId) {
+        wp_delete_post($postId, true);
+    }
+
     $failed = $GLOBALS['wf_test_failed'];
     echo "\n{$GLOBALS['wf_test_passed']} passed, $failed failed\n";
 
