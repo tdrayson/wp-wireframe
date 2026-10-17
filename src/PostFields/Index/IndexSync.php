@@ -134,7 +134,11 @@ final class IndexSync
     {
         global $wpdb;
 
-        IndexTable::install();
+        // A site whose table was never installed has no rows to delete.
+        if ((int) get_option(IndexTable::OPTION, 0) === 0) {
+            return;
+        }
+
         $wpdb->delete(IndexTable::name(), ['post_id' => $postId], ['%d']);
     }
 
