@@ -52,6 +52,10 @@ final class ColumnRenderer
             return self::excerpt(ValueFormatter::text($field, $value));
         }
 
+        if ($type === 'editor') {
+            return self::excerpt(is_string($value) ? wp_strip_all_tags($value) : '');
+        }
+
         return self::excerpt($value);
     }
 
@@ -92,9 +96,12 @@ final class ColumnRenderer
     private static function postLinks(array $field, mixed $value): string
     {
         $static = is_array($field['args']['options'] ?? null) ? $field['args']['options'] : [];
+        $items  = Populate::valuesOf($value);
         $links  = [];
 
-        foreach (Populate::valuesOf($value) as $item) {
+        _prime_post_caches(array_map('intval', array_diff($items, array_keys($static))), false, false);
+
+        foreach ($items as $item) {
             if (isset($static[$item])) {
                 $links[] = esc_html(ValueFormatter::labelOf($static[$item]));
 

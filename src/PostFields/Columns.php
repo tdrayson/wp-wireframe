@@ -6,6 +6,7 @@ namespace Wireframe\PostFields;
 
 use WP_Query;
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\Framework\Populate;
 use Wireframe\Meta;
 
 /**
@@ -27,6 +28,9 @@ final class Columns
 
     /** @var array<string, array> Location contexts by user and post. */
     private static array $contexts = [];
+
+    /** @var array<string, array> Fields of columns whose callback options are resolved, by column id. */
+    private static array $fields = [];
 
     /**
      * Hook the list table filters of every post type with field groups; safe to call again.
@@ -59,6 +63,7 @@ final class Columns
     {
         self::$definitions = [];
         self::$contexts    = [];
+        self::$fields      = [];
     }
 
     /**
@@ -190,7 +195,7 @@ final class Columns
             return;
         }
 
-        $field  = $column['field'];
+        $field  = self::cellField($column);
         $value  = Meta::get($postId, $field['id']);
         $html   = ColumnRenderer::render($field, $value, $postId);
         $prefix = $column['group']['prefix'];
@@ -207,6 +212,27 @@ final class Columns
 
         /** Filter: any field column's cell HTML, after the per-field filter; same arguments. */
         echo apply_filters("{$prefix}/column", $html, $value, $postId, $field);
+    }
+
+    /**
+     * Get a column's field, its `function` or `custom` options resolved once per request rather than per row.
+     */
+    private static function cellField(array $column): array
+    {
+        $field    = $column['field'];
+        $populate = $field['args']['populate'] ?? null;
+
+        if (!in_array($populate['type'] ?? null, ['function', 'custom'], true) || !empty($populate['fetch'])) {
+            return $field;
+        }
+
+        if (!isset(self::$fields[$column['id']])) {
+            $resolved = Populate::resolve($field);
+            unset($resolved['args']['populate']);
+            self::$fields[$column['id']] = $resolved;
+        }
+
+        return self::$fields[$column['id']];
     }
 
     /**

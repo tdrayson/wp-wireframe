@@ -8,6 +8,8 @@ use Wireframe\PostFields\FieldGroups;
 require __DIR__ . '/assert.php';
 require_once ABSPATH . 'wp-admin/includes/admin.php';
 
+global $wpdb;
+
 $created = [];
 $event   = static function (array $meta = [], string $status = 'draft') use (&$created): int {
     $id        = make_event($meta, $status);
@@ -187,6 +189,37 @@ check('editor cannot sort by a hidden field', '', $query('wireframe_admin_notes'
 as_user('administrator');
 Columns::reset();
 check('administrator has the admin_notes column', true, isset($columns()['wireframe_admin_notes']));
+
+// Rich text, callback options and linked titles stay cheap and readable.
+$calls = 0;
+FieldGroups::register('wf-test', [
+    'id'       => 'col_cheap',
+    'title'    => 'Cheap',
+    'location' => ['event'],
+    'config'   => ['fields' => [
+        ['id' => 'col_body', 'type' => 'editor', 'column' => true],
+        ['id' => 'col_level', 'type' => 'select', 'column' => true, 'args' => ['populate' => ['type' => 'function', 'function' => static function () use (&$calls): array {
+            $calls++;
+
+            return ['hi' => 'High', 'lo' => 'Low'];
+        }]]],
+    ]],
+]);
+Columns::reset();
+check('an editor cell shows text, not markup', 'Hello world', $cell('wireframe_col_body', $event(['col_body' => '<p>Hello <strong>world</strong></p>'])));
+$levelPosts = array_map(static fn (string $level): int => $event(['col_level' => $level]), ['hi', 'lo', 'hi']);
+$calls      = 0;
+$levelCells = array_map(static fn (int $postId): string => $cell('wireframe_col_level', $postId), $levelPosts);
+check('callback options label every cell', ['High', 'Low', 'High'], $levelCells);
+check('a function populate runs once per request, not per cell', 1, $calls);
+
+$panel = [$speaker('Panel A'), $speaker('Panel B'), $speaker('Panel C')];
+foreach ($panel as $panelist) {
+    clean_post_cache($panelist);
+}
+$before = $wpdb->num_queries;
+ColumnRenderer::render($field('speakers'), $panel, 0);
+check('linked titles load their posts in one query', true, $wpdb->num_queries - $before <= 2);
 
 foreach (array_reverse($created) as $postId) {
     wp_delete_post($postId, true);
