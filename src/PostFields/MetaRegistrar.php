@@ -29,6 +29,14 @@ final class MetaRegistrar
     /** @var array<string, mixed> Stored values by meta key, read before a write that deletes rows first. */
     private static array $savingStored = [];
 
+    /** @var array<string, ConfigAccessMap> Access maps by site, post type, group and user, kept while REST callbacks run. */
+    private static array $maps = [];
+
+    private static int $restDepth = 0;
+
+    /** @var array<string, true>|null Registered field keys of every grouped post type, for protect(). */
+    private static ?array $protectedKeys = null;
+
     /**
      * Register the top-level fields of every post type with groups as post meta.
      */
@@ -46,6 +54,8 @@ final class MetaRegistrar
      */
     public static function registerFor(string $postType): void
     {
+        self::flushKeys();
+
         foreach (self::stored(FieldGroups::flatFields($postType)) as $key => $field) {
             register_post_meta($postType, $key, self::metaArgs($postType, (string) $key, $field));
         }
@@ -122,13 +132,53 @@ final class MetaRegistrar
             return true;
         }
 
-        foreach (array_keys(FieldGroups::all()) as $postType) {
-            if (isset(self::stored(FieldGroups::flatFields($postType))[$metaKey])) {
-                return true;
+        if (self::$protectedKeys === null) {
+            self::$protectedKeys = [];
+
+            foreach (array_keys(FieldGroups::all()) as $postType) {
+                self::$protectedKeys += array_fill_keys(array_keys(self::stored(FieldGroups::flatFields($postType))), true);
             }
         }
 
-        return false;
+        return isset(self::$protectedKeys[$metaKey]);
+    }
+
+    /**
+     * Forget the protected key set, for when groups change.
+     */
+    public static function flushKeys(): void
+    {
+        self::$protectedKeys = null;
+    }
+
+    /**
+     * Filter `rest_request_before_callbacks`: keep access maps for the request's callbacks.
+     *
+     * @param mixed $response Response so far, returned as-is.
+     * @return mixed
+     */
+    public static function beginRequest(mixed $response): mixed
+    {
+        self::$restDepth++;
+
+        return $response;
+    }
+
+    /**
+     * Filter `rest_request_after_callbacks`: forget the request's access maps once the outermost request is done.
+     *
+     * @param mixed $response Response, returned as-is.
+     * @return mixed
+     */
+    public static function endRequest(mixed $response): mixed
+    {
+        self::$restDepth = max(0, self::$restDepth - 1);
+
+        if (self::$restDepth === 0) {
+            self::$maps = [];
+        }
+
+        return $response;
     }
 
     /**
@@ -491,6 +541,21 @@ final class MetaRegistrar
      * @return ConfigAccessMap
      */
     public static function accessMap(string $postType, array $group, WP_User $user): ConfigAccessMap
+    {
+        // Only within REST callbacks, where a collection or a multi-key save would resolve the same map many times.
+        if (self::$restDepth === 0) {
+            return self::resolveMap($postType, $group, $user);
+        }
+
+        $key = get_current_blog_id() . ":{$postType}:{$group['owner']}:{$user->ID}";
+
+        return self::$maps[$key] ??= self::resolveMap($postType, $group, $user);
+    }
+
+    /**
+     * Resolve a group's access map for a user.
+     */
+    private static function resolveMap(string $postType, array $group, WP_User $user): ConfigAccessMap
     {
         $config = ConfigLoader::load($group['config']);
 

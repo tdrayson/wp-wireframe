@@ -24,7 +24,7 @@ final class EditorIntegration
 
     private const HIDDEN_BOX_CLASS = 'wireframe-group-inapplicable';
 
-    /** @var array<string, array> Payloads by post and user ID, as the classic editor asks once per box. */
+    /** @var array<string, array> Payloads by site, post and user ID, as the classic editor asks once per box. */
     private static array $data = [];
 
     /** Global holding the lock a `content` post type had before its template was emptied, by post type; shared by bundled copies. */
@@ -43,7 +43,7 @@ final class EditorIntegration
     public static function data(WP_Post $post, ?WP_User $user = null): array
     {
         $user ??= wp_get_current_user();
-        $key    = "{$post->ID}:{$user->ID}";
+        $key    = get_current_blog_id() . ":{$post->ID}:{$user->ID}";
 
         return self::$data[$key] ??= self::build($post, $user);
     }

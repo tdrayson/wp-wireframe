@@ -2,6 +2,7 @@
 
 use Wireframe\App;
 use Wireframe\Framework\Fields\NumberField;
+use Wireframe\PostFields\EditorIntegration;
 use Wireframe\PostFields\FieldGroups;
 
 require __DIR__ . '/assert.php';
@@ -131,6 +132,36 @@ $registered = get_registered_meta_keys('post', 'default_cpt');
 check('a default of the wrong type is coerced to the schema type', 5.0, $registered['default_count']['default'] ?? null);
 check('a default that cannot be coerced is dropped, keeping the key', [true, false], [isset($registered['default_broken']), array_key_exists('default', $registered['default_broken'] ?? [])]);
 check('the dropped default is reported', 1, count(array_filter($notices, static fn (string $m): bool => str_contains($m, 'default_broken'))));
+
+// Access maps resolve once per group and user within a REST request, not once per post or meta key.
+as_user('administrator');
+$resolves = 0;
+$countResolves = static function (bool $allowed) use (&$resolves): bool {
+    $resolves++;
+
+    return $allowed;
+};
+for ($i = 0; $i < 3; $i++) {
+    make_event();
+}
+add_filter('wp-wireframe/access/resolve', $countResolves);
+rest('GET', '/wp/v2/event', [], ['context' => 'edit', 'per_page' => 1]);
+$one      = $resolves;
+$resolves = 0;
+rest('GET', '/wp/v2/event', [], ['context' => 'edit', 'per_page' => 3]);
+remove_filter('wp-wireframe/access/resolve', $countResolves);
+check('a REST collection resolves access once per group, whatever its size', $one, $resolves);
+
+check('a late group\'s keys are protected after protect() has run', [true, false], [is_protected_meta('admin_notes', 'post'), is_protected_meta('late_protected', 'post')]);
+App::boot(['prefix' => 'late-protect', 'field_groups' => [[
+    'id'       => 'late_protect_group',
+    'title'    => 'Late',
+    'location' => ['late_meta'],
+    'config'   => ['fields' => [['id' => 'late_protected', 'type' => 'text']]],
+]]]);
+check('…and the new key is protected', true, is_protected_meta('late_protected', 'post'));
+
+check('editor payloads are rebuilt after a save', true, has_action('save_post', [EditorIntegration::class, 'flush']) !== false);
 
 $memo = wp_insert_post(['post_type' => 'memo', 'post_status' => 'publish', 'post_title' => 'Memo', 'meta_input' => ['memo_secret' => 'a']]);
 rest('POST', "/wp/v2/memo/$memo/autosaves", ['title' => 'Memo, autosaved', 'meta' => ['memo_secret' => 'b']]);

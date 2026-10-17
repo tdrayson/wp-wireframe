@@ -153,6 +153,7 @@ final class FieldGroups
         self::$problems = [];
         self::$attached = [];
         Aliases::flush();
+        MetaRegistrar::flushKeys();
     }
 
     /**

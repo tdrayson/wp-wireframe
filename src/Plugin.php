@@ -66,6 +66,8 @@ final class Plugin
         add_action('rest_api_init', [PopulateController::class, 'register']);
         add_action('wp_loaded', [FieldGroups::class, 'boot'], 0);
         add_action('wp_loaded', [MetaRegistrar::class, 'register'], 1);
+        add_filter('rest_request_before_callbacks', [MetaRegistrar::class, 'beginRequest']);
+        add_filter('rest_request_after_callbacks', [MetaRegistrar::class, 'endRequest']);
         add_action('wp_loaded', [IndexTable::class, 'install'], 2);
         add_filter('wpmu_drop_tables', [IndexTable::class, 'dropWithSite']);
         IndexSync::register();
@@ -91,6 +93,7 @@ final class Plugin
         add_filter('register_post_type_args', [EditorIntegration::class, 'filterPostTypeArgs'], 10, 2);
         add_filter('block_editor_settings_all', [EditorIntegration::class, 'filterEditorSettings'], 10, 2);
         add_action('enqueue_block_editor_assets', [EditorIntegration::class, 'enqueue']);
+        add_action('save_post', [EditorIntegration::class, 'flush']);
         add_action('add_meta_boxes', [EditorIntegration::class, 'registerMetaBoxes'], 10, 2);
         ClassicEditor::register();
         ClassicSave::register();
