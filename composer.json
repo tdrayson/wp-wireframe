@@ -12,6 +12,14 @@
             "bootstrap.php"
         ]
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Wireframe\\": "tests/"
+        },
+        "classmap": [
+            "tests/"
+        ]
+    },
     "keywords": ["wordpress", "settings", "admin", "framework", "react"],
     "archive": {
         "exclude": [
@@ -23,7 +31,12 @@
             "/.gitignore",
             "/CHANGELOG.md",
             "/package.json",
-            "/package-lock.json"
+            "/package-lock.json",
+            "/phpunit.xml",
+            "/tests"
         ]
+    },
+    "require-dev": {
+        "10up/wp_mock": "^1.1"
     }
 }

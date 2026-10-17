@@ -13,6 +13,16 @@
       "type": "string",
       "description": "Optional page subtitle rendered under the title."
     },
+    "individual_options": {
+      "type": "boolean",
+      "default": false,
+      "description": "Store every field in its own wp_options row, named `option_prefix` + the field `id`, instead of one array under the page's `option_key`. A field's own `option_name` still takes precedence. Set before first release: toggling it after data is saved orphans existing rows."
+    },
+    "option_prefix": {
+      "type": "string",
+      "default": "",
+      "description": "Prepended to the row name of every field stored via `individual_options`. Explicit per-field `option_name` values are used exactly as written. Set before first release: changing it after data is saved orphans existing rows."
+    },
     "header_actions": {
       "type": "array",
       "description": "Buttons rendered in the page header next to Save/Reset. With `href` a button is a link; without, it POSTs the form values to the `{prefix}/header_action/{pageId}/{id}` filter.",
@@ -115,6 +125,11 @@
         },
         "access": { "$ref": "#/$defs/access" },
         "conditions": { "$ref": "#/$defs/conditionNode" },
+        "option_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Store this field in its own wp_options row with this exact name, instead of in the page's `option_key` array. Not prefixed by `option_prefix`."
+        },
         "args": {
           "type": "object",
           "description": "Type-specific options. Keys vary by `type`; see the per-type constraints."

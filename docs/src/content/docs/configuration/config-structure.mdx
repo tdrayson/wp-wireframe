@@ -16,6 +16,8 @@ return [
     'title'    => 'Page Title',              // Optional. Shown in the header.
     'subtitle' => 'A short description',     // Optional. Shown below the title.
     'header_actions' => [ /* … */ ],         // Optional. Buttons beside Save / Reset.
+    'individual_options' => false,           // Optional. Store every field in its own wp_options row.
+    'option_prefix'  => '',                  // Optional. Prefix for rows named after field ids.
     'tabs'     => [
         [
             'id'       => 'tab_id',
@@ -69,6 +71,7 @@ These are common to every field type:
 | `new_row`     | `bool`         | `false`  | Start the field at column 1 of a new grid row, even when the current row has room. No effect on small screens, where fields stack. |
 | `conditions`  | `array`        | `null`   | [Conditional visibility](/wp-wireframe/docs/features/conditional-visibility/) rules evaluated against current values.        |
 | `access`      | `string\|array`| `null`   | [Role / capability gating](/wp-wireframe/docs/features/role-based-access/). Strictly opt-in.                                 |
+| `option_name` | `string`       | unset    | Store this field in its own `wp_options` row instead of the page's settings array. See [Individual option storage](/wp-wireframe/docs/configuration/individual-option-storage/). |
 | `args`        | `array`        | `[]`     | Type-specific settings — `placeholder`, `rows`, `options`, `multiple`, `mode`, etc.                        |
 
 `new_row` also applies to repeater subfields. For example, the third field below starts a new row instead of filling the space left by the first two:

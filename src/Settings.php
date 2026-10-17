@@ -6,6 +6,7 @@ namespace Wireframe;
 
 use Wireframe\Framework\ConfigLoader;
 use Wireframe\Framework\Fields\FieldRegistry;
+use Wireframe\Framework\Fields\ToggleField;
 
 /**
  * Settings facade.
@@ -62,7 +63,7 @@ final class Settings
             $settings[$key] = $value;
         }
 
-        return update_option($optionKey, $settings);
+        return self::persist($optionKey, $settings);
     }
 
     /**
@@ -81,6 +82,10 @@ final class Settings
 
     /**
      * Remove a setting.
+     *
+     * Forgetting a top-level field stored in its own wp_options row also
+     * deletes that row. Dot-notation keys under such a field just persist
+     * the mutated row value.
      */
     public static function forget(string $optionKey, string $key): bool
     {
@@ -88,23 +93,37 @@ final class Settings
 
         if (str_contains($key, '.')) {
             self::dotForget($settings, $key);
-        } else {
-            unset($settings[$key]);
+
+            return self::persist($optionKey, $settings);
         }
 
-        return update_option($optionKey, $settings);
+        unset($settings[$key]);
+
+        $map = self::individualFieldMap($optionKey);
+
+        if (isset($map[$key])) {
+            delete_option($map[$key]['option']);
+        }
+
+        return self::persist($optionKey, $settings);
     }
 
     /**
      * Get all raw saved settings for an option key (no defaults merged).
+     *
+     * Fields stored in their own wp_options rows (via `option_name` or a
+     * root `individual_options`) are overlaid on top of the array option, so
+     * every read path sees a single combined value map. A row takes
+     * precedence over a legacy entry left in the array option.
      *
      * @return array<string, mixed>
      */
     public static function all(string $optionKey): array
     {
         $saved = get_option($optionKey, []);
+        $saved = is_array($saved) ? $saved : [];
 
-        return is_array($saved) ? $saved : [];
+        return self::overlayIndividual($optionKey, $saved);
     }
 
     /**
@@ -144,15 +163,24 @@ final class Settings
             }
         }
 
-        return update_option($optionKey, $values);
+        return self::persist($optionKey, $values);
     }
 
     /**
      * Delete all saved settings (fields revert to defaults).
+     *
+     * Also deletes the individual wp_options rows of fields configured
+     * with `option_name` / `individual_options`.
      */
     public static function reset(string $optionKey): bool
     {
-        return delete_option($optionKey);
+        $deleted = false;
+
+        foreach (self::individualFieldMap($optionKey) as $row) {
+            $deleted = delete_option($row['option']) || $deleted;
+        }
+
+        return delete_option($optionKey) || $deleted;
     }
 
     /**
@@ -348,12 +376,246 @@ final class Settings
 
     public static function updateFor(string $optionKey, array $values): bool
     {
-        return update_option($optionKey, $values);
+        return self::persist($optionKey, $values);
     }
 
     public static function resetFor(string $optionKey): bool
     {
         return self::reset($optionKey);
+    }
+
+    /**
+     * Reset only the given top-level fields, preserving everything else.
+     *
+     * Used by the REST controller's RBAC partial reset: individual rows
+     * are deleted, entries are stripped from the array option, and the
+     * array option itself is deleted once empty.
+     */
+    public static function resetFieldsFor(string $optionKey, array $fieldIds): bool
+    {
+        $map   = self::individualFieldMap($optionKey);
+        $saved = get_option($optionKey, []);
+        $saved = is_array($saved) ? $saved : [];
+
+        $changed = false;
+
+        foreach ($fieldIds as $fieldId) {
+            if (isset($map[$fieldId])) {
+                $changed = delete_option($map[$fieldId]['option']) || $changed;
+            }
+
+            if (array_key_exists($fieldId, $saved)) {
+                unset($saved[$fieldId]);
+                $changed = true;
+            }
+        }
+
+        if ($saved === []) {
+            return delete_option($optionKey) || $changed;
+        }
+
+        return update_option($optionKey, $saved) || $changed;
+    }
+
+    /**
+     * Find wp_options rows claimed by more than one owner across all booted
+     * pages: two individually stored fields resolving to the same row, or a
+     * field resolving to another page's `option_key`.
+     *
+     * Two plugins both using `individual_options` with an `enabled` field
+     * would otherwise silently share one row.
+     *
+     * @return list<string> One description per contested row.
+     */
+    public static function optionNameCollisions(): array
+    {
+        $owners = [];
+
+        foreach (App::pages() as $page) {
+            $owners[$page['option_key']] ??= ["settings array of page \"{$page['menu_slug']}\""];
+        }
+
+        foreach (App::pages() as $page) {
+            foreach (self::individualFieldMap($page['option_key'], $page['config']) as $fieldId => $row) {
+                $owners[$row['option']][] = "field \"{$fieldId}\" on page \"{$page['menu_slug']}\"";
+            }
+        }
+
+        $collisions = [];
+
+        foreach ($owners as $optionName => $claimants) {
+            if (count($claimants) > 1) {
+                $collisions[] = "wp_options row \"{$optionName}\" is used by the " . implode(', and the ', $claimants) . '.';
+            }
+        }
+
+        return $collisions;
+    }
+
+    /**
+     * Flag each colliding row name via _doing_it_wrong().
+     *
+     * Hooked on `wp_loaded` under WP_DEBUG, once every plugin has booted.
+     */
+    public static function reportOptionNameCollisions(): void
+    {
+        foreach (self::optionNameCollisions() as $collision) {
+            _doing_it_wrong(App::class . '::boot', esc_html($collision), '1.2.0');
+        }
+    }
+
+    // ─── Individual option storage internals ─────────
+
+    /**
+     * Map of top-level fields stored in their own wp_options rows.
+     *
+     * A field is stored individually when it declares a non-empty
+     * `option_name`, or when the config sets `individual_options` at the
+     * root (row name = `option_prefix` + raw field `id`). Repeater subfields and stateless
+     * field types are never stored individually, and a name colliding with
+     * the page's own option key is ignored.
+     *
+     * @return array<string, array{option: string, config: array}> Field ID → row name + field config.
+     */
+    private static function individualFieldMap(string $optionKey, ?string $configSlug = null): array
+    {
+        $configSlug ??= App::configSlugForOptionKey($optionKey);
+        $individual  = ConfigLoader::individualOptions($configSlug);
+        $prefix      = ConfigLoader::optionPrefix($configSlug);
+        $registry    = FieldRegistry::instance();
+        $map         = [];
+
+        foreach (ConfigLoader::flatFields($configSlug) as $fieldId => $fieldConfig) {
+            if (str_contains($fieldId, '.')) {
+                continue;
+            }
+
+            $optionName = self::optionNameFor($fieldConfig, $individual, $prefix);
+
+            if ($optionName === null || $optionName === $optionKey) {
+                continue;
+            }
+
+            $handler = $registry->get($fieldConfig['type'] ?? 'text');
+
+            if ($handler::isStateless()) {
+                continue;
+            }
+
+            $map[$fieldId] = ['option' => $optionName, 'config' => $fieldConfig];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Resolve the wp_options row name for a field, or null for array storage.
+     *
+     * An explicit `option_name` is used exactly as written; `$prefix` only
+     * applies to names derived from the field `id`.
+     */
+    private static function optionNameFor(array $fieldConfig, bool $individual, string $prefix): ?string
+    {
+        $explicit = $fieldConfig['option_name'] ?? null;
+
+        if (is_string($explicit) && $explicit !== '') {
+            return $explicit;
+        }
+
+        if ($individual && ($fieldConfig['id'] ?? '') !== '') {
+            return $prefix . $fieldConfig['id'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Overlay existing individual rows (decoded) onto the array option values.
+     */
+    private static function overlayIndividual(string $optionKey, array $saved): array
+    {
+        foreach (self::individualFieldMap($optionKey) as $fieldId => $row) {
+            if (self::rowExists($row['option'])) {
+                $saved[$fieldId] = self::decodeRow(get_option($row['option']), $row['config']);
+            }
+        }
+
+        return $saved;
+    }
+
+    /**
+     * Split individual fields out of the values array into their own rows,
+     * then write the remainder to the array option.
+     *
+     * Every field present in $values is written regardless of condition
+     * visibility, matching array storage. The REST save path already
+     * preserves hidden fields' stored values via its merged final values.
+     */
+    private static function persist(string $optionKey, array $values): bool
+    {
+        $map = self::individualFieldMap($optionKey);
+
+        if ($map === []) {
+            return update_option($optionKey, $values);
+        }
+
+        $array   = $values;
+        $changed = false;
+
+        foreach ($map as $fieldId => $row) {
+            if (array_key_exists($fieldId, $array)) {
+                $changed = update_option($row['option'], self::encodeRow($array[$fieldId])) || $changed;
+                unset($array[$fieldId]);
+            }
+        }
+
+        // Nothing left for the array option (e.g. `individual_options`):
+        // don't leave an empty row behind.
+        if ($array === []) {
+            return delete_option($optionKey) || $changed;
+        }
+
+        return update_option($optionKey, $array) || $changed;
+    }
+
+    /**
+     * Booleans are stored as '1'/'0' in individual rows: update_option(false)
+     * would store '' and make a no-op save indistinguishable from a failure.
+     */
+    private static function encodeRow(mixed $value): mixed
+    {
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        return $value;
+    }
+
+    /**
+     * Reverse encodeRow() and undo stringification of raw scalar rows.
+     */
+    private static function decodeRow(mixed $value, array $fieldConfig): mixed
+    {
+        $type    = $fieldConfig['type'] ?? 'text';
+        $handler = FieldRegistry::instance()->get($type);
+
+        if (is_a($handler, ToggleField::class, true)) {
+            return $value === '1' || $value === 1 || $value === true;
+        }
+
+        if (in_array($type, ['number', 'range'], true) && is_string($value) && is_numeric($value)) {
+            return $value + 0;
+        }
+
+        return $value;
+    }
+
+    private static function rowExists(string $optionName): bool
+    {
+        static $sentinel;
+        $sentinel ??= new \stdClass();
+
+        return get_option($optionName, $sentinel) !== $sentinel;
     }
 
     // ─── Dot notation internals ───────────────────────

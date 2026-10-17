@@ -41,10 +41,11 @@ return [
                             'id'          => 'ex_app_name',
                             'type'        => 'text',
                             'label'       => __('App name', 'field-reference'),
-                            'description' => __('Shown in the header of every email.', 'field-reference'),
+                            'description' => __('Shown in the header of every email. Stored in its own wp_options row specified in option_name.', 'field-reference'),
                             'default'     => 'Acme Newsletter',
                             'columns'     => 6,
                             'required'    => true,
+                            'option_name' => 'field_reference_app_name',
                         ],
                         [
                             'id'          => 'ex_slug',
@@ -163,11 +164,11 @@ return [
                     'description' => __('Decide who gets pinged and how often.', 'field-reference'),
                     'fields'      => [
                         [
-                            'id'      => 'ex_notifications_enabled',
-                            'type'    => 'toggle',
-                            'label'   => __('Enable notifications', 'field-reference'),
-                            'default' => true,
-                            'columns' => 12,
+                            'id'          => 'ex_notifications_enabled',
+                            'type'        => 'toggle',
+                            'label'       => __('Enable notifications', 'field-reference'),
+                            'default'     => true,
+                            'columns'     => 12,
                         ],
                         [
                             'id'          => 'ex_channels',
@@ -343,10 +344,10 @@ return [
                             'args'        => ['mode' => 'css', 'rows' => 6],
                         ],
                         [
-                            'id'    => 'ex_redirects',
-                            'type'  => 'repeater',
-                            'label' => __('Link redirects', 'field-reference'),
-                            'args'  => [
+                            'id'          => 'ex_redirects',
+                            'type'        => 'repeater',
+                            'label'       => __('Link redirects', 'field-reference'),
+                            'args'        => [
                                 'sortable'       => true,
                                 'collapsible'    => true,
                                 'duplicate_row'  => true,

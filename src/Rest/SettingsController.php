@@ -268,15 +268,7 @@ final class SettingsController
         if ($map->isLegacy()) {
             Settings::resetFor($page['option_key']);
         } else {
-            $saved = Settings::allFor($page['option_key']);
-            $editableTopLevel = self::editableTopLevelIds($map->editable);
-            $remaining = array_diff_key($saved, array_flip($editableTopLevel));
-
-            if (empty($remaining)) {
-                Settings::resetFor($page['option_key']);
-            } else {
-                Settings::updateFor($page['option_key'], $remaining);
-            }
+            Settings::resetFieldsFor($page['option_key'], self::editableTopLevelIds($map->editable));
         }
 
         do_action(App::hookName($page['prefix'], 'settings_reset'), $page['page_id']);

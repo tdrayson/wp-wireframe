@@ -27,6 +27,10 @@ add_action('init', function () {
         'config'     => [
             'title'    => __('QuickChat', 'quickchat'),
             'subtitle' => __('Drop-in support chat for your site.', 'quickchat'),
+            // Default:`false` saves all options in a single wp_option value as an array.
+	        // `true` saves each option individually using the field's id as the wp_options key.
+	        // Or configure specific fields with `option_name` to save only those as individual wp_options.
+            'individual_options' => true,
             'sections' => [
                 [
                     'id'          => 'connection',
@@ -34,7 +38,7 @@ add_action('init', function () {
                     'description' => __('Find these in your QuickChat dashboard under Settings → API.', 'quickchat'),
                     'fields'      => [
                         [
-                            'id'       => 'workspace_id',
+                            'id'       => 'quickchat_workspace_id',
                             'type'     => 'text',
                             'label'    => __('Workspace ID', 'quickchat'),
                             'required' => true,
@@ -42,7 +46,7 @@ add_action('init', function () {
                             'args'     => ['placeholder' => 'ws_...'],
                         ],
                         [
-                            'id'       => 'api_key',
+                            'id'       => 'quickchat_api_key',
                             'type'     => 'password',
                             'label'    => __('API key', 'quickchat'),
                             'required' => true,
@@ -56,14 +60,14 @@ add_action('init', function () {
                     'title'  => __('Appearance', 'quickchat'),
                     'fields' => [
                         [
-                            'id'      => 'accent_color',
+                            'id'      => 'quickchat_accent_color',
                             'type'    => 'color',
                             'label'   => __('Accent color', 'quickchat'),
                             'default' => '#3858e9',
                             'columns' => 6,
                         ],
                         [
-                            'id'      => 'position',
+                            'id'      => 'quickchat_position',
                             'type'    => 'select',
                             'label'   => __('Position', 'quickchat'),
                             'default' => 'bottom-right',
@@ -76,7 +80,7 @@ add_action('init', function () {
                             ],
                         ],
                         [
-                            'id'          => 'greeting',
+                            'id'          => 'quickchat_greeting',
                             'type'        => 'textarea',
                             'label'       => __('Greeting message', 'quickchat'),
                             'description' => __('Shown when the widget opens.', 'quickchat'),
@@ -90,21 +94,21 @@ add_action('init', function () {
                     'title'  => __('Behaviour', 'quickchat'),
                     'fields' => [
                         [
-                            'id'      => 'show_on_mobile',
+                            'id'      => 'quickchat_show_on_mobile',
                             'type'    => 'toggle',
                             'label'   => __('Show on mobile', 'quickchat'),
                             'default' => true,
                             'columns' => 6,
                         ],
                         [
-                            'id'      => 'hide_for_logged_in',
+                            'id'      => 'quickchat_hide_for_logged_in',
                             'type'    => 'toggle',
                             'label'   => __('Hide for logged-in users', 'quickchat'),
                             'default' => false,
                             'columns' => 6,
                         ],
                         [
-                            'id'          => 'delay_seconds',
+                            'id'          => 'quickchat_delay_seconds',
                             'type'        => 'number',
                             'label'       => __('Delay before showing (seconds)', 'quickchat'),
                             'default'     => 3,

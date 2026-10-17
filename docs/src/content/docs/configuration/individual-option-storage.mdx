@@ -1,0 +1,56 @@
+---
+title: Individual Option Storage
+description: Store fields in their own wp_options rows instead of the page's settings array.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+By default all fields on a page are saved together in a single `wp_options` array, named by the boot `option_key` (`{prefix}_settings` if unset). To store a field in its own row — handy when integrating with existing code that already calls `get_option()` / `update_option()`, or for easier WP-CLI and `pre_option_*` filter access — give it an `option_name`:
+
+```php
+['id' => 'app_name', 'type' => 'text', 'option_name' => 'my_plugin_app_name'],
+```
+
+Or opt in for every field at once with a root-level key:
+
+```php
+return [
+    'title'              => 'My Settings',
+    'individual_options' => true,          // field 'app_name' → option 'app_name'
+    'fields'             => [ /* ... */ ],
+];
+```
+
+With `individual_options` each row is named after the raw field `id` — useful when the options already exist in the database and don't share a naming convention; just make each field's `id` match its existing option name. A per-field `option_name` always wins over the root key, so exceptions stay easy.
+
+To namespace the generated row names, add an `option_prefix` (default `''`). It's prepended to every name derived from a field `id`; an explicit per-field `option_name` is still used exactly as written:
+
+```php
+return [
+    'individual_options' => true,
+    'option_prefix'      => 'my_plugin_',  // field 'app_name' → option 'my_plugin_app_name'
+    'fields'             => [ /* ... */ ],
+];
+```
+
+<Aside type="caution" title="Set these before your first release">
+Moving a field *into* its own row is safe (the legacy array value is migrated on the next save, see below), but changing `option_prefix` or a field's `option_name`, or turning `individual_options` / `option_name` back off, after data has been saved orphans the existing rows: the settings fall back to their defaults unless you migrate the rows yourself.
+</Aside>
+
+## How it behaves
+
+- **Reads fall back gracefully**: individual row → legacy value in the settings array → field `default`. Adding `option_name` to an already-deployed field just works; the first save migrates the legacy array entry into its own row.
+- **Booleans** (`toggle`, `checkbox`) are stored as `'1'` / `'0'` in the row (a raw `false` can't round-trip through `update_option()`), but `Settings::get()` / `Settings::bool()` and the settings page always give you a real `bool`. Third-party code reading the row directly gets `'1'` / `'0'`.
+- **Arrays** (repeaters, checkboxes, multi-selects) are stored serialized in the single row, exactly as `update_option()` normally handles arrays.
+- **Reset** deletes the individual rows along with the settings array; condition-hidden fields keep their stored rows on save, same as array storage.
+- **Naming is your responsibility** — pick option names that won't collide with other plugins (a name equal to the page's own option key is ignored). With `WP_DEBUG` on, a `_doing_it_wrong()` notice flags any row claimed by two fields, or by a field and another page's `option_key`, across every booted page.
+
+Other plugins and WP-CLI can then work with the value directly:
+
+```bash
+wp option get my_plugin_app_name
+```
+
+See the [QuickChat example](https://github.com/tdrayson/wp-wireframe/tree/main/examples/quickchat), which saves every field to its own row via `individual_options`.

@@ -9,3 +9,4 @@ wp-wireframe.zip
 # wanted in the production bundle.
 src/assets/*.map
 
+.phpunit.result.cache

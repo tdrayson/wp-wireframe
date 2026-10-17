@@ -53,6 +53,7 @@ final class Plugin
         // Surface config authoring mistakes during development only.
         if (defined('WP_DEBUG') && WP_DEBUG) {
             add_action('admin_notices', [ConfigValidator::class, 'adminNotice']);
+            add_action('wp_loaded', [Settings::class, 'reportOptionNameCollisions']);
         }
     }
 
