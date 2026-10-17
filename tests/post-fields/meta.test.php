@@ -113,6 +113,25 @@ App::boot(['prefix' => 'late-meta', 'field_groups' => [[
 ]]]);
 check('group claimed after wp_loaded gets its meta', true, array_key_exists('late_field', get_registered_meta_keys('post', 'late_meta')));
 
+$notices = [];
+add_action('doing_it_wrong_run', static function (string $function, string $message) use (&$notices): void {
+    $notices[] = $message;
+}, 10, 2);
+register_post_type('default_cpt', ['public' => true, 'show_in_rest' => true]);
+App::boot(['prefix' => 'defaults', 'field_groups' => [[
+    'id'       => 'default_group',
+    'title'    => 'Defaults',
+    'location' => ['default_cpt'],
+    'config'   => ['fields' => [
+        ['id' => 'default_count', 'type' => 'number', 'default' => '5'],
+        ['id' => 'default_broken', 'type' => 'number', 'default' => 'many'],
+    ]],
+]]]);
+$registered = get_registered_meta_keys('post', 'default_cpt');
+check('a default of the wrong type is coerced to the schema type', 5.0, $registered['default_count']['default'] ?? null);
+check('a default that cannot be coerced is dropped, keeping the key', [true, false], [isset($registered['default_broken']), array_key_exists('default', $registered['default_broken'] ?? [])]);
+check('the dropped default is reported', 1, count(array_filter($notices, static fn (string $m): bool => str_contains($m, 'default_broken'))));
+
 $memo = wp_insert_post(['post_type' => 'memo', 'post_status' => 'publish', 'post_title' => 'Memo', 'meta_input' => ['memo_secret' => 'a']]);
 rest('POST', "/wp/v2/memo/$memo/autosaves", ['title' => 'Memo, autosaved', 'meta' => ['memo_secret' => 'b']]);
 check('administrator, autosaves: gated field present', true, $revisionsHave("/wp/v2/memo/$memo/autosaves", 'memo_secret'));

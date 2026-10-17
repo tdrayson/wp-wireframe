@@ -209,10 +209,26 @@ final class MetaRegistrar
         ];
 
         if ($single && isset($field['default'])) {
-            $args['default'] = $field['default'];
+            $args += self::defaultArg($key, $field['default'], $valueSchema);
         }
 
         return $args;
+    }
+
+    /**
+     * Get the `default` arg coerced to the value schema, or none when it can't fit, since core then refuses the whole key.
+     *
+     * @return array{default?: mixed}
+     */
+    private static function defaultArg(string $key, mixed $default, array $schema): array
+    {
+        if (is_wp_error(rest_validate_value_from_schema($default, $schema, $key))) {
+            _doing_it_wrong(__CLASS__ . '::registerFor', sprintf('Field "%s": its "default" does not fit the %s type, so it was dropped.', esc_html($key), esc_html((string) $schema['type'])), '1.2.0');
+
+            return [];
+        }
+
+        return ['default' => rest_sanitize_value_from_schema($default, $schema, $key)];
     }
 
     /**
