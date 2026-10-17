@@ -133,7 +133,7 @@ check('a default of the wrong type is coerced to the schema type', 5.0, $registe
 check('a default that cannot be coerced is dropped, keeping the key', [true, false], [isset($registered['default_broken']), array_key_exists('default', $registered['default_broken'] ?? [])]);
 check('the dropped default is reported', 1, count(array_filter($notices, static fn (string $m): bool => str_contains($m, 'default_broken'))));
 
-// Access maps resolve once per group and user within a REST request, not once per post or meta key.
+// Access maps resolve once per group, user and post within a REST request, not once per meta key.
 as_user('administrator');
 $resolves = 0;
 $countResolves = static function (bool $allowed) use (&$resolves): bool {
@@ -150,7 +150,19 @@ $one      = $resolves;
 $resolves = 0;
 rest('GET', '/wp/v2/event', [], ['context' => 'edit', 'per_page' => 3]);
 remove_filter('wp-wireframe/access/resolve', $countResolves);
-check('a REST collection resolves access once per group, whatever its size', $one, $resolves);
+check('a REST collection resolves access once per post, not per meta key', $one * 3, $resolves);
+
+// A resolve filter that reads the global post answers per collection item.
+$plain   = wp_insert_post(['post_type' => 'memo', 'post_status' => 'publish', 'post_title' => 'Plain', 'meta_input' => ['memo_secret' => 'plain']]);
+$special = wp_insert_post(['post_type' => 'memo', 'post_status' => 'publish', 'post_title' => 'Special', 'meta_input' => ['memo_secret' => 'special']]);
+$perPost = static fn (bool $allowed): bool => $allowed || get_post()?->ID === $special;
+as_user('editor');
+add_filter('wp-wireframe/access/resolve', $perPost);
+$items = (array) rest('GET', '/wp/v2/memo', [], ['context' => 'edit', 'include' => [$plain, $special], 'orderby' => 'include'])->get_data();
+remove_filter('wp-wireframe/access/resolve', $perPost);
+$secrets = array_map(static fn (array $item): ?string => $item['meta']['memo_secret'] ?? null, $items);
+check('per-post resolve filters see each item\'s post', [null, 'special'], $secrets);
+as_user('administrator');
 
 check('a late group\'s keys are protected after protect() has run', [true, false], [is_protected_meta('admin_notes', 'post'), is_protected_meta('late_protected', 'post')]);
 App::boot(['prefix' => 'late-protect', 'field_groups' => [[

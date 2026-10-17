@@ -602,7 +602,9 @@ final class MetaRegistrar
             return self::resolveMap($postType, $group, $user);
         }
 
-        $key = get_current_blog_id() . ":{$postType}:{$group['owner']}:{$user->ID}";
+        // The global post is in the key because resolve filters may read it; REST sets it per collection item.
+        $postId = get_post()?->ID ?? 0;
+        $key    = get_current_blog_id() . ":{$postType}:{$group['owner']}:{$user->ID}:{$postId}";
 
         return self::$maps[$key] ??= self::resolveMap($postType, $group, $user);
     }
