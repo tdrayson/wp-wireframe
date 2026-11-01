@@ -1,0 +1,64 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/wp-admin/admin.php?page=field-reference",
+  "login": true,
+  "preferredVersions": {
+    "php": "8.2",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/58/events.zip?v=fa0bca8ed57e01ed99d3e76d27191aea82b4b055"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/58/field-reference.zip?v=fa0bca8ed57e01ed99d3e76d27191aea82b4b055"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/58/newsletter-signup.zip?v=fa0bca8ed57e01ed99d3e76d27191aea82b4b055"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "url",
+        "url": "https://tdrayson.github.io/wp-wireframe/pr/58/quickchat.zip?v=fa0bca8ed57e01ed99d3e76d27191aea82b4b055"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "options-view"
+      },
+      "options": {
+        "activate": true
+      }
+    }
+  ]
+}
