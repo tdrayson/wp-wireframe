@@ -267,6 +267,27 @@ return [
                             'columns'     => 6,
                             'args'        => ['min' => 10, 'max' => 10000, 'step' => 10, 'integer' => true],
                         ],
+                        [
+                            'id'      => 'ex_accent_color',
+                            'type'    => 'color',
+                            'label'   => __('Accent colour', 'field-reference'),
+                            'columns' => 4,
+                        ],
+                        [
+                            'id'      => 'ex_corner_radius',
+                            'type'    => 'number',
+                            'label'   => __('Corner radius (px)', 'field-reference'),
+                            'default' => 4,
+                            'columns' => 4,
+                        ],
+                        [
+                            'id'          => 'ex_footer_note',
+                            'type'        => 'text',
+                            'label'       => __('Footer note', 'field-reference'),
+                            'description' => __('new_row starts this field on its own line, though the row above has room.', 'field-reference'),
+                            'columns'     => 4,
+                            'new_row'     => true,
+                        ],
                     ],
                 ],
 

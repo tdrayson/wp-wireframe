@@ -4,6 +4,7 @@
 import { Button, BaseControl } from '@wordpress/components';
 import { useState, useCallback, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { gridColumn } from '../../utils/gridColumn';
 import { mapField } from '../../utils/mapConfig';
 import { interpolate } from '../../utils/interpolate';
 import { evaluateCondition } from '../../utils/conditions';
@@ -202,7 +203,6 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 
 										const subField = mapField( subConfig );
 										const EditComponent = customEditComponents[ subConfig.type ];
-										const columns = subConfig.columns || 12;
 
 										if ( ! EditComponent ) return null;
 
@@ -216,7 +216,7 @@ export default function RepeaterEdit( { data, field, onChange } ) {
 											<div
 												key={ subField.id }
 												className="wireframe-grid__cell"
-												style={ { gridColumn: `span ${ columns }` } }
+												style={ { gridColumn: gridColumn( subConfig ) } }
 											>
 												<EditComponent
 													data={ row }

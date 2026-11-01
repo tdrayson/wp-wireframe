@@ -6,6 +6,7 @@
  */
 import { useFieldStore } from '../hooks/useFieldStore';
 import { isFieldVisible, isSectionVisible } from '../utils/conditions';
+import { gridColumn } from '../utils/gridColumn';
 import { mapField } from '../utils/mapConfig';
 import { customEditComponents } from './fields';
 
@@ -39,7 +40,6 @@ export default function SettingsSection( { section } ) {
 				{ visibleFields.map( ( fieldConfig ) => {
 					const field = mapField( fieldConfig );
 					const EditComponent = customEditComponents[ fieldConfig.type ];
-					const columns = fieldConfig.columns || 12;
 
 					if ( ! EditComponent ) {
 						return null;
@@ -49,7 +49,7 @@ export default function SettingsSection( { section } ) {
 						<div
 							key={ field.id }
 							className="wireframe-grid__cell"
-							style={ { gridColumn: `span ${ columns }` } }
+							style={ { gridColumn: gridColumn( fieldConfig ) } }
 						>
 							<EditComponent
 								data={ values }

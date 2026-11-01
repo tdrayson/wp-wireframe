@@ -106,6 +106,7 @@
           "maximum": 12,
           "description": "Grid width out of 12 columns."
         },
+        "new_row": { "type": "boolean", "default": false, "description": "Start this field on a new grid row even if the current row has room." },
         "required": { "type": "boolean" },
         "readonly": { "type": "boolean" },
         "validation": {

@@ -66,9 +66,18 @@ These are common to every field type:
 | `required`    | `bool`         | `false`  | Whether the field must have a value at save time.                                                          |
 | `validation`  | `string`       | `''`     | Pipe-separated [validation rules](/wp-wireframe/docs/features/validation/) — e.g. `'min:3\|max:100'`.                  |
 | `columns`     | `int (1..12)`  | `12`     | Grid width. 12 = full row; 6 = half; 4 = third; etc.                                                       |
+| `new_row`     | `bool`         | `false`  | Start the field at column 1 of a new grid row, even when the current row has room. No effect on small screens, where fields stack. |
 | `conditions`  | `array`        | `null`   | [Conditional visibility](/wp-wireframe/docs/features/conditional-visibility/) rules evaluated against current values.        |
 | `access`      | `string\|array`| `null`   | [Role / capability gating](/wp-wireframe/docs/features/role-based-access/). Strictly opt-in.                                 |
 | `args`        | `array`        | `[]`     | Type-specific settings — `placeholder`, `rows`, `options`, `multiple`, `mode`, etc.                        |
+
+`new_row` also applies to repeater subfields. For example, the third field below starts a new row instead of filling the space left by the first two:
+
+```php
+['id' => 'a', 'type' => 'text', 'columns' => 4],
+['id' => 'b', 'type' => 'text', 'columns' => 4],
+['id' => 'c', 'type' => 'text', 'columns' => 4, 'new_row' => true],
+```
 
 ## Type-specific settings (`args`)
 
