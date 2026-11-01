@@ -17,6 +17,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
+import { FieldStoreContext } from './useFieldStore';
 
 /** @type {import('@wordpress/element').Context} */
 const SettingsContext = createContext( null );
@@ -206,9 +207,21 @@ export function SettingsProvider( { config, initialValues, hasSavedInitial, canS
 		pageId,
 	} ), [ config, values, setValue, setMultiple, isDirty, saving, errors, save, reset, hasSaved, canSave, canReset, restBase, restRoot, prefix, pageId ] );
 
+	const populate = useMemo(
+		() => ( { prefix, context: `settings:${ pageId }` } ),
+		[ prefix, pageId ]
+	);
+
+	const fieldStore = useMemo(
+		() => ( { config, values, setMultiple, errors, populate } ),
+		[ config, values, setMultiple, errors, populate ]
+	);
+
 	return (
 		<SettingsContext.Provider value={ contextValue }>
-			{ children }
+			<FieldStoreContext.Provider value={ fieldStore }>
+				{ children }
+			</FieldStoreContext.Provider>
 		</SettingsContext.Provider>
 	);
 }

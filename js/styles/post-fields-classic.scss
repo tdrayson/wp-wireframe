@@ -1,0 +1,35 @@
+/**
+ * Post field groups on the classic edit screen, layered over the block editor styles.
+ */
+
+.wireframe-classic-content {
+  margin-top: var(--wpds-dimension-gap-xl);
+
+  ~ #postdivrich {
+    display: none;
+  }
+}
+
+.wireframe-classic-group {
+  .wireframe-page__tabs-container {
+    position: static;
+    padding: 0;
+    margin-bottom: var(--wpds-dimension-gap-lg);
+    background: none;
+  }
+
+  .wireframe-page__tabs {
+    max-width: none;
+  }
+}
+
+.wireframe-classic-group__heading {
+  margin: 0 0 var(--wpds-dimension-gap-md);
+  padding: 0;
+  font-size: var(--wpds-typography-font-size-xl);
+}
+
+// Postboxes already pad their inside; the field rows sit flush with the box title.
+.postbox .wireframe-classic-group {
+  padding-block: var(--wpds-dimension-padding-sm);
+}

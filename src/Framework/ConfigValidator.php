@@ -122,10 +122,17 @@ final class ConfigValidator
 
         $args = is_array($field['args'] ?? null) ? $field['args'] : [];
 
+        $populated = in_array($type, ['select', 'radio', 'checkboxes'], true) && is_array($args['populate'] ?? null);
+
         if (in_array($type, ['select', 'radio', 'image_radio', 'checkboxes', 'image_checkboxes'], true)
             && empty($args['options'])
+            && !$populated
         ) {
-            $issues[] = sprintf('%s: field "%s" (%s) requires "args.options".', $where, $label, $type);
+            $issues[] = sprintf('%s: field "%s" (%s) requires "args.options" or "args.populate".', $where, $label, $type);
+        }
+
+        if ($populated) {
+            self::validatePopulate($args['populate'], $type, $label, $where, $issues);
         }
 
         if ($type === 'html' && empty($args['content'])) {
@@ -148,6 +155,33 @@ final class ConfigValidator
                     self::validateField($subfield, $validTypes, $seenIds, $issues, $where, $fullId . '.');
                 }
             }
+        }
+    }
+
+    /**
+     * Check a `populate` definition's type, query and callback key.
+     *
+     * @param array        $populate  `args.populate`.
+     * @param string       $fieldType Field type.
+     * @param string       $label     Field label for messages.
+     * @param string       $where     Location label for messages.
+     * @param list<string> $issues    Collected issue messages (by reference).
+     */
+    private static function validatePopulate(array $populate, string $fieldType, string $label, string $where, array &$issues): void
+    {
+        $type = $populate['type'] ?? 'query';
+
+        $problem = match (true) {
+            !empty($populate['fetch']) && $fieldType !== 'select'                                     => '"fetch" only applies to select fields',
+            !in_array($type, ['query', 'function', 'custom'], true)                                   => '"type" must be query, function or custom',
+            $type === 'query' && !in_array($populate['query'] ?? 'posts', ['posts', 'users', 'terms'], true) => '"query" must be posts, users or terms',
+            $type === 'function' && empty($populate['function'])                                      => 'type "function" requires "function"',
+            $type === 'custom' && empty($populate['custom'])                                          => 'type "custom" requires "custom"',
+            default                                                                                   => null,
+        };
+
+        if ($problem !== null) {
+            $issues[] = sprintf('%s: field "%s" populate: %s.', $where, $label, $problem);
         }
     }
 

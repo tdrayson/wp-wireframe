@@ -4,28 +4,20 @@
  * Each section is a card with title, description, and a 12-column
  * CSS grid of fields. Fields come as a sequential array with `id` keys.
  */
-import { useCallback } from '@wordpress/element';
-import { useSettings } from '../hooks/useSettings';
+import { useFieldStore } from '../hooks/useFieldStore';
 import { isFieldVisible, isSectionVisible } from '../utils/conditions';
 import { gridColumn } from '../utils/gridColumn';
 import { mapField } from '../utils/mapConfig';
 import { customEditComponents } from './fields';
 
 export default function SettingsSection( { section } ) {
-	const { values, setMultiple, errors } = useSettings();
+	const { values, setMultiple, errors } = useFieldStore();
 
 	if ( ! isSectionVisible( section, values ) ) {
 		return null;
 	}
 
 	const fields = section.fields || [];
-
-	const handleChange = useCallback(
-		( edits ) => {
-			setMultiple( edits );
-		},
-		[ setMultiple ]
-	);
 
 	// Filter to only visible fields.
 	const visibleFields = fields.filter( ( fieldConfig ) =>
@@ -62,7 +54,7 @@ export default function SettingsSection( { section } ) {
 							<EditComponent
 								data={ values }
 								field={ field }
-								onChange={ handleChange }
+								onChange={ setMultiple }
 								error={ errors[ field.id ] }
 							/>
 						</div>

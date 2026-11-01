@@ -18,11 +18,13 @@
 @use 'components/notices';
 @use 'components/section';
 @use 'components/field-errors';
+@use 'components/focus-ring';
 @use 'components/wp-list-table';
 
 // Fields
 @use 'fields/html';
 @use 'fields/checkbox-group';
+@use 'fields/token-field';
 @use 'fields/media';
 @use 'fields/image-choice';
 @use 'fields/repeater';

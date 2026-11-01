@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe\Framework\Fields;
 
 use Wireframe\Framework\Conditions;
+use Wireframe\Framework\Populate;
 
 class RepeaterField extends BaseField
 {
@@ -19,7 +20,6 @@ class RepeaterField extends BaseField
             return [];
         }
 
-        $subfields = $args['subfields'] ?? [];
         $registry  = FieldRegistry::instance();
         $maxRows   = $args['max_rows'] ?? 200;
         $rows      = array_slice(
@@ -27,6 +27,7 @@ class RepeaterField extends BaseField
             0,
             (int) $maxRows
         );
+        $subfields = Populate::resolveSubfields($args['subfields'] ?? [], $rows);
 
         return array_map(function (array $row) use ($subfields, $registry): array {
             $cleanRow = [];

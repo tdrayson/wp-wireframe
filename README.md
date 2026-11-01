@@ -16,6 +16,7 @@
 - **Validation & conditional fields** — server-side rules and show/hide logic built right into the field config
 - **Role-based access** — per-field view/edit gating using role slugs or capabilities
 - **Multi-page, repeaters, import/export, action buttons, i18n** — included out of the box
+- **Post fields** — ACF-style field groups on any post type, stored as native post meta and queryable with plain `WP_Query`
 - **Zero JS build** — pre-built React app ships with the package
 
 <a href="https://playground.wordpress.net/?blueprint-url=https://tdrayson.github.io/wp-wireframe/latest/blueprint.json"><img src="https://wordpress.github.io/action-wp-playground-pr-preview/assets/playground-preview-button.svg" width="200" alt="Try in Playground"></a>

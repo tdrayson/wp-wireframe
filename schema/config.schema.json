@@ -115,6 +115,34 @@
         },
         "access": { "$ref": "#/$defs/access" },
         "conditions": { "$ref": "#/$defs/conditionNode" },
+        "public": {
+          "type": "boolean",
+          "description": "Post fields only: include the value in public (view context) REST responses. Default false."
+        },
+        "column": {
+          "description": "Post fields only, on a storable field: show it as a column on the post type's admin list. `true`, or an object.",
+          "oneOf": [
+            { "type": "boolean" },
+            {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string", "description": "Column heading. Defaults to the field label." },
+                "sortable": { "type": "boolean", "description": "Let the list be sorted by this column. Ignored for multi-value fields and repeaters." },
+                "after": { "type": "string", "description": "Id of the column to follow. Defaults to `title`; field columns are `wireframe_{field_id}`." }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Post fields only, on a storable top-level field: ids it had before a rename, in priority order. Reads fall back to them, writes clear them, `wp wireframe migrate` moves the data."
+        },
+        "indexed": {
+          "type": "boolean",
+          "description": "Repeater subfields on post fields only: write the value to the index table so `wireframe_query` can match it."
+        },
         "args": {
           "type": "object",
           "description": "Type-specific options. Keys vary by `type`; see the per-type constraints."
@@ -122,6 +150,7 @@
       },
       "allOf": [
         { "$ref": "#/$defs/argsByType/choice" },
+        { "$ref": "#/$defs/argsByType/imageChoice" },
         { "$ref": "#/$defs/argsByType/repeater" },
         { "$ref": "#/$defs/argsByType/table" },
         { "$ref": "#/$defs/argsByType/html" },
@@ -207,12 +236,62 @@
         "type": ["string", "object"]
       }
     },
+    "populate": {
+      "type": "object",
+      "description": "Select, checkboxes and radio only: options filled from posts, users, terms or a callback, merged with the static `options`.",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["query", "function", "custom"], "description": "Default `query`." },
+        "query": { "type": "string", "enum": ["posts", "users", "terms"], "description": "Default `posts`. Runs WP_Query, WP_User_Query or WP_Term_Query." },
+        "arguments": { "type": "object", "description": "Query args. Defaults: published posts by title, all of them; users by display name; empty terms included." },
+        "return_format": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Object properties for each option. Defaults: ID/post_title, ID/display_name, term_id/name.",
+          "properties": {
+            "value": { "type": "string" },
+            "label": { "type": "string" }
+          }
+        },
+        "function": { "type": "string", "description": "Type `function`: a callable name (a closure in PHP config), called with the field; returns a value => label map." },
+        "custom": { "type": "string", "description": "Type `custom`: id of the `wp-wireframe/populate/{id}` filter that returns a value => label map." },
+        "position": { "type": "string", "enum": ["before", "after"], "description": "Where populated options go relative to the static `options`. Default `after`." },
+        "fetch": { "type": "boolean", "description": "Select only: ship just the stored labels and search as you type." }
+      }
+    },
     "argsByType": {
       "choice": {
         "if": {
           "properties": {
             "type": {
-              "enum": ["select", "radio", "image_radio", "checkboxes", "image_checkboxes"]
+              "enum": ["select", "radio", "checkboxes"]
+            }
+          },
+          "required": ["type"]
+        },
+        "then": {
+          "properties": {
+            "args": {
+              "type": "object",
+              "anyOf": [{ "required": ["options"] }, { "required": ["populate"] }],
+              "properties": {
+                "options": { "$ref": "#/$defs/optionMap" },
+                "populate": { "$ref": "#/$defs/populate" },
+                "multiple": { "type": "boolean" },
+                "allow_custom": { "type": "boolean" },
+                "placeholder": { "type": "string" },
+                "max": { "type": "integer" }
+              }
+            }
+          },
+          "required": ["args"]
+        }
+      },
+      "imageChoice": {
+        "if": {
+          "properties": {
+            "type": {
+              "enum": ["image_radio", "image_checkboxes"]
             }
           },
           "required": ["type"]
@@ -222,6 +301,7 @@
             "args": {
               "type": "object",
               "required": ["options"],
+              "not": { "required": ["populate"] },
               "properties": {
                 "options": { "$ref": "#/$defs/optionMap" },
                 "multiple": { "type": "boolean" },

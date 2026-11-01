@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Wireframe\Framework\Fields;
 
+use Wireframe\Framework\Populate;
+
 /**
  * Multi-checkbox field — stores an array of selected option keys.
  *
  * Structural validation ensures every selected value exists
- * in the declared options list.
+ * in the declared options list. Populated options must be resolved
+ * into `args.options` first; see Populate.
  */
 class CheckboxesField extends BaseField
 {
@@ -33,8 +36,8 @@ class CheckboxesField extends BaseField
         $options = $args['options'] ?? [];
 
         foreach ($value as $selectedValue) {
-            if (!array_key_exists($selectedValue, $options)) {
-                return sprintf('"%s" is not a valid option.', $selectedValue);
+            if (!self::isOption($selectedValue, $options)) {
+                return sprintf('"%s" is not a valid option.', is_scalar($selectedValue) ? $selectedValue : gettype($selectedValue));
             }
         }
 
@@ -56,8 +59,8 @@ class CheckboxesField extends BaseField
 
         $options = $args['options'] ?? [];
 
-        return array_values(
-            array_filter($value, fn(string $selectedValue) => array_key_exists($selectedValue, $options))
-        );
+        return Populate::typed($args, array_values(
+            array_filter($value, static fn (mixed $selectedValue): bool => self::isOption($selectedValue, $options))
+        ));
     }
 }

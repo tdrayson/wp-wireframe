@@ -17,8 +17,9 @@ final class Sanitizer
      *                               stateless fields are never persisted; the
      *                               action path passes true so transient inputs
      *                               (e.g. `upload`) still reach the handler.
+     * @param array<string, mixed> $stored Stored values by field id; a populated value stays valid while stored.
      */
-    public static function sanitize(array $payload, array $fields, array $visibilityMap = [], bool $includeStateless = false): array
+    public static function sanitize(array $payload, array $fields, array $visibilityMap = [], bool $includeStateless = false, array $stored = []): array
     {
         $registry = FieldRegistry::instance();
         $clean    = [];
@@ -34,7 +35,6 @@ final class Sanitizer
 
             $type    = $fieldConfig['type'] ?? 'text';
             $handler = $registry->get($type);
-            $args    = $fieldConfig['args'] ?? [];
             $default = $fieldConfig['default'] ?? null;
             $value   = $payload[$fieldId] ?? $default;
 
@@ -42,7 +42,7 @@ final class Sanitizer
                 continue;
             }
 
-            $clean[$fieldId] = $handler::sanitize($value, $args);
+            $clean[$fieldId] = $handler::sanitize($value, Populate::argsFor($fieldConfig, $value, $stored[$fieldId] ?? null));
         }
 
         return $clean;

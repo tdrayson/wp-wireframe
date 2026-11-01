@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Wireframe;
 
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\PostFields\FieldGroups;
 
 /**
  * Central bootstrap for WP Wireframe.
@@ -80,6 +81,7 @@ final class App
         ];
 
         self::resolvePages($config, $perBoot);
+        self::registerFieldGroups($config, $prefix);
 
         Plugin::instance();
     }
@@ -93,6 +95,10 @@ final class App
     private static function resolvePages(array $config, array $perBoot): void
     {
         $prefix = $perBoot['prefix'];
+
+        if (!empty($config['field_groups']) && empty($config['config']) && empty($config['pages'])) {
+            return;
+        }
 
         if (!empty($config['pages']) && is_array($config['pages'])) {
             foreach ($config['pages'] as $index => $pageConfig) {
@@ -140,6 +146,27 @@ final class App
             ];
 
             self::$optionKeyToConfig[$perBoot['option_key']] = $configSlug;
+        }
+    }
+
+    /**
+     * Register the `field_groups` entries of a boot config.
+     *
+     * @param array  $config The raw `boot()` config.
+     * @param string $prefix The consuming plugin's prefix.
+     */
+    private static function registerFieldGroups(array $config, string $prefix): void
+    {
+        foreach ((array) ($config['field_groups'] ?? []) as $group) {
+            if (!is_array($group)) {
+                _doing_it_wrong(__METHOD__, sprintf('Each "field_groups" entry for "%s" must be an array.', $prefix), '1.2.0');
+                continue;
+            }
+
+            $id = is_string($group['id'] ?? null) ? $group['id'] : '';
+            $group['config'] = self::resolveConfigSlug($group['config'] ?? [], "{$prefix}-group-{$id}");
+
+            FieldGroups::register($prefix, $group);
         }
     }
 

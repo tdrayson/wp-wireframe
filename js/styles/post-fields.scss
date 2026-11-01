@@ -1,0 +1,145 @@
+/**
+ * Post field groups in the block editor.
+ *
+ * Reuses the settings page partials for sections, tabs and fields.
+ */
+
+@use 'layout/grid';
+@use 'components/tabs';
+@use 'components/section';
+@use 'components/field-errors';
+@use 'components/focus-ring';
+@use 'fields/html';
+@use 'fields/checkbox-group';
+@use 'fields/token-field';
+@use 'fields/media';
+@use 'fields/image-choice';
+@use 'fields/repeater';
+@use 'fields/wysiwyg';
+@use 'fields/date';
+@use 'fields/color';
+@use 'fields/copyable';
+@use 'responsive';
+
+body.wireframe-content-mode {
+  // Ahead of the content area's `order: -1`, so notices stay under the editor header as on a normal screen.
+  .interface-interface-skeleton__content .editor-notices {
+    order: -2;
+  }
+
+  .editor-visual-editor,
+  .editor-text-editor,
+  .editor-document-tools__left > .editor-document-tools__inserter-toggle,
+  .editor-document-tools__left > .editor-document-tools__document-overview-toggle {
+    display: none;
+  }
+}
+
+.postbox.wireframe-group-inapplicable {
+  display: none;
+}
+
+.wireframe-post-fields {
+  --page-width: var(--wpds-dimension-surface-width-2xl);
+  font-family: var(--wpds-typography-font-family-body);
+
+  .wireframe-page__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wpds-dimension-gap-lg);
+  }
+}
+
+// Content area: a white header band over the settings page's off-grey, as on settings pages.
+.wireframe-content-area {
+  order: -1;
+  flex: 1 0 auto;
+  width: 100%;
+  background: var(--wpds-color-bg-surface-neutral-weak);
+
+  .wireframe-page__content {
+    padding-block: var(--wpds-dimension-padding-3xl);
+  }
+
+  .wireframe-page__tabs-container {
+    position: static;
+    padding: var(--wpds-dimension-padding-lg) 0 0;
+    border-bottom: 0;
+    background: none;
+  }
+}
+
+.wireframe-content-area__header {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  background: var(--wpds-color-bg-surface-neutral-strong);
+  border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  padding-top: var(--wpds-dimension-padding-2xl);
+
+  &:not(:has(.wireframe-page__tabs-container)) {
+    padding-bottom: var(--wpds-dimension-padding-lg);
+  }
+}
+
+.wireframe-content-area__column {
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding-inline: var(--wpds-dimension-padding-2xl);
+}
+
+.wireframe-content-area__title {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  resize: none;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: 2.5em;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--wpds-color-fg-content-neutral);
+}
+
+// Beats the focus ring partial: like the canvas title, only the caret shows focus.
+.wireframe-post-fields textarea.wireframe-content-area__title:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.wireframe-content-area__heading {
+  margin: var(--wpds-dimension-gap-md) 0 0;
+  font-size: var(--wpds-typography-font-size-xl);
+}
+
+.wireframe-meta-box {
+  .wireframe-section {
+    border: 0;
+    padding: 0;
+  }
+}
+
+.wireframe-sidebar-group {
+  .wireframe-section {
+    border: 0;
+    padding: 0;
+    background: none;
+  }
+
+  .wireframe-section__title {
+    font-size: var(--wpds-typography-font-size-md);
+  }
+
+  // SettingsSection spans every cell over 12 columns; 11 column gaps alone overflow a 280px panel.
+  .wireframe-grid {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+// Design tokens the partials use. Placed after @use blocks per Sass ordering rules.
+@import '@wordpress/theme/src/prebuilt/css/design-tokens.css';

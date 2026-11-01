@@ -155,4 +155,55 @@ final class Conditions
 
         return $map;
     }
+
+    /**
+     * Hide the fields, and repeater subfields, of tabs and sections whose own conditions fail.
+     *
+     * Only keys already in the map change, so a config without container conditions keeps its map as-is.
+     *
+     * @param array<string, bool> $map    Visibility map from visibilityMap().
+     * @param array               $config Normalized config from ConfigLoader::load().
+     * @param array               $values Current field values.
+     * @return array<string, bool>
+     */
+    public static function withContainers(array $map, array $config, array $values): array
+    {
+        foreach ($config['tabs'] ?? [] as $tab) {
+            $tabVisible = self::evaluate(self::containerRule($tab), $values);
+
+            foreach ($tab['sections'] ?? [] as $section) {
+                if ($tabVisible && self::evaluate(self::containerRule($section), $values)) {
+                    continue;
+                }
+
+                foreach ($section['fields'] ?? [] as $field) {
+                    $map = self::hideField($map, (string) ($field['id'] ?? ''));
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Get a tab's or section's `conditions`, or null when it has none.
+     */
+    private static function containerRule(array $container): ?array
+    {
+        return is_array($container['conditions'] ?? null) ? $container['conditions'] : null;
+    }
+
+    /**
+     * Mark a field and its `{id}.{sub}` subfields hidden in a visibility map.
+     */
+    private static function hideField(array $map, string $fieldId): array
+    {
+        foreach (array_keys($map) as $key) {
+            if ($key === $fieldId || str_starts_with((string) $key, "{$fieldId}.")) {
+                $map[$key] = false;
+            }
+        }
+
+        return $map;
+    }
 }

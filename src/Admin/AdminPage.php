@@ -8,6 +8,7 @@ use Wireframe\App;
 use Wireframe\Framework\Access\AccessResolver;
 use Wireframe\Framework\Access\PageFlags;
 use Wireframe\Framework\ConfigLoader;
+use Wireframe\Framework\Populate;
 use Wireframe\Settings;
 
 /**
@@ -307,7 +308,7 @@ final class AdminPage
     /**
      * Enqueue WordPress editor assets (TinyMCE, CodeMirror, Media Library).
      */
-    private static function enqueueWordPressEditors(): void
+    public static function enqueueWordPressEditors(): void
     {
         wp_enqueue_editor();
 
@@ -356,10 +357,11 @@ final class AdminPage
          * @param ConfigAccessMap $map    The access map used to produce $config.
          */
         $config = apply_filters('wp-wireframe/config/for_user', $config, $pageId, $map);
+        $values = Settings::resolvedFor($optionKey, $configSlug);
 
         $data = [
-            'config'   => $config,
-            'values'   => Settings::resolvedFor($optionKey, $configSlug),
+            'config'   => Populate::resolveConfig($config, $values),
+            'values'   => $values,
             'hasSaved' => Settings::existsFor($optionKey),
             'canSave'  => PageFlags::canSave($page, $map),
             'canReset' => PageFlags::canReset($page, $map),
